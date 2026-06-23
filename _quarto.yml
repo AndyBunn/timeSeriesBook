@@ -37,7 +37,7 @@ book:
         - 08TimeSeries-Filters.qmd
         - 09TimeSeries-Freq.qmd
     - 10PackagesUsed.qmd
-  repo-url: https://github.com/AndyBunn/timeSeriesNotes
+  repo-url: https://github.com/AndyBunn/timeSeriesBook
   repo-actions: [edit, issue]
 
 bibliography:

@@ -69,10 +69,10 @@ To follow along with the examples, you'll want a working RStudio project.
 2.  **Download the `data/` folder**\
     The datasets used in the examples are available in the `data/` folder of the course repository. Download that folder and place it inside your project directory.
 
-You can [download the data directly](https://github.com/AndyBunn/timeseriesNotes/releases/download/data-latest/data.zip) from the GitHub [repo](https://github.com/AndyBunn/timeseriesNotes). Here is a hard link to it:
+You can [download the data directly](https://github.com/AndyBunn/timeSeriesBook/releases/download/data-latest/data.zip) from the GitHub [repo](https://github.com/AndyBunn/timeSeriesBook). Here is a hard link to it:
 
 ```
-https://github.com/AndyBunn/timeseriesNotes/releases/download/data-latest/data.zip
+https://github.com/AndyBunn/timeSeriesBook/releases/download/data-latest/data.zip
 ```
 
 Once it's unzipped your folder structure should look something like this:
