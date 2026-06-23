@@ -1,6 +1,8 @@
 project:
   type: book
   output-dir: docs
+  resources:
+    - CNAME
 
 book:
   title: "Time Series Analysis for Environmental Science"
