@@ -1,6 +1,6 @@
 # Why Time Series
 
-Most environmental data are time series data. Temperature records. Streamflow. Tree rings. Species abundance counts. CO~2~ measured at Mauna Loa. All of it indexed to time, all of it carrying a signature of the processes that generated it.
+Many environmental data are time series. Temperature records. Streamflow. Tree rings. CO~2~ measured at Mauna Loa. All of it indexed to time, all of it carrying a signature of the processes that generated it.
 
 But it goes further than that. Even data sets that aren't obviously temporal -- a soil sample, a species survey, a water chemistry measurement -- exist in time. They were collected at a moment, and the system that produced them has a history. Time is the dimension that almost every environmental process moves through, and most of those processes have structure in time: cycles, trends, memory, responses to forcing. Learning to read that structure is part of what it means to do environmental science.
 

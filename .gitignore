@@ -18,10 +18,12 @@ todo.txt
 .DS_Store
 data.zip
 .positai
-# docs/ is kept for GitHub Pages
-# _freeze/ is kept for freeze: auto (do not ignore)
-BOOK-PLAYBOOK.md
-CRC-POLISH.md
-NOTES-TO-BOOK-SPEC.md
-Steps2Publication.md
+# docs/ is built and deployed by GitHub Actions (publish.yml), not committed
 docs/
+# _freeze/ is kept for freeze: auto (do not ignore)
+# working files (kept off GitHub)
+BOOK-PLAYBOOK.md
+NOTES-TO-BOOK-SPEC.md
+CRC-POLISH.md
+Steps2Publication.md
+BACKLOG.md
