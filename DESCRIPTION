@@ -24,6 +24,7 @@ Imports:
     rmarkdown,
     slider,
     tidyverse,
+    tseries,
     tsibble,
     waveslim,
     zoo

@@ -1,449 +1,312 @@
-# AR(p), ACF, PACF, etc.
+# Autocorrelation
 
-```{r,echo=FALSE}
+```{r}
+#| label: auto-setup
+#| echo: false
 set.seed(872)
-#knitr::purl("03TimeSeries-Autocorrelation.Rmd")
 ```
 
 ## Big Idea
 
-The values in a time series are often not independent -- that can be a good thing to find out -- understanding what the autocorrelation is like can often tell you a lot about what the underlying processes looks like.
-
-## Reading
-Have a look at Chapter two from @Cowpertwait2009. It's OK to skim the readings in this book. It's not a great book for our purposes as many of you haven't taken linear algebra and the book occasionally goes that way. But it's useful to hum your way through the chapter nonetheless.
+The whole premise of this book is that the values in a time series lean on their neighbors. Autocorrelation is how we measure that lean. It is the correlation of a series with delayed copies of itself, and it turns out to be one of the most informative things you can compute about a temporal process, because the shape of the autocorrelation is a fingerprint of the mechanism that made the data. A series where each value depends strongly on the one before looks different from a series where the dependence stretches back several steps, and both look different from noise. This chapter builds the two tools that read that fingerprint, the autocorrelation function and its partial cousin, and ties them to the simplest model of temporal dependence there is: the autoregressive process, where today is a regression on its own past.
 
 ## Packages
-I'll use `tidyverse` [@R-tidyverse] some. And we will use the `forecast` [@R-forecast]  and `gridExtra` [@R-gridExtra] package as well.
 
-```{r, message=FALSE}
+We use the `tidyverse` for wrangling and plotting and `tsibble` to hold series as tidy tables, as in the earlier chapters. The `forecast` package gives us ggplot-ready ACF and PACF functions, and `gridExtra` helps lay a few plots out together.
+
+```{r}
+#| label: auto-packages
+#| message: false
 library(tidyverse)
+library(tsibble)
 library(forecast)
 library(gridExtra)
 ```
 
-```{r,echo=FALSE}
-op <- par(no.readonly = TRUE)
-```
+## Autocorrelation and the AR(1) Process
 
-## Correlation and Covariance
-The book spends a good deal of time on how to define correlation and covariance in the context of time series analysis. Read that stuff over  even though you've covered it all before. This is important material to be aware of for a few reasons when doing time series but the biggest is the idea of stationarity. A stationary time series is one whose statistical properties such as mean and variance are constant over time and do not follow any trends. A little more formally, that means that a stationary time series is a random process whose joint probability distribution does not change over time. We will come back to this as we get into forecasting.
+Autocorrelation means that values in a series are correlated with each other as a function of how far apart they are in time. Tree-ring widths are the example I reach for first, because the biology makes the dependence concrete. A wide ring in year $t$ is related to the ring in year $t-1$, and to $t-2$, because the tree carries resources forward. Stored sugars from a good year prime growth the next year; a network of fine roots built in one season is still there working the next. The width this year is partly a regression on the width last year. The simplest way to write that down is a first-order autoregressive process:
 
-Brush up on what correlation is and why is isn't regression in the [Correlation is not Regression aside](03xAsideCorrelationVersusRegression.html)
+$$ y_t = \phi y_{t-1} + \epsilon_t $$
 
-## Autocorrelation
-Autocorrelation is a central feature of many time series. It means that values in a time series are correlated with each other as a function of time. For instance, tree-ring data are autocorrelated so that a measurement like ring width in year $t$ is related to year in $t-1$, $t-2$, etc. If you think about the biology of how rings are formed you can imagine the mechanisms at play in terms of stored photosynthate, fine root generation, etc. Here is a simple way of writing a first-order autoregressive process where the prior observation influences the current observation:
-$$ y_t = \phi y_{t-1} + \epsilon_t$$
+Here $y$ is the series, $t$ indexes time, $\phi$ (pronounced "fie," or "fee" if you are in Greece) is a coefficient between -1 and 1, and $\epsilon$ is a fresh disturbance at each step. That disturbance goes by several names: the error, the noise, the residual, and in time-series writing you will often see it called a shock, to stress that it is new information arriving at time $t$ that the past could not have predicted. We call this an AR(1) model, first-order because $y_t$ reaches back exactly one step. You will sometimes see it written $y_t - \phi y_{t-1} = \epsilon_t$. I prefer keeping $y_t$ alone on the left so it reads as the regression it is.
 
-where $y$ is a time series, $t$ is a measurement in time, $\phi$ (usually pronounced as "fie" but in Greece they'd say "fee") is a coefficient ranging from -1 to 1, and $\epsilon$ is some other process. The term $\epsilon$ is typically called the error, the noise or the residuals but in time series lingo you'll see it called the the random shock sometimes too. We call this a first-order autoregressive model and notate it as AR(1). Note that you'll  see this in some books written out slightly differently as $y_t - \phi y_{t-1} = \epsilon_t$. I prefer thinking about it as a regression and so prefer the $y$ term to be by itself on the left hand side of the equation. 
+The arithmetic is cleaner when the series has a mean of zero, so by convention we subtract the mean first, $y = Y - \bar Y$, and work with the centered series. We will stick to data centered at zero for now.
 
-Operationally the math works out to be easier if the series has a mean of zero. So we typically remove the mean of the data to create a mean-adjusted time series if the series has a mean not equal to zero via $y=Y-\bar{Y}$. We'll just stick with data that have a mean of zero for now.
-
-For now, let's generate an AR(1) time series by hand. Later we'll learn a better way to do this using the `arima.sim()` function, but until that happy day:
+Let's generate an AR(1) series by hand. Later we will meet `arima.sim`, which does this in one line, but building it with a loop shows you the machinery.
 
 ```{r}
+#| label: auto-ar1-sim
+#| fig-height: 3
 n <- 500
-x <- 1:n
-epsilon <- rnorm(n = n,mean = 0,sd = 1) # white noise
-y <- numeric(length = n)
 phi <- 0.7
-for(i in 2:n){
-  y[i] <- phi * y[i-1] + epsilon[i]  
+epsilon <- rnorm(n)             # white noise shocks
+y <- numeric(n)
+for (i in 2:n) {
+  y[i] <- phi * y[i - 1] + epsilon[i]
 }
-ggplot() + geom_line(aes(x=x,y=y)) + theme_minimal()
+
+ggplot(tibble(t = 1:n, y), aes(t, y)) +
+  geom_line() +
+  labs(x = "Time", y = expression(y[t])) +
+  theme_minimal()
 ```
 
-Take a look at how we did this. We initialized with a value of zero and then started building `y` on the second value. We couldn't start the loop at `i=1` because we needed the prior year for an AR(1) model. Keep this in mind when you get to the section for your work below. We could have started the time series with a random number instead of a zero if we were feeling adventurous. E.g., before the loop we could have set `y[1]=rnorm(1)`.
+Look at how that was put together. We started with a vector of zeros and began building on the second value, because an AR(1) step needs the prior value and there is nothing before the first. We could have seeded `y[1]` with a random draw instead of a zero, but the zero washes out quickly. Run the loop and redraw the plot a half-dozen times to get a feel for the shape. Then compare it to a series with no memory at all, `plot(rnorm(n), type = "l")`. The autocorrelated series has a smoothness to it, a tendency to stay where it is for a while, that pure noise lacks.
 
-Run that loop above and make the plot a half dozen or so times. Get a feel for what that time series looks like. Compare it to uncorrelated times series: `plot(rnorm(n),type="l")`.
+We planted a known $\phi = 0.7$ in that series. The first thing we will do with the tools below is see whether we can read it back out.
 
-## Autocorrelation Function
-### The Very Fun Presentation
-Go read [Allison Horst's on autocorrelation](https://allisonhorst.com/time-series-acf) on the autocorrelation function (ACF). She is **amazing** and I read everything she does with awe. 
+## The Autocorrelation Function
 
-```{r, echo=FALSE, out.width = '100%'}
+### The fun version
+
+Go read [Allison Horst's piece on the autocorrelation function](https://allisonhorst.com/time-series-acf). She is wonderful and I read everything she makes with a little envy.
+
+```{r}
+#| label: auto-horst-gif
+#| echo: false
+#| out-width: '100%'
 knitr::include_graphics("assets/allison_horst/host_acf_images.gif", error = FALSE)
 ```
 
+### The less fun version
 
-## The Boring Presentation
-Fun time is over! 
-
-How strongly correlated is $y_t$ with $y_{t-1}$? The answer should be $\rho_{y_t,y_{t-1}} \approx \phi$ as above and we can calculate this via `cor(y[2:n],y[1:(n-1)])` which is `r round(cor(y[2:n],y[1:(n-1)]),4)` for this particular random seed. The remainder ($\epsilon$) is white noise. 
-
-This is the standard way you are used to seeing correlation between two variables (e.g., $x$ and $y$) but in this case we are looking at how $y$ correlates with itself at different lags. Thus, more formally we can refer to autocorrelation of $\rho$ at lag $k$ as:
-
-$$\rho(k) = \frac{\frac{1}{n-k}\sum_{t=k+1}^n (y_t - \bar{y})(y_{t-k} - \bar{y})}{
-\sqrt{\frac{1}{n}\sum_{t=1}^n (y_t - \bar{y})}\sqrt{\frac{1}{n-k}\sum_{t=k+1}^n (y_{t-k} - \bar{y})}}$$
-
-So how do you assess autocorrelation more generally? You calculate $\rho$ for successive lags $k$ and plot it. We do this with the function `Acf` which produces a figure called a correlogram. Note that we are using the function `Acf` in `forecast` rather than the canonical `acf` function in stats. There are a few differences that you can read about (`?Acf`) but the two functions are essentially similar. 
+How strongly is $y_t$ correlated with $y_{t-1}$? For our AR(1) series the answer should be close to $\phi$, and we can check it by correlating the series with a one-step-shifted copy of itself.
 
 ```{r}
+#| label: auto-recover-phi
+round(cor(y[2:n], y[1:(n - 1)]), 4)
+```
+
+That comes out to about `r round(cor(y[2:n], y[1:(n-1)]), 4)`, against the `r phi` we planted. We recovered the coefficient from nothing but the data. That is the recurring move of the whole book: simulate a process with a known answer, then confirm the tool finds it, so that when we turn the tool on data whose answer we do not know, we trust it.
+
+This is the same correlation you already know, applied to a series and a lagged version of itself rather than to two different variables. Written out for a general lag $k$, the autocorrelation $\rho$ is
+
+$$\rho(k) = \frac{\frac{1}{n-k}\sum_{t=k+1}^n (y_t - \bar{y})(y_{t-k} - \bar{y})}{
+\sqrt{\frac{1}{n}\sum_{t=1}^n (y_t - \bar{y})^2}}$$
+
+To see the whole autocorrelation structure at once, you compute $\rho$ at successive lags and plot it. That plot is called a correlogram, and the function `Acf` draws it. We use `Acf` from `forecast` rather than the base `acf`; they are nearly identical (see `?Acf` for the small differences).
+
+```{r}
+#| label: auto-acf
+#| fig-height: 3
 Acf(y)
 ```
 
-This produces a plot of the correlation ($r$) at lags ($k$). The autocorrelation value at the first lag ($k=1$) is $\phi=`r  round(cor(y[2:n],y[1:(n-1)]),4)`$ which is very close to the value of $\phi$ we set above. But also note that there is autocorrelation at higher lags ($k=2, k=3$) that follows a decay of $\phi^k$ ($\phi_2=\phi^2$, $\phi_3=\phi^3$, etc.). 
+The correlogram shows the correlation at each lag. The lag-1 bar sits right at the $\phi$ we recovered above. Notice that the autocorrelation does not stop at lag 1: there is still correlation at lags 2 and 3, decaying as $\phi^k$ ($\phi^2$, $\phi^3$, and so on). That geometric decay is the AR(1) signature in the ACF.
 
-The correlogram provides a great visualization into the autocorrelation structure and can also tell us whether the correlation is significantly different from zero. The assumption is that the correlation at lag $k$ should be zero if the series is an independent and identically distributed random variable. Specifically, the statistic $r$ estimates the true value of the parameter $\rho$: $E(\rho_k)=-1/N$ and the variance is $Var(\sigma^2_k)=1/N$. Thus, the 95% confidence limits for the statistic $r$ in the correlogram can be added to the plot (dashed lines) as $0 \pm 1.96 / \sqrt N$. The `acf` function plots the confidence intervals at a default value of 95% using the argument `ci` via:
+The dashed lines are a significance band. If the series were independent noise, the correlation at any lag would be near zero, with a sampling spread of about $1/\sqrt{n}$. The 95% band is drawn at $\pm 1.96/\sqrt n$.
+
 ```{r}
-ci <- 0.95
-qnorm((1 + ci)/2)/sqrt(n)
+#| label: auto-ci
+qnorm((1 + 0.95) / 2) / sqrt(n)
 ```
 
+A word of caution that is really the first conviction of this book in miniature. We just tested 25 lags. With a 95% band, you expect roughly one bar in twenty to poke past the line by chance even if the series is pure noise. So a single lag outside the band is no reason to fire off a paper to *Nature*. Read the plot against the mechanism. A strong lag-1 correlation in a biological or physical system that has obvious memory is meaningful; a lone barely-significant spike at lag 18 is probably nothing. Always ask whether what you see in the data makes sense for the process that made it.
 
-Ok. You should be hip to the idea that by testing 25 lags like we did in the figure above means that having any one given lag $k$ outside the 95% confidence limits is no reason to fire off a paper to Nature. I.e., you might well see a value outside the limits even if the time series is drawn from a random population. The key is interpreting the figure according to the properties of the system. A strong significant autocorrelation at lag 1 makes good sense in many biological or physical systems while an isolated barely significant value at, say, lag 18 is unlikely to be something you should get excited about. Always think in terms of mechanism -- does what you see in the data make sense? 
-
-How can we can extract the actual numbers from the ACF object? Figuring out how to do so might take a little sleuthing on your part. If you look at the help page for `acf` you'll see that the output produces an array called `acf` which contains the information on the correlations at various lags. Running `str` on the ACF object helps too. As always, `str` is your friend! Thus:
+You will often want the numbers, not just the picture. They live inside the object `Acf` returns; `str` is, as always, your friend for finding them.
 
 ```{r}
-yACF <- Acf(y,plot=FALSE)
-str(yACF)
-yACF$acf[,1,1]
+#| label: auto-acf-values
+yACF <- Acf(y, plot = FALSE)
+yACF$acf[, 1, 1]
 ```
 
-Note that value of 1.0 at lag zero. Ugh. I hate that. It shows that when you correlate $y$ to $y$, the correlation is one. There are reasons I can explain for why that is included but it's mostly there annoy me I think.
+Note the 1.0 at lag zero. Every series is perfectly correlated with itself at no lag, so that bar is always there and always one. I find it a little annoying, but that is the convention.
 
-So, the data above follow an AR(1) model and the `acf` plot lets us visualize the autocorrelation structure. 
+Because we are living in the tidyverse, it is worth knowing that `forecast` also ships a ggplot version, `ggAcf`, which we will lean on from here.
 
-### Tidy
-Another benefit of using `Acf` over `acf` is that there is a pre-rolled `ggplot` function ready to go.
 ```{r}
+#| label: auto-ggacf
+#| fig-height: 3
 ggAcf(y) + theme_minimal()
 ```
 
-## Partial Autocorrelation Function
-### PACF
-Let's revisit our observation above that while $\phi$ affects $y_{t-1}$ we still see autocorrelation at higher lags ($k=2, k=3$). Why? Because if $y_t$ and $y_{t-1}$ are correlated, then  $y_{t-1}$ and $y_{t-2}$ must also be correlated. Thus, $y_{t}$  and $y_{t-2}$ will be correlated because they are both connected to  $y_{t-1}$. What we'd like to do next is remove that decaying echo using partial regression.
+## The Partial Autocorrelation Function
 
-The `Pacf` function lets us look at the partial autocorrelation which shows conditional correlation at lag $k$ after we take into account effects of the the prior lags. Partial regression lets us measure the linear dependence of one variable after removing the effect of another variable. Thus at lag 2, the partial autocorrelation of measures the effect (linear dependence) of $y_{t-2}$ on $y_t$ after removing the effect of that $y_{t-1}$ has on $y_{t-2}$.
+Return to the puzzle from the ACF: why is there correlation at lags 2 and 3 when our model only reaches back one step? Because the dependence chains. If $y_t$ leans on $y_{t-1}$, and $y_{t-1}$ leans on $y_{t-2}$, then $y_t$ and $y_{t-2}$ are correlated secondhand, through the value between them. The lag-2 correlation in the ACF is partly that echo.
 
-Our expectation for `y` is that after taking the AR(1) model into account the correlation at subsequent lags should fall to zero. In other words, if we have a parsimonious model for a first-order process the partial correlations should be very small. Let's look:
+The partial autocorrelation strips the echo out. The partial autocorrelation at lag $k$ is the correlation between $y_t$ and $y_{t-k}$ after the effect of the intervening lags has been removed, which is exactly what a regression coefficient does when it controls for the other predictors. The `Pacf` function computes it.
 
 ```{r}
+#| label: auto-pacf
+#| fig-height: 3
 ggPacf(y) + theme_minimal()
 ```
 
-Interpreting ACF plots is pretty straightforward, but what does the PACF plot mean? Well, if you have an AR(1) process the remaining autocorrelation at higher lags will be near zero in your PACF plot. That is, if the true process is AR(1), all autocorrelation is removed from the model -- even the residual autocorrelation from the geometric decrease seen at higher lags in the ACF plot. Thus, if you have an AR(1) process, the ACF decays geometrically while the PACF falls to zero (zero'ish) abruptly after lag 1. If you still see a geometric progression decline in a PACF plot you might be looking at different process, like an MA(1) process. We will get there next week but look at [Why the ACF and PACF Look the Way They Do in an MA(1) Process aside](03xAsideMA1-ACF-PACF-Interp.html) now for the details if you like.
+For an AR(1) process, once you account for the lag-1 relationship there is nothing left to explain at higher lags, so the partial autocorrelation drops to near zero after lag 1. That gives the pair of signatures you will use constantly: an AR(1) process has an ACF that decays geometrically and a PACF that cuts off sharply after lag 1. If instead the PACF is the one that decays slowly, you may be looking at a moving-average process, which we meet next chapter. For why an MA process flips the picture, see the [aside on MA(1) ACF and PACF shapes](03xAsideMA1-ACF-PACF-Interp.html).
 
-### Underneath the Hood of PACF
-How does PACF work? How does it relate to the ACF values? How you can get a feel for what PACF is all about? Good questions. So, let's take a look under the hood of the `Pacf` function so to speak. The most straightforward answer involves unpacking the idea that the sample autocorrelations and the partial autocorrelations relate via the [Durbin-Levinson recursion](http://en.wikipedia.org/wiki/Levinson_recursion). But I'll show an example here that gives the idea using the coefficients from a linear model.
+If you want to see that the partial autocorrelation really is just a stack of regression coefficients, with the `Pacf` function reproduced from scratch three different ways, that is the [aside on the PACF by hand](03xAsidePACFByHand.html). It is optional, but it demystifies the function.
 
-Recall $y$ from the last section.
+## From AR(1) to AR(p)
 
-```{r,echo=FALSE,eval=FALSE}
-ggplot() + geom_line(aes(x=x,y=y)) + theme_minimal()
-```
+The AR(1) idea extends to longer memory. An autoregressive model of order $p$, written AR(p), lets the current value depend on the previous $p$ values:
 
-Now, let's warm up by doing the autocorrelation "by hand" using the `cor` function as well as the `Acf` function:
+$$ y_t = \sum_{i=1}^p \phi_i y_{t-i} + \epsilon_t $$
 
-```{r}
-yACF <- Acf(y,plot=FALSE)
-# ACF for lag 1 and lag 2
-round(yACF$acf[2,,],2)
-round(yACF$acf[3,,],2)
-# Done by hand
-yLag1 <- c(y[-1],NA)
-yLag2 <- c(y[-c(1,2)],NA,NA)
-round(cor(yLag1,y,use = "complete.obs"),2)
-round(cor(yLag2,y,use = "complete.obs"),2)
-```
+So an AR(2) model is $y_t = \phi_1 y_{t-1} + \phi_2 y_{t-2} + \epsilon_t$, an AR(3) adds a $\phi_3 y_{t-3}$ term, and so on. Higher-order models have longer memory, reaching further into the past. We will fit and interpret them shortly. For now, hold onto the idea that $p$ is how many steps back the process remembers, and that the PACF is the plot that tells you how large $p$ should be, because it is the one that cuts off at the order of the process.
 
-The coefs differ a little after the third decimal point due to the way that the `cor` calculates the degrees of freedom vs `Acf` (I think). But the differences are small.
+## Autocorrelation in Measured Data
 
-We can put this into a loop and create the ACF plot.
-
-```{r}
-yACFv2 <- numeric(length = 25)
-for(i in 1:25){
-  yLag <- y[-c(1:i)]
-  yClip <- y[1:length(yLag)]
-  yACFv2[i] <- cor(yClip, yLag)  
-}
-
-par(mfcol=c(1,2))
-Acf(y,ylim = c(-0.1,0.8),main="ACF done via `Acf`")
-plot(1:25,yACFv2,type="h",main="ACF done by hand",ylim = c(-0.1,0.8))
-abline(h=0)
-cis <- qnorm((1 + 0.95)/2)/sqrt(n)
-abline(h=c(-cis,cis),lty="dashed",col="blue")
-```
-
-Now we can do the same for the partial coefficients which we get using a regression analysis through the origin.
-
-```{r}
-yPACF <- Pacf(y,plot=FALSE)
-# PACF coefs for lag 1 and lag 2
-round(yPACF$acf[1,,],2)
-round(yPACF$acf[2,,],2)
-
-# Done by hand
-yPACF_Lag1 <- lm(y ~ yLag1 - 1)
-round(coef(yPACF_Lag1)[1],2)
-
-yPACF_Lag2 <- lm(y ~ yLag1 + yLag2 - 1)
-round(coef(yPACF_Lag2)[2],2)
-```
-
-We can recreate the PACF plot as well. It's a little more involved. Walk through it and you'll figure it out. But the key is that we have to build a matrix of lagged predictors as we increase the order.
-
-```{r}
-yPACFv2 <- numeric(length = 25)
-for(j in 2:25){
-  nCols <- j
-  nRows <- length(y) - j + 1
-  
-  yLagMat <- matrix(0, nRows, j)
-  
-  for(i in 1:nCols){
-    yLagMat[ ,i] <- y[i : (i + nRows - 1)]
-  }
-  lm1 <- lm(yLagMat[,1] ~ yLagMat[,-1] - 1)
-  yPACFv2[j] <- coef(lm1)[j - 1]
-}
-
-par(mfcol=c(1,2))
-Pacf(y,ylim = c(-0.1,0.8),main="PACF done via `Pacf`")
-plot(1:25,yPACFv2,type="h",main="PACF done by hand",ylim = c(-0.1,0.8))
-abline(h=0)
-cis <- qnorm((1 + 0.95)/2)/sqrt(n)
-abline(h=c(-cis,cis),lty="dashed",col="blue")
-```
-
-Just in case anybody **really** wants the details, the function `pacf` does this with linear algebra by solving the Toeplitz matrix. The details of this are significantly past the level of detail we typically go into:
-
-```{r}
-yACFcoef <- yACF$acf[,,1]
-yPACFv3 <- numeric(length = 26)
-for(i in 1:26){
-  yPACFv3[i] <- solve(toeplitz(yACFcoef[1:i]), yACFcoef[2:(i+1)])[i]  
-}
-yPACFv3 # PACF by hand version 3
-yPACF$acf[,,1] # and the original from the pacf function
-```
-
-## AR(1) to AR(p)
-
-The AR(1) concept is extendable as an AR(p) model to incorporate multiple time steps as:
-$$ y_t = \sum\limits_{i=1}^p \phi_i y_{t-i} + \epsilon_t $$
-
-where $p$ denotes the order of the model. So an AR(2) model would be $y_t = \phi_1 y_{t-1} + \phi_2 y_{t-2} + \epsilon_t$ and if $p=3$ we'd have $y_t = \phi_1 y_{t-1} + \phi_2 y_{t-2} + \phi_3 y_{t-3} + \epsilon_t$. We'll do more on higher order models later including how to fit them and how to interpret them. But for now get used to the idea that higher order models have more memory.
-
-## Random walks
-A random walk is a special kind of AR1 autocorrelation where the observation at $t-1$ is the jumping off point for the observation at $t$. That means $\phi=1$ and the time series is not stationary. Rather, the time series "walks." Because $\phi=1$ we can leave it out of the equation:
-
-$$ y_t = y_{t-1} + \epsilon_t$$
-
-A drift term, $\delta$, can be added so that a random walk model with drift is:
-
-$$ y_t = \delta + y_{t-1} + \epsilon_t$$
-
-Run this code a few times and appreciate the plots. Are these models stationary?
-
-Here is a random walk without drift:
-
-```{r}
-n <- 100
-x <- 1:n
-y <- numeric(length = n)
-for(i in 2:n){
-  y[i] <- y[i-1] + rnorm(1)  
-}
-ggplot() + geom_line(aes(x=x,y=y))
-```
-
-And with drift:
-```{r}
-y <- numeric(length = n)
-drift <- 0.2
-for(i in 2:n){
-  y[i] <- drift + y[i-1] + rnorm(1)
-}
-ggplot() + geom_line(aes(x=x,y=y))
-```
-
-Oh, here is a question for you to answer -- you should be able to spit this answer out without having to calculate anything. What would the `Acf()` and `Pacf()` plots look like for these data? How would it change if you increase $n$?
-
-
-### Stationarity is dead
-That's the title of a famous [paper](https://science.sciencemag.org/content/319/5863/573) in hydrology. It's controversial and something that has influenced a lot of discussion in the global change community. Look back up at the random walk section above. A random walk is not stationary. Use some very simple algebra (just rearrange) and show with an equation how make $y_t = y_{t-1} + \epsilon_t$ stationary. Why is stationarity desirable? 
-
-
-## Autocorrelation examples with real data
-Let's look a at few examples of autocorrelation with data sets that are already part of `R`. You'll work with your own later. 
+Simulated series are clean by construction. Let's look at a few series that ship with R and see how the tools behave on data that nobody designed.
 
 ### Nile
-First, let's look at the `Nile` data which has measurements of the annual flow of the river Nile from 1871–1970. The units are in 10$^8$ m$^3$.
+
+The `Nile` series is the annual flow of the river Nile from 1871 to 1970, in units of $10^8$ m$^3$.
+
 ```{r}
+#| label: auto-nile-plot
+#| fig-height: 3
 data(Nile)
-broom::tidy(Nile) %>% 
-  ggplot(mapping = aes(x=index,y=value)) + 
+as_tsibble(Nile) |>
+  ggplot(aes(index, value)) +
   geom_line() +
-  labs(x="Date",y=expression(10^8~m^3),
-       title="River Nile Flow") +
+  geom_vline(xintercept = 1899, linetype = "dashed", color = "red") +
+  labs(x = "Year", y = expression(10^8~m^3), title = "River Nile annual flow") +
   theme_minimal()
 ```
 
-Is this river flow record autocorrelated?
+Before we touch the autocorrelation, look at the series itself. The flow drops noticeably around the turn of the century, marked here in red. That is not noise. The Aswan Low Dam was completed in 1902, and the upstream control and diversion that came with it cut the measured flow at the gauge. It is a textbook example of an intervention, an actual change in the system that shows up as a step in the level rather than as part of the natural variability. A series can fail to be well-behaved for reasons that have nothing to do with its own internal dynamics, and an abrupt human change to the watershed is one of them. We will treat it as a known break and not let it distract us from the autocorrelation question.
+
 ```{r}
-ggAcf(Nile) + theme_minimal()
+#| label: auto-nile-acf
+#| fig-height: 3
+g1 <- ggAcf(Nile) + labs(title = "ACF") + theme_minimal()
+g2 <- ggPacf(Nile) + labs(title = "PACF") + theme_minimal()
+grid.arrange(g1, g2, ncol = 2)
 ```
 
-And the PACF
-```{r}
-ggPacf(Nile) + theme_minimal()
-```
+From the plot of the series, it is hard to say by eye whether high-flow years tend to follow high-flow years. The ACF and PACF settle it: there is a clear lag-1 correlation, the ACF tapers, and the PACF cuts off after lag 1. That is the AR(1) signature, so the flow record is reasonably described by $y_t = \phi_1 y_{t-1} + \epsilon_t$.
 
-Looking at the plot of the original time series it does look like its possible that high flow years follow high flow years and low years follow low years (positive autocorrelation) but it's hard to say for sure. However the ACF and PACF plots show that there is an AR(1) model at play here. Like our simulated data above the PACF shows no significant autocorrelation at a lag of two years after accounting for the lag at one year. Thus, we can probably say that this  record  follows a process: $y_t = \phi_1 y_{t-1} + \epsilon_t$.  
+### New Haven temperature
 
-### Air Temperature
-Next, there is a data set of mean annual temperature in degrees Fahrenheit in New Haven, Connecticut, from 1912 to 1971. 
+The `nhtemp` series is the mean annual temperature in New Haven, Connecticut, in degrees Fahrenheit, from 1912 to 1971.
+
 ```{r}
+#| label: auto-nhtemp-plot
+#| fig-height: 3
 data(nhtemp)
-broom::tidy(nhtemp) %>% 
-  ggplot(mapping = aes(x=index,y=value)) + 
+as_tsibble(nhtemp) |>
+  ggplot(aes(index, value)) +
   geom_line() +
-  labs(x="Date",y=expression(degree~F),
-       title="Mean Annual Temp, New Haven, Connecticut") +
+  labs(x = "Year", y = expression(degree~F),
+       title = "Mean annual temperature, New Haven") +
   theme_minimal()
 ```
 
-Is this temperature record autocorrelated?
 ```{r}
-ggAcf(nhtemp) + theme_minimal()
+#| label: auto-nhtemp-acf
+#| fig-height: 3
+g1 <- ggAcf(nhtemp) + labs(title = "ACF") + theme_minimal()
+g2 <- ggPacf(nhtemp) + labs(title = "PACF") + theme_minimal()
+grid.arrange(g1, g2, ncol = 2)
 ```
 
-And the PACF
-```{r}
-ggPacf(nhtemp) + theme_minimal()
-```
-
-Unlike what we have above, the ACF and PACF plots show that there is likely an AR(2) model at play here. Note that the PACF shows significant autocorrelation at a lag of two years even after accounting for the lag at one year. Thus, we can probably say that this temperature record  follows a process: $y_t = \phi_1 y_{t-1} + \phi_2 y_{t-2} + \epsilon_t$. See below for how we might estimate those coefficients.
+This one is a step up. The PACF shows a significant bar at lag 2 even after the lag-1 effect is accounted for, which points to an AR(2) process: $y_t = \phi_1 y_{t-1} + \phi_2 y_{t-2} + \epsilon_t$. We will estimate those coefficients in a moment.
 
 ### Sunspots
-That stuff above is all pretty straightforward. But what about a time series with a cyclical nature? Take a look at a data set of annual sunspot counts from 1700 to 1988. Load and plot the data.  
+
+What about a series that does not just persist but cycles? Annual sunspot counts run from 1700 to 1988 and rise and fall on a roughly 11-year solar cycle.
 
 ```{r}
+#| label: auto-sunspots-plot
+#| fig-height: 3
 data(sunspot.year)
-broom::tidy(sunspot.year) %>% 
-  ggplot(mapping = aes(x=index,y=value)) + 
+as_tsibble(sunspot.year) |>
+  ggplot(aes(index, value)) +
   geom_line() +
-  labs(x="Date",y="n",
-       title="Annual Sunspot Count") +
+  labs(x = "Year", y = "Count", title = "Annual sunspot number") +
   theme_minimal()
 ```
 
-This is a whole different level of autocorrelation! Note how the series goes up and then down in a cycle. This means that there will be both positive and negative autocorrelation depending on the lag. 
-
 ```{r}
-ggAcf(sunspot.year)
+#| label: auto-sunspots-acf
+#| fig-height: 3
+ggAcf(sunspot.year, lag.max = 40) + theme_minimal()
 ```
 
-Take some time to wrap your head around this idea. The data are positively autocorrelated for a few years, then negatively autocorrelated, and so on. It should make sense once you realize that sunspots numbers go up and down on an approximately 11-year cycle due to internal hydromagnetic processes. Figuring out what the dominant periodicities are in a time series falls under the realm of studying time series in the frequency domain. We'll get to that later.
+This is autocorrelation of a different character. The series goes up and comes down on a cycle, so the ACF does too: positive at short lags, then negative around half a cycle later, then positive again near a full cycle. A periodic series leaves a periodic ACF. Pulling the dominant cycle out of a series like this is the business of frequency-domain analysis, which gets its own chapter later in the book. We will let sunspots wait for it, because the 11-year cycle is the whole point there, and note here only that a cycling process announces itself in the correlogram.
 
-## Choosing the Order of an AR(p) Model by AIC
+## Choosing the Order with AIC
 
-Above, we used the ACF and PACF plots to get a feel for the appropriate order p for an AR(p) model. This graphical approach is important for building intuition.
+The ACF and PACF are how you build intuition for the order of a model, and you should always look at them. But you do not have to guess the order by eye. You can select it with a criterion like AIC, which rewards fit and penalizes extra parameters, so it leans toward the simplest model that explains the data well.
 
-However, you do not have to guess the order just by eye.  
-You can formally select the best model using a criterion like AIC.
+Before that, one clarification, because it is easy to blur the ACF and the AR model together. The ACF reports correlations: how strongly $y_t$ and $y_{t-k}$ move together. An AR(p) model reports regression coefficients: how much each past value contributes to $y_t$ once the other lags are held fixed. Correlation measures association with nothing controlled for; a regression coefficient measures a direct contribution with the other predictors accounted for. They are related but not the same, and the [aside on correlation versus regression](03xAsideCorrelationVersusRegression.html) draws the line carefully.
 
-Before we move on, it is important to be clear about what the ACF and an AR(p) model are actually estimating:
-
-- The ACF shows correlations between observations at different lags. It measures how strongly $y_t$ and $y_{t-k}$ move together.
-- An AR(p) model fits regression coefficients. It estimates how much past values predict $y_t$, accounting for the effects of earlier lags.
-
-Although correlation and regression are related, they are not the same:
-- A correlation measures association without controlling for anything else.
-- A regression coefficient measures the direct effect of one predictor while controlling for other predictors.
-
-In an AR(p) model, each coefficient shows the effect of a lagged value after adjusting for the others.
-
-In R, the `ar` function fits an AR model and selects the order `p` automatically:
-
-- By default, it uses maximum likelihood estimation (MLE) to fit the model (get the coefficients).
-- It chooses the order that minimizes the AIC.
-
-Among other things, the `ar` function returns:
-
-- The selected order.
-- The estimated AR coefficients.
-
-
-For example, we can fit an AR model to the `nhtemp` data:
+The `ar` function fits an AR model and picks the order by AIC for you.
 
 ```{r}
-# Fit an AR model to nhtemp
+#| label: auto-ar-fit
 ar_nhtemp <- ar(nhtemp)
 ar_nhtemp
 ```
 
-In this case, `ar` uses AIC to select the "best" `p` and estimates the corresponding regression coefficients. Compare that to the ACF plot above for the `nhtemp` data.
+For the New Haven temperatures, `ar` selects the order that minimizes AIC and reports the coefficients. Compare its choice to the PACF plot above; the formal criterion and your eye should be telling a similar story. The function fits by maximum likelihood rather than the ordinary least squares you are used to from regression. The two give similar answers for an AR model, with maximum likelihood being a touch more efficient in small samples. The help page for `ar` is worth reading.
 
-Note:  
-The `ar` function will estimate the coefficients in several different ways.  Typically you have learned to use OLS in regression. For reasons we don't need to get into `ar` uses MLE.
+## Wrapping Up
 
-MLE and OLS both estimate AR models, but they differ slightly:
+We started with the idea that a value in a time series is a regression on its own past, made that precise as the AR(p) model, and built the two plots that read its structure. The ACF measures raw correlation at each lag and decays geometrically for an autoregressive process; the PACF removes the chained-through echo and cuts off at the order of the process. Together they let you look at a series, simulated or measured, and propose a model for the dependence in it.
 
-- OLS fits by minimizing the sum of squared residuals.
-- MLE fits by maximizing the likelihood of the observed data under the model, assuming a normal distribution. MLE is generally more efficient, especially for small samples.
+There is one corner of the AR(p) model we have carefully avoided. Every coefficient we used lived strictly between -1 and 1, and every series came back toward its mean. What happens at the edge? Take an AR(1) and set $\phi = 1$:
 
-I strongly recommend reading the help page for `ar`.
+$$ y_t = y_{t-1} + \epsilon_t $$
 
-## Your work
-### ACF and PACF with different values of $\phi$.
-The code below will simulate four different AR(1) time series with different values of $\phi$. All of the time series have the exact same residuals ($\epsilon$). Plot each series and then plot the ACF and PACF plots for each (12 plots total). Think about your expectations for the graphs before you plot them. Interpret. 
+The pull back toward the mean is gone, because the coefficient doing the pulling is now exactly one. Each shock gets handed forward at full strength and never fades. The series stops forgetting, the variance grows without bound, and the thing wanders off and never settles. That is a random walk, and it breaks the one assumption that everything in the next several chapters depends on: stationarity. So that is where we go next. We have been assuming our series are stationary this whole time without ever saying so. It is time to say what that means, why it matters, and how to tell whether your data have earned it.
+
+## Exercises
+
+### ACF and PACF across values of $\phi$
+
+The code below simulates four AR(1) series that share the exact same shocks $\epsilon$ but differ in $\phi$. Plot each series, then plot the ACF and PACF for each, twelve panels in all. Before you draw them, write down what you expect each to look like, then check yourself. How does the persistence of the series and the decay of the ACF change as $\phi$ moves from 0.95 down to 0.25?
 
 ```{r}
+#| label: auto-ex-phi
+#| eval: false
 n <- 100
-x <- 1:n
-epsilon <- rnorm(n = n,mean = 0,sd = 1) # white noise
-y1 <- numeric(length = n)
-y2 <- numeric(length = n)
-y3 <- numeric(length = n)
-y4 <- numeric(length = n)
-for(i in 2:n){
-  y1[i] <- 0.95 * y1[i-1] + epsilon[i]  
-  y2[i] <- 0.75 * y2[i-1] + epsilon[i]  
-  y3[i] <- 0.50 * y3[i-1] + epsilon[i]  
-  y4[i] <- 0.25 * y4[i-1] + epsilon[i]  
+epsilon <- rnorm(n)
+y1 <- y2 <- y3 <- y4 <- numeric(n)
+for (i in 2:n) {
+  y1[i] <- 0.95 * y1[i - 1] + epsilon[i]
+  y2[i] <- 0.75 * y2[i - 1] + epsilon[i]
+  y3[i] <- 0.50 * y3[i - 1] + epsilon[i]
+  y4[i] <- 0.25 * y4[i - 1] + epsilon[i]
 }
 ```
 
-#### Extra challenge
-Can you generate the same kind of AR(1) simulation for `y1`, `y2`, `y3`,and `y4` using the `arima.sim` function?
+As a stretch, reproduce these four series with `arima.sim` instead of a loop.
 
 ### Roll your own AR(2)
-Use a loop and simulate your own AR(2) time series with $\mu=0,\sigma=1$. You'll need variables $\phi_1$ and $\phi_2$. Set them to  $\phi_1=0.3$ and $\phi_2=0.5$ to start. Then play with those values. Plot the series and look at the `acf` and `pacf`. Think about your expectations for the graphs before you plot them. Interpret.
 
-#### Extra challenge
-Fit a model to your AR(2) using `ar`.
+Use a loop to simulate an AR(2) series with mean 0 and standard deviation 1. You will need two coefficients, $\phi_1$ and $\phi_2$. Start with $\phi_1 = 0.3$ and $\phi_2 = 0.5$, then experiment. Plot the series and look at its ACF and PACF. Predict the shapes before you draw them, then interpret what you get, paying attention to where the PACF cuts off. As a stretch, fit your series with `ar` and see whether it recovers the order and coefficients you used.
 
 ### Sockeye
-I've been lucky enough to get involved in a ridiculously awesome project in Alaska that looks at how [returning salmon fertilize](https://esajournals.onlinelibrary.wiley.com/doi/10.1002/ecy.2453) the riparian areas surrounding the stream. As part of that project, [which invovled multiple decades of throwing dead salmon around](https://www.washington.edu/news/2018/10/23/sockeye-carcasses-tossed-on-shore-over-two-decades-spur-tree-growth/), I became aware of this incredibly detailed time series of sockeye salmon [escapement](https://en.wikipedia.org/wiki/Salmon_escapement) data at Hansen Creek. Hansen Creek is a small (about 4m wide and 10cm deep) in the Wood River system of Bristol Bay, southwestern Alaska, USA ([59.317 N,-158.695 E](https://goo.gl/maps/n8UPCAW16j3X96zi7)).
 
-These data show the total number of salmon returning to spawn in the creek from 1950 onward. The file `HansenSockeye.rds` is on Canvas. These data are class `ts` with frequency of one. You read it in with the `readRDS` function e.g. `sock <- readRDS("data/HansenSockeye.rds")`.
+I have been lucky enough to work on a project in Alaska studying how [returning salmon fertilize](https://esajournals.onlinelibrary.wiley.com/doi/10.1002/ecy.2453) the riparian areas around the stream, a project that involved [decades of tossing dead salmon onto the banks](https://www.washington.edu/news/2018/10/23/sockeye-carcasses-tossed-on-shore-over-two-decades-spur-tree-growth/). Through it I came across a detailed record of sockeye salmon escapement at Hansen Creek, a small stream (about 4 m wide and 10 cm deep) in the Wood River system of Bristol Bay, southwestern Alaska. The series gives the total number of salmon returning to spawn each year from 1950 on. The file `HansenSockeye.rds` ships with the book in the `data` folder; read it with `sock <- readRDS("data/HansenSockeye.rds")`.
 
-Take a look at the time series and it's autocorrelation patterns.  As a cool hint as to what is going on, sockeye salmon spend 2-3 years in the ocean plus 1-2 years in freshwater to return as 3-5 year-olds to spawn. It's unclear whether the choice to spend three or five years before returning to spawn is a function of ocean conditions, local population biology/behavior, or some combination, However, [otoliths](https://en.wikipedia.org/wiki/Otolith) from the fish caresses at Hansen Creek suggest that most of the salmon that are returning four years old. What can you infer about this record in terms of the intersection between the fish ecology and the escapement time-series properties?
+Look at the series and its autocorrelation. As a hint at what drives it, sockeye spend two to three years in the ocean plus one to two in fresh water, returning to spawn at age three to five, and [otoliths](https://en.wikipedia.org/wiki/Otolith) from Hansen Creek suggest most return at age four. What does that life history lead you to expect in the ACF and PACF, and does the record bear it out? What does the intersection of the fish ecology and the time-series structure tell you?
 
-### Write Up and Reflect
-Pass in a R Markdown doc with your analysis. Leave all code visible, although you may quiet messages and warnings if desired. Turn in your knitted html. The last section of your document should include a reflection where you explain how it all went. What triumphs did you have? What is still confusing?
+## A Plotting Helper
 
-## Postscript: A Helpful Plotting Chunk
-Here is a simple way of making a plot of a time series and its respective ACF and PACF plots. It uses the `gridExtra` package to put the three plots all together. There are lots of ways of doing this. I will often use the `cowplot` [@R-cowplot] package and there are many other options.
+You will often want a series and its ACF and PACF in one figure. Here is a compact way to do it with `gridExtra`, which you can lift into your own work.
 
 ```{r}
+#| label: auto-helper
+#| fig-height: 4
 n <- 500
-x <- 1:n
-epsilon <- rnorm(n = n,mean = 0,sd = 1) # white noise
-y <- numeric(length = n)
 phi <- 0.6
-for(i in 2:n){
-  y[i] <- phi * y[i-1] + epsilon[i]  
-}
+epsilon <- rnorm(n)
+y <- numeric(n)
+for (i in 2:n) y[i] <- phi * y[i - 1] + epsilon[i]
 
-simpleLayoutMatrix <- matrix(c(1,1,2,3),nrow = 2,ncol = 2,byrow = TRUE)
-p1 <- ggplot() + geom_line(aes(x=x,y=y)) + labs(x="time") + theme_minimal()
-p2 <- ggAcf(y) + labs(title=element_blank()) + theme_minimal()
-p3 <- ggPacf(y) + labs(title=element_blank()) + theme_minimal()
-grid.arrange(p1,p2,p3,
-             layout_matrix=simpleLayoutMatrix)
+layout_mat <- matrix(c(1, 1, 2, 3), nrow = 2, byrow = TRUE)
+p1 <- ggplot(tibble(t = 1:n, y), aes(t, y)) +
+  geom_line() + labs(x = "Time", y = NULL) + theme_minimal()
+p2 <- ggAcf(y) + labs(title = NULL) + theme_minimal()
+p3 <- ggPacf(y) + labs(title = NULL) + theme_minimal()
+grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
 ```
+
+## Further Reading
+
+- @Cowpertwait2009, chapter 2, covers correlation, the correlogram, and autoregressive models. It occasionally reaches for linear algebra, so skim where it does; the ideas are the same as here.
+- @Hyndman2021fpp3 has a clear treatment of autocorrelation and the ACF, and is the standard modern reference for the tidy time-series ecosystem.

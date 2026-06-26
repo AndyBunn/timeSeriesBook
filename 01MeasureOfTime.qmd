@@ -58,14 +58,7 @@ kbli_ts
 
 Look at what the header tells you. It says `[1D]`, meaning the data step one day at a time, and it found that out from the `DATE` column. That visible index is the reason we lead with the tsibble. The time is a column you can see, sitting right there in the table next to everything else. You can `filter` it, `mutate` it, `group_by` other columns, and pipe it into `ggplot`, exactly as you would any tibble. Nothing new to learn, except that one column is special.
 
-A small sanity check. A long station record always has holes, and this one is no exception.
-
-```{r}
-#| label: intro-gaps
-has_gaps(kbli_ts)
-```
-
-There are two days missing from twenty-six years of daily data. A tsibble will tell you that rather than quietly pretending the series is complete, which matters because most time-series methods assume regular spacing and behave badly when it is violated. We will leave the gaps alone for now; later we will learn to fill them on purpose.
+## Plot Your Data
 
 Now a picture. We have temperature and precipitation, so this is a multivariate series, and the cleanest way to show both is to reshape to long form and facet.
 
@@ -86,14 +79,14 @@ kbli_ts |>
 
 The seasonal swing in temperature jumps out, and the precipitation is the spiky, wet-winter pattern anyone who has lived in the Pacific Northwest will recognize. That is the signal we will spend the book learning to pull apart.
 
-## Plot Your Data
-
 Before we do anything clever let's just explore the data. A time series is still a column of numbers, and everything you would normally do to describe a variable still applies. The `summary` is a fine start, but I always want to see the shape of a variable too.
 
 ```{r}
 #| label: intro-describe
 summary(kbli$TEMP)
 ```
+
+This gives a standard summary and we can there are some missing values in there. More on that later.
 
 Here is a histogram of the daily mean temperature with a normal curve laid over it, so we can eyeball how close to normal it is.
 
@@ -113,9 +106,57 @@ kbli |>
 
 Daily temperature is a little flatter and more lopsided than a normal curve, which makes sense once you remember that this is a mixture of cold winters and warm summers stacked on top of each other. There are formal tests of normality, and resampling tricks too, but here is the single most useful habit I can give you. Plot your data. Plot your data. Plot your data. Statistical significance is a bit like what Justice Potter Stewart said about a harder-to-define thing: you know it when you see it. Other views are worth a look as well, like the empirical distribution (`ecdf`) or a normal QQ plot (`qqnorm`), but the histogram is enough to make the point.
 
+
+## How Complete is the Record?
+
+A small sanity check. A long station record often has holes, and this one is no exception.
+
+```{r}
+#| label: intro-has-gaps
+has_gaps(kbli_ts)
+```
+
+There are. Which days?
+
+```{r}
+#| label: intro-count-gaps
+count_gaps(kbli_ts)
+```
+
+Two days. But read that carefully, because `count_gaps` finds missing *rows*, days that are absent from the table entirely. The station logged nothing, so there is no row to hold an `NA`. The day simply isn't there. That is the kind of hole ordinary tools sail past, because there is nothing to trip over, and it is exactly what the tsibble's regular `[1D]` index lets it catch.
+
+That is not the only way data go missing, and here it is not even the common one. A row can be present and still carry an `NA` where a measurement should be. Those we count directly:
+
+```{r}
+#| label: intro-count-nas
+kbli_ts |>
+  as_tibble() |>
+  summarise(across(c(TMAX, TMIN, PRCP, TEMP), \(x) sum(is.na(x))))
+```
+
+Two missing rows, but 167 missing precipitation values. And they do not fall evenly across the record:
+
+```{r}
+#| label: intro-missing-precip
+#| fig-height: 3
+#| warning: false
+missing_prcp <- kbli |> filter(is.na(PRCP))
+
+kbli_ts |>
+  ggplot(aes(DATE, PRCP)) +
+  geom_vline(data = missing_prcp, aes(xintercept = DATE),
+             colour = "steelblue", alpha = 0.6, linewidth = 0.5) +
+  geom_line(linewidth = 0.2, na.rm = TRUE) +
+  labs(x = NULL, y = "Precipitation (mm)",
+       title = "Daily precipitation; blue marks days with no measurement") +
+  theme_minimal()
+```
+
+The blue bands are gauge outages, not dry spells. The rain gauge went quiet for most of December 2012 into January 2013, and again from April through June of 2017. A missing value and a recorded zero look identical on a careless plot, and treating one as the other will bias anything you compute. So a series can be missing data two ways: a row that isn't there, and a value that is `NA`. The tsibble's index catches the first, a plain count catches the second, and a long station record usually has some of both. We will leave them alone for now and come back to handling missing data later.
+
 ## Slicing Time: Months, Years, and Aggregation
 
-Daily data is rarely the scale you want to think at. Often you want a season, or a monthly value, or an annual average. This is where treating time as a visible column pays off, because `lubridate` gives you functions that pull pieces out of a date.
+Daily data is not always the scale you want to think at. Often you want a season, or a monthly value, or an annual average. This is where treating time as a visible column pays off, because `lubridate` gives you functions that pull pieces out of a date.
 
 Say we want only the summer months. The `month` function turns a date into its month number, and from there it is an ordinary `filter`.
 
@@ -168,8 +209,9 @@ coef(trend_fit)
 #| label: intro-trend-plot
 annual |>
   ggplot(aes(x = Year, y = TEMP)) +
-  geom_line() +
-  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  geom_line(color = "grey70") +
+  geom_point(color = "grey40", size = 2) +
+  geom_smooth(method = "lm", se = FALSE, color = "firebrick") +
   labs(x = NULL, y = "Annual mean temperature (C)",
        title = "Bellingham annual mean temperature, 2000-2025") +
   theme_minimal()
@@ -270,9 +312,9 @@ So the plan for the whole book is simple. Keep your data in a tsibble, convert t
 
 ## Wrapping Up
 
-The plumbing was the cost of getting started, and we are done with it. A time series is data with a clock attached: store it in a tsibble where the index is a column you can see, drop to `ts` at the door when a base function asks, and convert back. That is the whole data-handling story for the book, and we will not belabor it again.
+The mildly tedious look at the way data get stored above was the cost of getting started, and we are done with it. A time series is data with a clock attached: store it in a tsibble where the index is a column you can see, drop to `ts` at the door when a base function asks, and convert back. That is the whole data-handling story for the book, and we will not belabor it much again.
 
-Underneath the plumbing is the idea the rest of the book turns on. We fit a trend with `lm` and then refused to trust it, because the values are correlated through time and ordinary regression assumes they are not. That refusal is the entire book in miniature. The order of a time series carries information, each observation leans on its neighbors, and almost every tool you already own assumes they do not. Learning to measure that dependence, and to know when you are allowed to ignore it, is what these chapters are about. The next one begins by pulling a series apart into the pieces that create the dependence: the slow trend, the repeating season, and the noise left over.
+Underneath the plumbing are the ideas the rest of the book turns on. For instance, we fit a trend with `lm` and then refused to trust it, because the values are correlated through time and ordinary regression assumes they are not. That refusal is the entire book in miniature. The order of a time series carries information, each observation leans on its neighbors, and almost every tool you already own assumes they do not. Learning to measure that dependence, and to know when you are allowed to ignore it, is what these chapters are about. The next one begins by pulling a series apart into the pieces that create the dependence: the slow trend, the repeating season, and the noise left over.
 
 ## Exercises
 

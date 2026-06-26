@@ -28,6 +28,8 @@ book:
         - 03TimeSeries-Autocorrelation.qmd
         - 03xAsideCorrelationVersusRegression.qmd
         - 03xAsideMA1-ACF-PACF-Interp.qmd
+        - 03xAsidePACFByHand.qmd
+        - 035Stationarity.qmd
         - 04TimeSeries-ARMA.qmd
     - part: "Forecasting & Cross-Correlation"
       chapters:
