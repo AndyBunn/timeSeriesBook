@@ -19,7 +19,7 @@ book:
     - part: "Preamble"
       chapters:
         - 00Welcome.qmd
-        - 01Intro.qmd
+        - 01MeasureOfTime.qmd
         - 01xAsideMethods_and_generics.qmd
         - 01xAsideDatesAndTimes.qmd
     - part: "Decomposition & Autocorrelation"

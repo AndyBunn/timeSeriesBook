@@ -21,6 +21,7 @@ unclass(as.Date("2020-01-01"))
 
 One day after the epoch is the integer 1. That is all a `Date` is. Because it is a count, arithmetic just works, and subtracting two dates gives you a `difftime` measured in days.
 
+
 ```{r}
 #| label: dt-date-arith
 as.Date("2020-07-01") - as.Date("2020-06-01")
@@ -50,9 +51,22 @@ unclass(as.POSIXlt("2020-01-01 13:30:00", tz = "UTC"))[c("year", "mon", "mday", 
 
 Note the quirks that list exposes: the year is counted from 1900, and the month from zero. You will not touch those directly often, but it explains some otherwise baffling off-by-one bugs.
 
+::: {.callout-note}
+## `Date` and `POSIXct` use 1970 as an origin and `POSIXlt` uses 1900. Why?
+
+Neither date is astronomical. They are software conventions. The 1970 epoch comes from Unix, which was taking shape at Bell Labs at the turn of the 1970s, and its designers picked the start of that decade as a convenient recent origin to count from. R sits on the same C library and POSIX standard, so it inherited the choice. Nothing is special about the date itself except that a great deal of software agreed to start counting there.
+
+The 1900 in `POSIXlt` has the same heritage. `POSIXlt` is a near-copy of C's broken-out time structure, `struct tm`, which stores the year as a count from 1900. It was a small space saving back when bytes were scarce, since a year in the 1900s then fit in a single byte. The month counts from zero for the same lineage reason.
+
+So why do the two classes disagree at all? Because R is wrapping two separate C constructs that were never meant to match. `POSIXct` is C's `time_t`, a single count of seconds for fast arithmetic. `POSIXlt` is C's `struct tm`, the broken-out form built for reading off components. Different jobs, standardized at different times, each with its own origin. The names spell it out once you know the C: `ct` is calendar time, the seconds count, and `lt` is local time, the broken-out form C's `localtime()` hands back. None of this matters until it produces an off-by-one bug you cannot explain, and now you can.
+
+Does any of this matter? Not for day-to-day use. But it is a good reminder that a choice made for coding convenience gets enshrined and long outlives its reason. The byte someone saved in the 1970s is still shaping the year field you read today. Worth keeping in mind the next time you reach for a convenient shortcut of your own.
+
+:::
+
 ## Getting Dates In: Parsing
 
-The usual way a date enters R is as text, and the job is to convert that text into a `Date` or a `POSIXct`. The `lubridate` package makes this painless: you name the order of the parts and it does the rest. The function is named for the order, so `ymd` is year-month-day, `mdy` is the American month-day-year, and the `_hms` suffix adds a time.
+The usual way a date enters R is as text (a character), and the job is to convert that text into a `Date` or a `POSIXct`. The `lubridate` package makes this painless: you name the order of the parts and it does the rest. The function is named for the order, so `ymd` is year-month-day, `mdy` is the American month-day-year, and the `_hms` suffix adds a time.
 
 ```{r}
 #| label: dt-parse
@@ -63,7 +77,7 @@ ymd_hms("2024-03-09 14:30:00", tz = "UTC")
 
 When you read a CSV, `read_csv` quietly runs a parser like this for you, which is why the `DATE` column in our weather data came in already typed as a `Date`. It only needs help when the format is unusual or ambiguous.
 
-The one parsing horror worth warning you about is Excel. Excel stores a date as a serial number counting days from its own origin, and that origin is not 1970. On Windows it counts from December 30, 1899. So a date pasted out of a spreadsheet can arrive as a bare integer, and you have to tell R the origin to recover it.
+The one parsing horror worth warning you about is Excel. Like an awkward teenager, Excel is convinced that everything is a date. Type a gene name like SEPT2 and it swoons into the 2nd of September; geneticists eventually renamed a batch of genes just to stop it. When it does store a date on purpose, it uses a serial number counting days from its own origin, and that origin is not 1970. On Windows it counts from December 30, 1899. So a date pasted out of a spreadsheet can arrive as a bare integer, and you have to tell R the origin to recover it.
 
 ```{r}
 #| label: dt-excel
@@ -80,9 +94,9 @@ There are two operations people constantly confuse, and `lubridate` names them c
 
 ```{r}
 #| label: dt-tz
-x <- ymd_hms("2020-06-01 12:00:00", tz = "America/Los_Angeles")
-with_tz(x, "UTC")    # same instant, expressed in UTC
-force_tz(x, "UTC")   # pretend that clock reading was UTC all along
+someDateTime <- ymd_hms("2026-06-01 12:00:00", tz = "America/Los_Angeles")
+with_tz(someDateTime, "UTC")    # same instant, expressed in UTC
+force_tz(someDateTime, "UTC")   # pretend that clock reading was UTC all along
 ```
 
 Noon in Los Angeles is 19:00 UTC. `with_tz` reports that. `force_tz` instead insists the clock said 12:00 UTC, which is a different moment by seven hours. If a logger writes local time but you tell R it was UTC, you have done a silent `force_tz` and every timestamp is now wrong by the offset.
@@ -120,7 +134,7 @@ make_date(2021, 2, 28) + 1   # 2021 is not
 
 Add a day to February 28 and you land on the 29th in a leap year and on March 1 otherwise. R handles that for you, so ordinary date arithmetic across a leap day is safe.
 
-Leap *seconds* are a different story. The world occasionally inserts an extra second to keep clocks aligned with the Earth's wobble, and R, following the POSIX standard, ignores them in its counting. It even ships the table of them, but does not use it for arithmetic.
+Leap *seconds* are a different story. A body called the International Earth Rotation Service occasionally declares an extra second, slipped in to keep our clocks aligned with the Earth's slightly irregular spin, and R, following the POSIX standard, ignores them in its counting. It even ships the table of them, but does not use it for arithmetic.
 
 ```{r}
 #| label: dt-leapsec
