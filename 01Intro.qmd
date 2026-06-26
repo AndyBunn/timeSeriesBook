@@ -1,378 +1,306 @@
 # The Measure of Time
 
-```{r,echo=FALSE}
+```{r}
+#| label: intro-setup
+#| echo: false
 set.seed(872)
 ```
 
-
-
 ## Big Idea
-One of the weirder things in our understanding of the universe is that time flows in only one direction. This "arrow of time" creates some wrinkles in how we handle time-series data.
 
-## Reading
-Have a look at Chapter one (through section 1.4) from @Cowpertwait2009. It's OK to skim the readings in this book. It's not a great text for our purposes as many of you haven't taken linear algebra and the book occasionally goes that way. But it's useful to hum your way through the chapter nonetheless.
+Most of the statistics you have learned so far assume your observations don't care about their neighbors. Shuffle the rows of a data frame and nothing important changes. A time series breaks that assumption on purpose. The order is the data. One of the stranger facts about the universe is that time runs in one direction, and that arrow shows up in our numbers: today depends on yesterday, this month's average temperature is similar to last month's temperature, and you cannot shuffle the rows without destroying exactly what you set out to study. Everything else in this book follows from taking that. But before any of the interesting parts, we have to clear a mundane hurdle that trips up almost everyone: telling the computer when each observation happened.
 
 ## Packages
-### Load
-We will use the `tidyverse` [@R-tidyverse], `zoo` [@R-zoo], and `broom` [@R-broom]. Install them if you haven't done so already (e.g.,: `install.packages(c("tidyverse", "zoo"))`). 
 
-```{r,echo=FALSE}
-op <- par(no.readonly = TRUE)
-```
+We will use the `tidyverse` [@R-tidyverse] for wrangling and plotting, `tsibble` [@Wang2020tsibble] to store time series as tidy tables, `lubridate` for working with dates, and `slider` for moving averages. Install them if you haven't (e.g. `install.packages(c("tidyverse", "tsibble", "slider"))`; `lubridate` is part of the tidyverse).
 
-
-```{r,message=FALSE}
+```{r}
+#| label: intro-packages
+#| message: false
 library(tidyverse)
-library(zoo)
+library(tsibble)
+library(slider)
 ```
 
-### Keep Up to Date
-It's important that you are (reasonably) current in your `R` and RStudio installations. That goes for packages too. Here are the versions of the packages above that are loaded when this page was knit.
+It is worth keeping your R installation and your packages reasonably current. A good habit is to run `update.packages(ask = FALSE)` from a fresh session every week or two. Fresh means nothing loaded yet, so restart R first (in RStudio, Session then Restart R).
+
+## What Is a Time Series?
+
+A time series is a sequence of observations indexed in time order, usually taken at evenly spaced intervals. That short definition carries three ideas worth pulling apart. The observations come in a sequence, one after another. They are indexed by time, so each value is tied to a when. And the spacing is usually regular, one per day or month or year, though we will meet irregular series too.
+
+We will write a series as $y_t$, the value $y$ observed at time $t$. For a regular series the index just counts the steps, so the gap between consecutive times is always one: $t_i - t_{i-1} = 1$. That is the whole notation. The conceptual part is easy. The part that actually slows people down is bookkeeping. Are the observations at arbitrary steps, or actual calendar dates? How do we handle leap days, or time zones? And how does the computer even store a date? We will spend this chapter getting comfortable enough with that bookkeeping to get our data into R and start working. The deeper mechanics, how R stores a date as a number, how it copes with time zones and daylight saving, and how climate-model calendars can quietly corrupt a time axis, are their own rabbit hole. I have put them in the [aside on dates and times](01xAsideDatesAndTimes.html) so they do not derail us here. The rest of the book is about the data, not the plumbing.
+
+## Storing a Time Series: the tsibble
+
+We'll start with daily weather from the Bellingham airport. Weather data are straightforward. Everybody likes to think and talk about the weather after all. The file ships with the book; for where it comes from and how to refresh it, see the [data appendix](A1DataSources.html). For now we just read it.
 
 ```{r}
-packageVersion("tidyverse")
-packageVersion("zoo")
+#| label: intro-read-kbli
+#| message: false
+kbli <- read_csv("data/kbli.csv")
+glimpse(kbli)
 ```
 
-Get in the habit of updating packages regularly. A good way of doing that is via `update.packages()`. Because I'm usually content to let `R` update everything semi-automatically I usually run that as `update.packages(ask = FALSE, type = "binary")` from a *fresh `R` session*. Fresh here means that don't have packages already loaded -- e.g., go to Session | Restart R in Rstudio. Running that regularly (I do it every week, but I'm a pretty heavy user) is a very good idea. You can also click the little update button under the pacakges in RStudio if you prefer that kind of interaction.
-
-## What Kinds of Data?
-So weirdly enough we have to ask, what is a time series? My default place for answers for non-controversial things is [Wikipedia](https://en.wikipedia.org/wiki/Time_series), "A time series is a series of data points indexed in time order. Most commonly, a time series is a sequence taken at successive equally spaced points in time."
-
-OK. That's actually perfect for our purposes. It has some key aspects that we should consider. First, the data are in a [series](https://en.wikipedia.org/wiki/Series_(mathematics)) meaning they come one after another. Second, they are [indexed](https://en.wikipedia.org/wiki/Index_set) in time. Third, the data are typically at regularly spaced intervals of time.^[We will consider irregular time series later in the the class but not deal with them too often.]
-
-We will refer to a time series $y$  measured/observed at time $t$ as $y_t$. For regular time series $t$ is the index of the time (e.g., year, day, second, etc.) so that $t_i - t_{i-1} = 1$. More formally, we treat $y_t$ as random variable that is a realization of a process at time $t$ so that $\{y_t,t \in T \}$. 
-
-This is all straightforward. The confusing part in getting started with working with time series is often figuring out how to tell the computer about how the indexing is done. Are the data measured at arbitrary time steps? Does the index refer to actual dates and times? If so, how do we deal with leap days? Or time zones? And how do computers even store these kinds of data?
-
-## The `ts` Class
-### A Very Useful Class
-As you know `R` has a lot of of onboard data sets. You can take a look at the data sets package to get an idea of what's easy to grab. But you can also look at the time-series packages (like my package `dplR`) many of which have data available as well. We'll also work with data we can read into `R` from an online source or via a text file of some sort. The options are, for almost any reasonable definition, infinite. Let's start with two onboard data sets.
+Four columns: a date, the day's high and low temperature in Celsius, and precipitation in millimeters. There is no daily mean temperature in the file, so let's build one the standard way, as the midpoint of the high and the low. This is also your first reminder that a time series is, before anything else, data, and you wrangle it with the same `tidyverse` verbs you already know.
 
 ```{r}
+#| label: intro-derive-temp
+kbli <- kbli |> mutate(TEMP = (TMAX + TMIN) / 2)
+```
+
+So far this is an ordinary tibble (a fancy data frame). To tell R that these data are an actual time series, we turn it into a tsibble and name the column that holds the time index.
+
+```{r}
+#| label: intro-make-tsibble
+kbli_ts <- as_tsibble(kbli, index = DATE)
+kbli_ts
+```
+
+Look at what the header tells you. It says `[1D]`, meaning the data step one day at a time, and it found that out from the `DATE` column. That visible index is the reason we lead with the tsibble. The time is a column you can see, sitting right there in the table next to everything else. You can `filter` it, `mutate` it, `group_by` other columns, and pipe it into `ggplot`, exactly as you would any tibble. Nothing new to learn, except that one column is special.
+
+A small sanity check. A long station record always has holes, and this one is no exception.
+
+```{r}
+#| label: intro-gaps
+has_gaps(kbli_ts)
+```
+
+There are two days missing from twenty-six years of daily data. A tsibble will tell you that rather than quietly pretending the series is complete, which matters because most time-series methods assume regular spacing and behave badly when it is violated. We will leave the gaps alone for now; later we will learn to fill them on purpose.
+
+Now a picture. We have temperature and precipitation, so this is a multivariate series, and the cleanest way to show both is to reshape to long form and facet.
+
+```{r}
+#| label: intro-plot-kbli
+#| fig-height: 5
+kbli_ts |>
+  pivot_longer(c(TEMP, PRCP), names_to = "variable", values_to = "value") |>
+  mutate(variable = recode_values(variable,
+                                  "TEMP" ~ "Mean temperature (°C)",
+                                  "PRCP" ~ "Precipitation (mm)")) |>
+  ggplot(aes(x = DATE, y = value)) +
+  geom_line(linewidth = 0.2) +
+  facet_wrap(~variable, ncol = 1, scales = "free_y") +
+  labs(x = NULL, y = NULL, title = "Daily weather at Bellingham airport") +
+  theme_minimal()
+```
+
+The seasonal swing in temperature jumps out, and the precipitation is the spiky, wet-winter pattern anyone who has lived in the Pacific Northwest will recognize. That is the signal we will spend the book learning to pull apart.
+
+## Plot Your Data
+
+Before we do anything clever let's just explore the data. A time series is still a column of numbers, and everything you would normally do to describe a variable still applies. The `summary` is a fine start, but I always want to see the shape of a variable too.
+
+```{r}
+#| label: intro-describe
+summary(kbli$TEMP)
+```
+
+Here is a histogram of the daily mean temperature with a normal curve laid over it, so we can eyeball how close to normal it is.
+
+```{r}
+#| label: intro-histogram
+kbli |>
+  ggplot(aes(x = TEMP)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 30,
+                 fill = "lightblue", color = "white") +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(kbli$TEMP, na.rm = TRUE),
+                            sd = sd(kbli$TEMP, na.rm = TRUE)),
+                color = "darkblue", linewidth = 1) +
+  labs(x = "Daily mean temperature (C)", y = "Density") +
+  theme_minimal()
+```
+
+Daily temperature is a little flatter and more lopsided than a normal curve, which makes sense once you remember that this is a mixture of cold winters and warm summers stacked on top of each other. There are formal tests of normality, and resampling tricks too, but here is the single most useful habit I can give you. Plot your data. Plot your data. Plot your data. Statistical significance is a bit like what Justice Potter Stewart said about a harder-to-define thing: you know it when you see it. Other views are worth a look as well, like the empirical distribution (`ecdf`) or a normal QQ plot (`qqnorm`), but the histogram is enough to make the point.
+
+## Slicing Time: Months, Years, and Aggregation
+
+Daily data is rarely the scale you want to think at. Often you want a season, or a monthly value, or an annual average. This is where treating time as a visible column pays off, because `lubridate` gives you functions that pull pieces out of a date.
+
+Say we want only the summer months. The `month` function turns a date into its month number, and from there it is an ordinary `filter`.
+
+```{r}
+#| label: intro-summer
+summer <- kbli_ts |> filter(month(DATE) %in% 6:8)
+```
+
+That `summer` object now holds every June, July, and August day in the record, about 2,400 of them. A boxplot makes a nice summary of the three months, and if we jitter the raw days behind it we get the distribution and the summary in one picture. The boxplot gives the medians and spread; the cloud of points reminds us how much day-to-day variation those tidy boxes are hiding.
+
+```{r}
+#| label: intro-summer-boxplot
+summer |>
+  mutate(Month = month(DATE, label = TRUE)) |>
+  ggplot(aes(x = Month, y = TEMP)) +
+  geom_jitter(width = 0.2, alpha = 0.15, size = 0.5, color = "steelblue") +
+  geom_boxplot(outlier.shape = NA, fill = NA, linewidth = 0.6) +
+  labs(x = NULL, y = "Daily mean temperature (°C)",
+       title = "Summer daily temperatures at Bellingham airport") +
+  theme_minimal()
+```
+
+July and August run a touch warmer than June, but the overlap is enormous. Any single warm June day could pass for a cool August one. That spread is exactly the kind of thing a plot shows you and a table of monthly means hides.
+
+More often you want to collapse the series to a coarser step, say a yearly mean. In the tidyverse you would reach for `group_by` and `summarise`. A tsibble has a time-aware version of that pair: `index_by` groups by a function of the time index, and `summarise` then collapses each group. Here we aggregate the daily data to an annual mean temperature. The last calendar year in the file is only partway done, so I drop it first to keep from averaging half a year against full ones.
+
+```{r}
+#| label: intro-annual
+annual <- kbli_ts |>
+  filter(year(DATE) < 2026) |>
+  index_by(Year = ~ year(.)) |>
+  summarise(TEMP = mean(TEMP, na.rm = TRUE))
+annual
+```
+
+The `~ year(.)` is just shorthand for "apply `year` to the index," and the new index steps one year at a time, as the `[1Y]` in the header confirms. The same move with `yearmonth(.)` would give you monthly means instead. That dropped partial year is a small thing, but it is the kind of small thing that quietly corrupts an analysis if you don't catch it, which is reason enough to plot and inspect at every step.
+
+
+## Trend in Time
+
+One of the first questions anyone asks of a series like this is whether it is going anywhere. Is Bellingham warming? The workhorse answer is a linear model with time as the predictor, and because our annual tsibble carries `Year` as a plain column, the model is the same `lm` call you already know.
+
+```{r}
+#| label: intro-trend-fit
+trend_fit <- lm(TEMP ~ Year, data = annual)
+coef(trend_fit)
+```
+
+```{r}
+#| label: intro-trend-plot
+annual |>
+  ggplot(aes(x = Year, y = TEMP)) +
+  geom_line() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(x = NULL, y = "Annual mean temperature (C)",
+       title = "Bellingham annual mean temperature, 2000-2025") +
+  theme_minimal()
+```
+
+The slope comes out to about `r round(coef(trend_fit)[2], 3)` degrees C per year, which is roughly half a degree per decade of local warming. Before you trust that number, a warning that the whole book is built around: fitting a straight line to a time series and reading off the slope is easy, but deciding whether to believe the slope is hard, because the observations are correlated through time and the usual standard errors assume they are not. We will come back and do this responsibly. For now, notice how little code it took, and stay a little suspicious of how clean it looks.
+
+## Under the Hood: the `ts` Class
+
+The tsibble is the main way we will work with time series data. But it is not the only way R stores a time series, and you will meet the other ways constantly. The oldest and most common is the `ts` class, built into base R. Most of R's time-series functions speak `ts`, a great deal of older code and many packages return it, and almost every example you find online uses it. So we need to be on friendly terms.
+
+R ships with a pile of example datasets, and several are already `ts` objects. Lake Huron's annual water level is a classic.
+
+```{r}
+#| label: intro-lakehuron
 data(LakeHuron)
+class(LakeHuron)
 plot(LakeHuron)
 ```
 
-OK, what's going on here? We loaded a data set of the level of Lake Huron (in feet) from 1875 to 1972, made a plot, and looked at some summary statistics. You can look at the help page for the data via `?LakeHuron`. 
+Notice we called plain `plot` and got a proper time-series plot with the years on the axis. That is because `LakeHuron` has class `ts`, and `plot` quietly dispatched to the `ts` plotting method, `plot.ts`. If that idea is fuzzy, the [aside on methods and generics](01xAsideMethods_and_generics.html) walks through it.
 
-`R` knows this is a time series -- the class of the object  `LakeHuron` is  class `ts` which is one of the ways we will work with time-series data. 
-
-```{r}
-class(LakeHuron)
-```
-
-Look at the help page for `ts` to understand what that structure looks like. The most important thing to understand is that the time values are attributes and not, say, a stand-alone column of times next to the data the way you might do it in Excel. Because this is a regular time series, the object just has data values (the lake height in feet). The index of time values isn't stored row-by-row the way you might keep them in a spreadsheet. Rather, the index is calculated dynamically using `start`, `end` and `frequency` values stored as attributes. We can see these using the very handy `tsp` function.
+Here is where `ts` differs from a tsibble, and why folks find it slippery. The time index is not a column. It is not stored anywhere as values at all. Instead the object keeps three numbers, a `start`, an `end`, and a `frequency`, and computes the times on demand. You can see those three with `tsp`, which stands for time series properties. It is a useful function to reach for whenever you want to know what a `ts` object thinks it is.
 
 ```{r}
+#| label: intro-tsp
 tsp(LakeHuron)
 ```
 
-This tells us the start time, end time, and frequency of the data. The `LakeHuron` time series starts in the year 1875 and runs until 1972 with one observation per year. Before we go on, note that there are several methods for working with this class (like plotting). Recall that classes with methods can have shortcuts to commonly used functions. For instance, calling `plot(LakeHuron)` is the same as calling `plot.ts(LakeHuron)` because the `ts` class has a plot method. You can learn about methods and generics in the [Understanding Methods and Generics in R aside](01xAsideMethods_and_generics.html). E.g., you can see all of the methods that are in the `ts` class via `methods(class="ts")`.
+That says the series starts in 1875, ends in 1972, and has one observation per unit of time. The actual time values are generated when you ask for them.
 
-Let's look at another data set:
 ```{r}
+#| label: intro-time
+head(time(LakeHuron))
+```
+
+::: {.callout-note}
+## Why store time as three numbers?
+
+It is tempting to read this as a wart, some old hack to save memory. There is a grain of truth there. The `ts` class comes from S, the Bell Labs language R is built on, born in the late 1970s when memory was scarce, and keeping three numbers instead of a full column of times did save space.
+
+But that is the smaller half of it. For a regular series, the time of observation $i$ is exactly `start + (i-1)/frequency`. The times are not something you measured. They are determined by two numbers, so storing them in a column would be writing the same information down over and over. Seen that way, `ts` has the representation right, and it is the explicit-index approach that is redundant.
+
+The price is the word regular. Because the index is computed from a frequency, `ts` can represent only the perfectly even case. No calendar dates, no time zones, no leap days, no gaps, no irregular sampling. That is most environmental data, and it is why `zoo`, `xts`, and `tsibble` all pay to store an explicit index instead. There is no formula that recovers a missing day or a daylight-saving jump from a start and a frequency.
+:::
+
+The catch is that `frequency` is just a number, and `ts` will believe whatever you tell it. Watch what happens when we build a few series with the same data but different frequencies and ask what times they imply.
+
+```{r}
+#| label: intro-frequency-demo
+n <- 24
+good  <- ts(rnorm(n), start = 2000, frequency = 12)   # monthly
+silly <- ts(rnorm(n), start = 2000, frequency = 0.1)  # ?
+head(time(good))
+head(time(silly))
+```
+
+With `frequency = 12` the times come out as months, which is what we wanted. With `frequency = 0.1` the times march along in steps of ten, so R thinks each observation is a decade apart. The data are identical. Only the bookkeeping changed, and nothing warned us. That fragility, an index you cannot see and cannot trust without checking, is exactly why we keep our data in a tsibble, where the time is a column you can read.
+
+None of this means you should avoid `ts`. You can't, and you shouldn't want to. The fix is to keep your data in a tsibble and convert to `ts` only at the moment a function demands it. The bridge runs both ways.
+
+```{r}
+#| label: intro-bridge
+# a ts object becomes a tidy tsibble
+lake_ts <- as_tsibble(LakeHuron)
+lake_ts
+
+# and a tsibble can go back to ts when a base function needs it
+head(as.ts(annual))
+```
+
+A second example shows how much work that little frequency number is doing for you. R's `co2` dataset is the monthly record of atmospheric carbon dioxide measured at Mauna Loa, the Keeling curve, running from 1959 to 1997. It is a `ts` object, so let's print the first few years.
+
+```{r}
+#| label: intro-co2-print
 data(co2)
-str(co2)
-plot(co2)
+window(co2, end = c(1962, 12))
 ```
 
-These data are monthly and run from 1959 to 1998. From a purely practical standpoint you should make sure that you and `R` agree on the time-series properties of a data set. For instance, you should know the start and end times and the frequency (the number of observations per unit of time). Before you go further, can you predict what the output will be when you run `tsp(co2)`?
+That is not how a plain vector of numbers prints. Because the frequency is 12, the print method lays the series out as a grid, one row per year and one column per month, with the columns labeled January through December. The frequency we met earlier is not only feeding `time()`. The print and plot methods read it too. This is the same dispatch we saw with `plot`: typing `co2` calls `print.ts`, which knows that a frequency of 12 means a calendar year of months and arranges the output to match.
 
-To look under the hood further and get an idea of how these objects exist in `R` run  `attributes(co2)` and `class(co2)`.
-
-### Digression: Describing a Time Series
-
-We've been focusing on the time-series qualities of the data (e.g., the index). But we can also treat these data they way we would other data. That is, when working with a time series you should be able to describe it the same way you'd describe any data. The `summary` function is most useful but I like to know things like the standard deviation too. And I like diagnostic plots like boxplots and histograms. Recall that *time-series data* are most importantly *data* and you should always explore your data thoroughly with descriptive statistics and plots. 
-
-We will learn more techniques that are specific to time series (e.g., autocorrelation) later. But first, let's plot a histogram of the Lake Huron data, overlay a normal curve, and look at the shape. This is a moderately involved bit of plotting but you can step through it bit by bit.  I'll go old school here with some base graphics.
+The plot method uses the frequency the same way.
 
 ```{r}
-my.xlim <- range(LakeHuron)
-h<-hist(LakeHuron, breaks=10, col="lightblue", xlab="Lake Level (ft)",
-        main="",xlim=my.xlim) 
-xfit <- seq(min(LakeHuron),max(LakeHuron),length=100) 
-yfit <- dnorm(xfit,mean=mean(LakeHuron),sd=sd(LakeHuron)) 
-yfit <- yfit*diff(h$mids[1:2])*length(LakeHuron) 
-lines(xfit, yfit, col="darkblue", lwd=2)
-boxplot(LakeHuron, horizontal=TRUE,  outline=TRUE,  axes=FALSE,
-        ylim=my.xlim, col = "lightgreen", add = TRUE, boxwex=3)
+#| label: intro-co2-plot
+plot(co2, ylab = expression(CO[2]~(ppm)),
+     main = "Monthly atmospheric CO2 at Mauna Loa")
 ```
 
-Given a sample size of less than 100, these data don't show much kurtosis or skew and in fact look pretty normal. That is, I wouldn't say they were platykurtic or negatively skewed as compared to a random expectation. How could I test such a thing? Well, there are tests in the `moments` package (e.g., `agostino.test(LakeHuron)`, `anscombe.test(LakeHuron)`, `jarque.test(c(LakeHuron)`) or we could use some kind of resampling method (e.g., bootstrapping). But here is where we get to the single most important mantra I have when working with data: plot and explore it.  **Plot your data. Plot your data. Plot your data**. Statistical significance is like pornography (to steal from United States Supreme Court Justice Potter Stewart), you know it when you see it.
-
-There are other plots I like to make when exploring data. I'm partial to plotting the cumulative distribution function (take a look at `ecdf`) and maybe a normal QQ plot (`qqnorm`) but we can leave it here for the time being. Just remember: **_Plot your data_**.
-
-### More on the `ts` Index
-
-Let's go back to the `LakeHuron` data. We think of these data as annual with the time index in years. But the `ts` class itself just thinks in terms of start, end, and frequency. It's a simple system but not always what you want -- in fact `ts` with a frequency of one isn't really in years. From the help page for `ts`:
-
->The value of argument frequency is used when the series is sampled an integral number of times in each unit time interval. For example, one could use a value of 7 for frequency when the data are sampled daily, and the natural time period is a week, or 12 when the data are sampled monthly and the natural time period is a year. Values of 4 and 12 are assumed in (e.g.) print methods to imply a quarterly and monthly series respectively.
+The steady climb is the Keeling curve, one of the most recognizable figures in science. The fuzz riding on top of it is the seasonal cycle, the planet breathing in and out once a year as Northern Hemisphere plants leaf out and die back. That annual wiggle is the twelve monthly values we just saw spelled out in the printed grid, now drawn instead of tabulated. Converting to a tsibble carries the calendar across, turning the implied months into an explicit `yearmonth` index.
 
 ```{r}
-time(LakeHuron)
+#| label: intro-co2-tsibble
+as_tsibble(co2)
 ```
 
-The times in the `ts` class aren't really related to reality. Run the code below and then use `time(foo)` for each line to look at what 'times' you created.
+So the plan for the whole book is simple. Keep your data in a tsibble, convert to `ts` only when a function asks for it, and never be surprised by either.
 
-```{r}
-n <- 100
-# Annual data starting in the year 2000
-foo <- ts(rnorm(n),start=2000,frequency = 1) #time(foo)
-# 100 months starting in the year 2000
-foo <- ts(rnorm(n),start=2000,frequency = 12) #time(foo)
-# quarterly data
-foo <- ts(rnorm(n),start=2000,frequency = 4) #time(foo)
-# less than one year of daily data
-foo <- ts(rnorm(n),start=2000,frequency = 365) #time(foo)
-# decades!
-foo <- ts(rnorm(n),start=2000,frequency = 0.1) #time(foo)
-# hours!
-foo <- ts(rnorm(n),start=2000,frequency = 365*24) #time(foo)
-```
+## Wrapping Up
 
-We are definitely going to want to use time series with real dates and times. What if you have data that are hourly and start on January 3, 2021 at 1:01AM PST? Can you coerce that into the `ts` class? Well, maybe but it's not intuitive and there are better ways in `R` of doing this. The `ts` class is only one of the ways that `R` deals with time series (say hello `zoo` library!). The `ts` class very simple but not great for dates and times of day. As you work with other data you'll encounter some of the other ways that `R` stores times and dates. Trying to understand these can get tricky very fast. Consider all the things you have to account for with calendar data. Leap years ([leap seconds!](https://en.wikipedia.org/wiki/Leap_second)), time zones, daylight savings, and so on. You can look at the help page for `Date` and `DateTime` to get started but in reality you'll be better off searching the internet for explanations of how time is accounted for in `R`. And ultimately you just have to dive in. This is not an issue that is specific to `R`. It's a devilish problem for every computer platform that is not unlike dealing with projections in GIS. I'm going to be as gentle as possible about it but I know that we'll get stumped soon. The `lubridate` package is exciting as a way of making working with time-series data more pleasant. The package promises to make "working with dates fun instead of frustrating." That would be nice.
+The plumbing was the cost of getting started, and we are done with it. A time series is data with a clock attached: store it in a tsibble where the index is a column you can see, drop to `ts` at the door when a base function asks, and convert back. That is the whole data-handling story for the book, and we will not belabor it again.
 
-## Trend in time
-One of the most common things to do with a time series is to fit a linear model and see if there is a trend in the data as a function of time. Note that later in class we will worry  about how to do this in a way that allows us to test the significance of the trend in a responsible way but for now let's get a slope on the Lake Huron data. Were lake levels increasing or decreasing over those years? 
+Underneath the plumbing is the idea the rest of the book turns on. We fit a trend with `lm` and then refused to trust it, because the values are correlated through time and ordinary regression assumes they are not. That refusal is the entire book in miniature. The order of a time series carries information, each observation leans on its neighbors, and almost every tool you already own assumes they do not. Learning to measure that dependence, and to know when you are allowed to ignore it, is what these chapters are about. The next one begins by pulling a series apart into the pieces that create the dependence: the slow trend, the repeating season, and the noise left over.
 
-```{r}
-LakeHuronLinearModel <- lm(LakeHuron~time(LakeHuron))
-LakeHuronLinearModel
+## Exercises
 
-plot(LakeHuron)
-abline(LakeHuronLinearModel,col="red")
-```
+These all use the `kbli` data you already have loaded, so no new files. They pick up where the body left off, with `index_by` and a linear trend, and push on two ideas we touched only lightly: that different variables call for different aggregation, and that a trend can hide inside a season.
 
-We can see that how lake levels are changing at a rate of `r round(coef(LakeHuronLinearModel)[2],2)` feet per year.
+### Precipitation adds up
 
+In the body we aggregated temperature to an annual value with `mean`, because temperature is a state and the yearly number you want is a typical day. Precipitation is different. It is a flux that accumulates, so the natural annual summary is the total, not the average.
 
-## The `zoo` Class
-When you have run up against the limitations of the `ts` class it's time to visit the `zoo`. Let's look at using the `zoo` library to work with time series. When I have dates and times that is the package I tend to use. 
+1. Build a series of annual total precipitation from `kbli_ts`, using `index_by` with `sum` instead of `mean`. Drop the partial final year first, the way we did for temperature, or your last total will be a half year masquerading as a full one.
+2. Plot it. Is there a trend? Fit a linear model of annual total precipitation against year and report the slope in millimeters per year.
+3. A subtlety to notice rather than fix: `sum(PRCP, na.rm = TRUE)` quietly treats a missing day as zero, so any year with flagged or missing days reads a little dry. How many such days are there, and does knowing that make you trust the trend more or less?
 
-Let's look at the list of the vignettes in `zoo`. 
+### Is winter warming faster than summer?
 
-```{r, eval=FALSE}
-vignette(package="zoo")
-```
+A single annual mean can blur very different stories in different seasons. In much of the world winters are warming faster than summers, and we can check Bellingham.
 
-I suggest perusing these. E.g., `vignette(topic="zoo", package="zoo")`.
+1. Compute a per-year summer mean temperature (June through August) and a per-year winter mean temperature (December through February). Use `filter` on `month(DATE)` to pick the months, then aggregate by year as before.
+2. Fit a linear trend to each season and compare the two slopes. Which season is warming faster here?
+3. Plot both seasonal series on one figure so the difference is visible. Mapping `color` to the season is one clean way to do it.
 
-Now to work. I have compiled weather data from the Bellingham Airport using the `GSODR` package. 
+If you want to be careful with the winter, December belongs with the January and February that follow it, not the ones from the same calendar year. Handling that properly is a good `lubridate` puzzle, but grouping by plain calendar year is fine for a first pass.
 
-```{r}
-kbli <- readRDS("data/kbli.rds")
-```
+As a stretch on either exercise, add a five-year centered moving average with `slide_dbl` from `slider` to smooth the year-to-year noise and show the slower movement underneath. Look at its `.before`, `.after`, and `.complete` arguments.
 
-Run `str`, `summary`, and `head` on them to what this object is all about see. E.g.,
-```{r}
-str(kbli)
-summary(kbli)
-head(kbli)
-```
+## Further Reading
 
-OK. What have we learned? The object `kbli` is class `zoo` the time index is a `Date`, there are two columns of data (precipitation and temperature) and therefore we refer to this as a multivariate time series. Let's do some plotting with the built in plot function for `zoo`
-
-```{r}
-plot(kbli)
-```
-
-And look at some precip data with `window`. This is the 2024 water year.
-```{r}
-plot(window(kbli$PRCP, start = as.Date("2023-11-01"), 
-     end = as.Date("2024-10-31")), ylab="Precip (mm)")
-```
-
-Reminder, this is a `zoo` object and so `R` uses `plot.zoo` to do the actual plotting even though you just type `plot`. Same goes for `window`.
-
-The important distinction here is that unlike class `ts`, the times are actual dates and not an arbitrary index like we had with the `LakeHuron` data. The times are stored as class `Date` which is a good class for dates without times. If we had more finely resolved data we might want a different class like `POSIXlt` or `POSIXct`. Peruse the help file for Date-Time Classes via `?DateTimeClasses`.
-
-## Lubricate the Dates
-The package `lubridate` has some nifty functions for working with dates and times. There is one very nice vignette to look at and I suggest perusing it via  `vignette(topic="lubridate",package="lubridate")`.
-
-For instance, you can grab the month for each observation in `kbli` via `month(kbli)` which might come in handy for pulling out just the summer months.
-
-```{r}
-summerPrecip <- kbli$PRCP[month(kbli) %in% 6:8]
-```
-
-Or you might want to convert all the dates to decimal dates (which are just plain numbers) and use that to make a `tibble`.
-
-```{r}
-kbliDD <- decimal_date(kbli)
-temp_tb <- tibble(decimalDate = kbliDD, TEMP = as.vector(kbli$TEMP))
-temp_tb %>% ggplot(mapping = aes(x=decimalDate,y=TEMP)) +
-  geom_line() +
-  labs(x="Date",y=expression(degree~C),
-       title="Average Daily Temperature, Bellingham WA") +
-    theme_minimal()
-```
-
-Most often I use `lubridate` for making date and time objects from characters or decimal dates. E.g., `date_decimal(kbliDD)` would go back to a date from the numbers. Or if you had characters of dates like "2009-02-10" you could make that a date via `ymd("2009-02-10")`. You will encounter dates in an Excel spreadsheet at some point. And when that happens, even the most religious of people will declare that there is no god. Remember that `lubridate` can help.
-
-## Tidy it Up
-We can also work with these objects in the `tidyverse` but we need to convert the `zoo` object into a `tibble.` There are a few ways of doing this (e.g., like the example above) but the `tidy` function from `broom` does a nice job of making a long `tibble` from a zoo object. Note that I'm not loading the whole `broom` library here but just grabbing the function `tidy`.
-
-```{r}
-kbli_tb <- broom::tidy(kbli)
-glimpse(kbli_tb)
-```
-
-This is similar to what we did above. And like the above, we can now treat this like any other `tibble`.
-
-```{r}
-kbli_tb %>% 
-  mutate(series = recode(series, 
-                         PRCP = "Precipitation (mm)",
-                         TEMP = "Temperature (C)")) %>%
-  ggplot(mapping = aes(x=index,y=value)) +
-  geom_line() +
-  facet_wrap(~series,scales = "free_y",ncol=1) +
-    labs(x="Date",y=NULL,
-       title="Average Temperature and Precipitation, Bellingham WA") +
-    theme_minimal()
-```
-
-
-Also note that this works with `ts` objects as well.
-
-```{r}
-co2_tb <- broom::tidy(co2)
-co2_tb %>% 
-  ggplot(mapping = aes(x=index,y=value)) + 
-  geom_line() +
-  labs(x="Date",y=expression(CO[2]~(ppm)))
-```
-
-I really hate use base plotting and will probably convert back and forth a good deal. You are welcome to use base plotting (e.g., `plot`) or `ggplot`.
-
-## Your Work
-That was a lot to deal with. I know. This week, let's try to get comfortable reading in a time series from the web and working with it as a `tibble`, `ts`, and `zoo` objects.
-
-### Berkeley Earth Temperature Data
-
-The data I'll give you are global temperature anomalies (in degrees C) for land surfaces from the Berkeley Earth group. This is one of the half dozen or so research groups that maintains global climate data sets in real time. ["Global Land Only (1750 – Recent)"](https://berkeleyearth.org/data/) is the original source and you can read about how the data are created and formatted. This is the important bit from the top of the file:
-
-> This file contains a detailed summary of the land-surface average results produced by the Berkeley Averaging method.  Temperatures are  in Celsius and reported as anomalies relative to the Jan 1951-Dec 1980  average.  Uncertainties represent the 95% confidence interval for statistical and spatial undersampling effects.
-
-The time index is monthly and starts in 1750. So the first observation is January 1, 1750. 
-
-Let's go get the data. Below, I'll download it from the web, save it into a file (that file goes into whatever your working directory is), and then read it.
-
-```{r,eval=FALSE}
-fname <- "https://berkeley-earth-temperature.s3.us-west-1.amazonaws.com/Global/Complete_TAVG_complete.txt"
-download.file(fname, "data/Complete_TAVG_complete.txt")
-```
-
-```{r}
-tAnoms <- read_table("data/Complete_TAVG_complete.txt", skip = 35,na = "NaN",col_names = FALSE)
-```
-
-We will just keep the first three columns of the data which are the year, month, and temperature anomaly.
-
-```{r}
-tAnoms <- tAnoms[,1:3] %>%
-  rename(Year = X1, Month = X2, degC = X3)
-glimpse(tAnoms)
-```
-
-I'll toss out the data prior to 1851 as well. The uncertainty is pretty large before that time because there weren't a ton of thermometers contributing to this global record prior to the mid-19th century. 
-
-```{r}
-tAnoms <- tAnoms %>% filter(Year > 1850)
-glimpse(tAnoms)
-```
-
-Ok. We have `tAnoms` which is a standard `tibble`. This will suit many of our needs but we will need the `ts` and `zoo` classes from time to time. So, let's make `ts` and `zoo` objects from the data. 
-
-```{r}
-tAnoms_ts <- ts(tAnoms$degC,start=c(1851,1),frequency = 12)
-tAnoms_zoo <- zoo(tAnoms$degC,
-                  order.by = as.Date(paste(tAnoms$Year,"-",tAnoms$Month,"-","1",sep="")))
-```
-
-Now we have three different objects all containing the same data. We have objects that are class `tibble`, `ts`, and `zoo`. Ideally you will be comfortable working with all three of these objects. E.g., figure out how to plot, summarize the all the objects. 
-
-For instance, here is a plot of just August temperatures using each data set. Note how I used `month` from `lubridate` in one instance and `cycle` in another just to show you that there are many different ways of doing things.
-
-```{r}
-tAnoms %>% filter(Month == 8) %>% 
-  ggplot(mapping = aes(x=Year,y=degC)) +
-  geom_line() +
-  labs(y=expression(Anomaly~degree*C), 
-       title = "August Temperatures", 
-       caption = "Anomalies relative to the Jan 1951-Dec 1980  average") +
-  theme_minimal()
-
-plot(tAnoms_zoo[month(tAnoms_zoo)==8], xlab="Year",ylab=expression(Anomaly~degree*C), 
-     main = "August Temperatures",
-     sub = "Anomalies relative to the Jan 1951-Dec 1980  average")
-
-
-augtAnoms_ts <- ts(tAnoms_ts[cycle(tAnoms_ts)==8],start=1851)
-plot(augtAnoms_ts, 
-     xlab="Year",ylab=expression(Anomaly~degree*C), 
-     main = "August Temperatures",
-     sub = "Anomalies relative to the Jan 1951-Dec 1980  average")
-
-```
-
-
-### Your Turn
-Get somewhat comfy with basic data manipulation. Try to get a feel for how the times are stored in each class. When you are ready, do two things with each class (`tibble`, `ts`, and `zoo`). First, create and plot an annual mean temperature anomaly from the monthly data (e.g., 1851 will have one value that is the average of 12 temperatures from January to December). Second, report the trend in the data using the slope coefficient from a linear model. And if you are feeling spunky, try an optional third step: add a five-year centered moving average to each plot. I want you to do these with each class (`tibble`, `ts`, and `zoo`) because we will encounter all them as we move forward. Your plots, slopes, etc. should look the same for each class.
-
-I'll start you off by showing one way to take these monthly data and make them annual.
-
-```{r,echo=TRUE,message=FALSE}
-tAnomsAnn <- tAnoms %>% group_by(Year) %>% summarise(degC = mean(degC))
-tAnomsAnn_ts <- aggregate.ts(tAnoms_ts, nfrequency = 1, FUN = mean)
-tAnomsAnn_zoo <- aggregate(tAnoms_zoo, by = year,FUN = mean)
-```
-
-```{r,echo=FALSE,message=FALSE}
-#all the same
-tAnomsAnnSlope <- coef(lm(degC~Year, data = tAnomsAnn))[2]
-tAnomsAnnSlope_ts <- coef(lm(tAnomsAnn_ts~time(tAnomsAnn_ts)))[2]
-tAnomsAnnSlope_zoo <- coef(lm(tAnomsAnn_zoo~time(tAnomsAnn_zoo)))[2]
-```
-
-When I fit a linear model I find that the annual trend is `r round(tAnomsAnnSlope,2)` degrees C per year. That's a degree per century. Yikes.
-
-I've hidden my code, but here is what I came up with in terms of plots.
-
-```{r,echo=FALSE,message=FALSE,warning = FALSE}
-tAnomsAnn <- tAnomsAnn %>% mutate(yr5 = rollmean(degC,k=5,fill = NA)) 
-# or
-# tAnomsAnn <- tAnomsAnn %>% mutate(yr5 = stats::filter(degC,filter = rep(1/5,5),sides=2)) 
-
-# ts
-tAnoms5yr.ts <- stats::filter(tAnomsAnn_ts,filter = rep(1/5,5),sides=2)
-
-# zoo
-tAnoms5yr.zoo <- rollmean(tAnomsAnn_zoo,k=5,fill = NA)
-
-
-tAnomsAnn %>%
-  ggplot(mapping = aes(x=Year)) +
-  geom_line(aes(y=degC)) +
-  geom_line(aes(y=yr5),col="red",linewidth=1) +
-  labs(y=expression(Anomaly~degree*C), 
-       title = "Annual Temp and 5-yr average (from the tibble)", 
-       caption = "Anomalies relative to the Jan 1951-Dec 1980 average") +
-  theme_minimal()
-
-plot(tAnomsAnn_ts, xlab="Year",ylab=expression(Anomaly~degree*C), 
-     main = "Annual Temp and 5-yr average (from the ts)",
-     sub = "Anomalies relative to the Jan 1951-Dec 1980  average")
-lines(tAnoms5yr.ts,col="red",lwd=2)
-
-
-plot(tAnomsAnn_zoo, xlab="Year",ylab=expression(Anomaly~degree*C), 
-     main = "Annual Temp and 5-yr average (from the zoo)",
-     sub = "Anomalies relative to the Jan 1951-Dec 1980  average")
-lines(tAnoms5yr.zoo,col="red",lwd=2)
-
-```
-
-### Write Up and Reflect
-Pass in a R Markdown doc with those plots. Leave all code visible, although you may quiet messages and warnings if desired. Turn in your knitted html. The last section of your document should include a reflection where you explain how it all went. What triumphs did you have? What is still confusing?
+- @Cowpertwait2009, *Introductory Time Series with R*. A gentle companion to this material; chapter 1 covers the same getting-started ground. It occasionally reaches for linear algebra, so skim where it does.
+- @Hyndman2021fpp3, *Forecasting: Principles and Practice*. Free online and the standard modern reference for the tidy time-series ecosystem that `tsibble` belongs to. We borrow its data structures while keeping our own from-scratch approach to the methods.
+- @Wang2020tsibble, the paper introducing the `tsibble` data structure, if you want the design thinking behind treating the time index as a column.
+- @Grolemund2011lubridate, on `lubridate`, for when dates and times start fighting back.

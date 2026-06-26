@@ -21,6 +21,7 @@ book:
         - 00Welcome.qmd
         - 01Intro.qmd
         - 01xAsideMethods_and_generics.qmd
+        - 01xAsideDatesAndTimes.qmd
     - part: "Decomposition & Autocorrelation"
       chapters:
         - 02DecompTrends.qmd
@@ -39,6 +40,8 @@ book:
         - 08TimeSeries-Filters.qmd
         - 09TimeSeries-Freq.qmd
     - 10PackagesUsed.qmd
+  appendices:
+    - A1DataSources.qmd
   repo-url: https://github.com/AndyBunn/timeSeriesBook
   repo-actions: [edit, issue]
 

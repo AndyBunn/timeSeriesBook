@@ -22,7 +22,9 @@ Imports:
     nlme,
     PNWColors,
     rmarkdown,
+    slider,
     tidyverse,
+    tsibble,
     waveslim,
     zoo
 Remotes:

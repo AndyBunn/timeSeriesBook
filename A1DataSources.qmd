@@ -1,0 +1,93 @@
+# Data Sources {#sec-data-sources}
+
+This appendix is where the data lives. Most of the time you will just read the file that ships with the book and get to work, and that is all the intro chapter asks of you. But data goes stale, and sooner or later someone wants the newest numbers. So for the datasets that keep updating I will also show you how to pull a fresh copy yourself. You can skip everything past the first section on a first read.
+
+```{r}
+#| label: a1-packages
+#| message: false
+library(tidyverse)
+```
+
+## The Bellingham Weather Data
+
+The running example in the early chapters is daily weather from Bellingham International Airport: maximum temperature, minimum temperature, and precipitation. The data come from the Global Historical Climatology Network daily dataset (GHCN-Daily), which is the reference daily climate record maintained by NOAA's National Centers for Environmental Information.^[<https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily>] The airport's station id is `USW00024217`.
+
+### Reading It
+
+The file ships with the book as `data/kbli.csv`. Reading it is the whole story for day-to-day work.
+
+```{r}
+#| label: a1-read-kbli
+#| message: false
+kbli <- read_csv("data/kbli.csv")
+glimpse(kbli)
+```
+
+Four columns. `DATE` is a calendar date. `TMAX` and `TMIN` are the daily maximum and minimum temperature in degrees Celsius. `PRCP` is total precipitation in millimeters. There is no single mean-temperature column because GHCN-Daily does not reliably report one for this station, so when a chapter wants a daily mean it builds one the standard way, as the midpoint of the day's high and low.
+
+```{r}
+#| label: a1-derive-temp
+kbli <- kbli |> mutate(TEMP = (TMAX + TMIN) / 2)
+```
+
+A few things to know about the file. The values that NOAA's quality-control process flags have been set to `NA` rather than dropped, so a day with a bad precipitation reading still keeps its good temperatures. Two days are missing from the record entirely (2006-06-29 and 2012-02-28), which leaves actual gaps in the daily index. That is normal for a long station record, and it is a useful thing to see early, because the rest of the book has to account for gaps rather than pretend they are not there.
+
+### Getting a Fresh Copy
+
+The copy in the book runs through the date it was last built, but a working station keeps reporting. The most recent week or two always lags, because NOAA ingests and quality-controls the observations before releasing them, so do not be surprised when the last few days are not there yet.
+
+To pull your own copy you need the `GHCNr` package, which talks to the NCEI servers for you.
+
+```{r}
+#| label: a1-ghcnr-load
+#| eval: false
+library(GHCNr)
+```
+
+The `daily()` function takes a station id and a date range. This call reaches out to the network, so it is set to not run when the book is built; run it yourself at the console.
+
+```{r}
+#| label: a1-ghcnr-pull
+#| eval: false
+raw <- daily(
+  station_id = "USW00024217",
+  start_date = "2000-01-01",
+  end_date   = as.character(Sys.Date())
+)
+```
+
+What comes back has the temperature and precipitation columns plus a quality-control flag column for each one. A flag is blank when the value passed every check and carries a letter code when it did not. The careful move is to null out only the value that was flagged and keep the rest of the day, then drop the flag columns and round to a sensible precision.
+
+```{r}
+#| label: a1-ghcnr-clean
+#| eval: false
+kbli_fresh <- raw |>
+  mutate(
+    tmax = if_else(tmax_flag != "", NA_real_, tmax),
+    tmin = if_else(tmin_flag != "", NA_real_, tmin),
+    prcp = if_else(prcp_flag != "", NA_real_, prcp)
+  ) |>
+  transmute(
+    DATE = date,
+    TMAX = round(tmax, 1),
+    TMIN = round(tmin, 1),
+    PRCP = round(prcp, 1)
+  ) |>
+  arrange(DATE)
+```
+
+Then write it back over the shipped file and you are current.
+
+```{r}
+#| label: a1-ghcnr-write
+#| eval: false
+write_csv(kbli_fresh, "data/kbli.csv")
+```
+
+Finding the id for a different station is the one fiddly part. The easiest route is NOAA's station search, where you can look up an airport or town and copy its GHCN-Daily id.^[<https://www.ncei.noaa.gov/access/search/data-search/daily-summaries>] `GHCNr` can also search by location with `stations()` and `filter_stations()` if you would rather stay in R.
+
+A note on why GHCN-Daily and not the airport-feed alternatives like GSOD. GHCN-Daily assigns precipitation to the calendar day it actually fell on, midnight to midnight. The aviation summaries report on accumulation windows tied to the observation hour, which smears rain across the wrong day even when the yearly totals come out right. For a course about when things happen in time, getting the day right matters.
+
+## The Rest of the Data
+
+Every other dataset the book uses ships in the same `data/` folder, and you can download the whole bundle as a single `data.zip` from the book's website. Each dataset is credited where it first appears, with a pointer back here when there is a way to refresh it yourself. As more chapters move over to this style, their sources will be documented in this appendix too.
