@@ -18,6 +18,8 @@ todo.txt
 .DS_Store
 data.zip
 .positai
+# base R graphics artifact (created by plot() under Rscript with no device)
+Rplots.pdf
 # docs/ is built and deployed by GitHub Actions (publish.yml), not committed
 docs/
 # _freeze/ is kept for freeze: auto (do not ignore)

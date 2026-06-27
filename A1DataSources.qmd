@@ -1,6 +1,6 @@
 # Data Sources {#sec-data-sources}
 
-This appendix is where the data lives. Most of the time you will just read the file that ships with the book and get to work, and that is all the intro chapter asks of you. But data goes stale, and sooner or later someone wants the newest numbers. So for the datasets that keep updating I will also show you how to pull a fresh copy yourself. You can skip everything past the first section on a first read.
+This appendix is where the data lives. Most of the time you will just read the file that comes with the book and get to work, and that is all the intro chapter asks of you. But data goes stale, and sooner or later someone wants the newest numbers. So for the datasets that keep updating I will also show you how to pull a fresh copy yourself. You can skip everything past the first section on a first read.
 
 ```{r}
 #| label: a1-packages
@@ -14,7 +14,7 @@ The running example in the early chapters is daily weather from Bellingham Inter
 
 ### Reading It
 
-The file ships with the book as `data/kbli.csv`. Reading it is the whole story for day-to-day work.
+The file `data/kbli.csv` comes with the book. Reading it is the whole story for day-to-day work.
 
 ```{r}
 #| label: a1-read-kbli
@@ -76,7 +76,7 @@ kbli_fresh <- raw |>
   arrange(DATE)
 ```
 
-Then write it back over the shipped file and you are current.
+Then write it back over the existing file and you are current.
 
 ```{r}
 #| label: a1-ghcnr-write
@@ -88,6 +88,108 @@ Finding the id for a different station is the one fiddly part. The easiest route
 
 A note on why GHCN-Daily and not the airport-feed alternatives like GSOD. GHCN-Daily assigns precipitation to the calendar day it actually fell on, midnight to midnight. The aviation summaries report on accumulation windows tied to the observation hour, which smears rain across the wrong day even when the yearly totals come out right. For a course about when things happen in time, getting the day right matters.
 
+## The Nooksack River Discharge
+
+The book includes a long, clean record of a snowmelt-driven river: the North Fork Nooksack River below Cascade Creek near Glacier, Washington, which drains the west side of Mount Baker. The data are daily mean discharge from the U.S. Geological Survey, gage `12205000`, which has been read since 1938.^[<https://waterdata.usgs.gov/monitoring-location/12205000/>]
+
+### Reading It
+
+The file is included as `data/nooksack.csv`, with a date and the day's mean discharge in cubic meters per second.
+
+```{r}
+#| label: a1-read-nooksack
+#| message: false
+nooksack <- read_csv("data/nooksack.csv")
+glimpse(nooksack)
+```
+
+The USGS reports discharge in cubic feet per second, so the file you have has already been converted to cubic meters per second (one cubic foot per second is about 0.0283 cubic meters per second), which is the SI unit the rest of the world uses for streamflow.
+
+### Getting a Fresh Copy
+
+The USGS serves daily values straight from a web address, so you do not need a special package. The query below asks for parameter `00060` (discharge) and statistic `00003` (the daily mean) from one gage, in the agency's plain-text `rdb` format. It is a network call, so it is set not to run when the book is built.
+
+```{r}
+#| label: a1-nooksack-pull
+#| eval: false
+url <- paste0(
+  "https://waterservices.usgs.gov/nwis/dv/?format=rdb",
+  "&sites=12205000",
+  "&startDT=1938-01-01",
+  "&endDT=", Sys.Date(),
+  "&parameterCd=00060&statCd=00003"
+)
+raw <- read_tsv(url, comment = "#", show_col_types = FALSE)
+```
+
+The `rdb` format puts a one-line table of column types right under the header, so the first row is not data and gets dropped. The discharge column has a machine-generated name ending in `00060_00003`; we find it, convert to cubic meters per second, and keep the date and flow.
+
+```{r}
+#| label: a1-nooksack-clean
+#| eval: false
+flow_col <- grep("00060_00003$", names(raw), value = TRUE)[1]
+nooksack_fresh <- raw[-1, ] |>
+  transmute(
+    DATE = as.Date(datetime),
+    FLOW = round(as.numeric(.data[[flow_col]]) * 0.0283168, 2)   # cfs -> m^3/s
+  ) |>
+  arrange(DATE)
+
+write_csv(nooksack_fresh, "data/nooksack.csv")
+```
+
+To use a different river, change the `sites` id in the query. The USGS mapper lets you find a gage and read off its number.^[<https://maps.waterdata.usgs.gov/mapper/>] If you would rather not build the web address by hand, the `dataRetrieval` package wraps all of this in a `readNWISdv()` call.
+
+## Arizona Electricity Sales
+
+The decomposition chapter uses monthly residential electricity sales for Arizona as its multiplicative example, a series that grows: Phoenix runs on summer air conditioning, and the state's demand has climbed with its population. The data come from the U.S. Energy Information Administration, series `ELEC.SALES.AZ-RES.M`. The EIA reports it in millions of kilowatt-hours, which is the same as gigawatt-hours (GWh), the unit the book uses.^[<https://www.eia.gov/electricity/data.php>]
+
+### Reading It
+
+The file is bundled as `data/az_electricity.csv`, a month and the residential sales total. It runs from January 2001, where the EIA monthly retail series begins, through December 2025.
+
+```{r}
+#| label: a1-read-az
+#| message: false
+az <- read_csv("data/az_electricity.csv")
+glimpse(az)
+```
+
+Because the series is already monthly, there is no daily-to-monthly aggregation to do. To decompose it you turn the `SALES` column into a `ts` with a yearly frequency, `ts(az$SALES, start = c(2001, 1), frequency = 12)`.
+
+### Getting a Fresh Copy
+
+The EIA serves this through its open-data API, which needs a free key you register for once.^[<https://www.eia.gov/opendata/>] With a key in hand the request is one URL; it is a network call, so it is set not to run when the book is built.
+
+```{r}
+#| label: a1-eia-pull
+#| eval: false
+key <- "YOUR_EIA_KEY"      # register at https://www.eia.gov/opendata/
+url <- paste0(
+  "https://api.eia.gov/v2/electricity/retail-sales/data/",
+  "?api_key=", key,
+  "&frequency=monthly&data[0]=sales",
+  "&facets[stateid][]=AZ&facets[sectorid][]=RES",
+  "&start=2001-01&sort[0][column]=period&sort[0][direction]=asc"
+)
+raw <- jsonlite::fromJSON(url)$response$data
+```
+
+What comes back has a `period` like `"2001-01"` and a `sales` value. Convert the period to a first-of-month date and keep the two columns.
+
+```{r}
+#| label: a1-eia-clean
+#| eval: false
+az_fresh <- raw |>
+  transmute(DATE = as.Date(paste0(period, "-01")),
+            SALES = round(as.numeric(sales), 1)) |>
+  arrange(DATE)
+
+write_csv(az_fresh, "data/az_electricity.csv")
+```
+
+To use a different state or sector, change the `stateid` and `sectorid` facets in the query (for example `TX` and `RES`, or `AZ` and `COM` for commercial). If you would rather not register a key, the same series lives in EIA's no-key bulk download `ELEC.zip`, though that file is large and you have to filter it down to the one series yourself.
+
 ## The Rest of the Data
 
-Every other dataset the book uses ships in the same `data/` folder, and you can download the whole bundle as a single `data.zip` from the book's website. Each dataset is credited where it first appears, with a pointer back here when there is a way to refresh it yourself. As more chapters move over to this style, their sources will be documented in this appendix too.
+Every other dataset the book uses lives in the same `data/` folder, and you can download the whole bundle as a single `data.zip` from the book's website. Each dataset is credited where it first appears, with a pointer back here when there is a way to refresh it yourself. As more chapters move over to this style, their sources will be documented in this appendix too.

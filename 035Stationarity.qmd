@@ -45,10 +45,10 @@ Here is what stationarity and three of its common failures look like.
 n <- 300
 t <- 1:n
 
-# stationary AR(1)
+# stationary AR(1) phi 0.6
 e <- rnorm(n)
-stat <- numeric(n)
-for (i in 2:n) stat[i] <- 0.6 * stat[i - 1] + e[i]
+stationarySeries <- numeric(n)
+for (i in 2:n) stationarySeries[i] <- 0.6 * stationarySeries[i - 1] + e[i]
 
 # a trend: the mean is not constant
 trend <- 0.03 * t + rnorm(n)
@@ -61,7 +61,7 @@ walk <- cumsum(rnorm(n))
 
 faces <- tibble(
   t = t,
-  `Stationary AR(1)` = stat,
+  `Stationary AR(1)` = stationarySeries,
   `Trend (mean drifts)` = trend,
   `Changing variance` = hetero,
   `Random walk` = walk
@@ -332,8 +332,8 @@ It is also worth watching the tests clear a series, so we do not leave thinking 
 ```{r}
 #| label: stat-stationary-check
 #| warning: false
-adf.test(stat)
-kpss.test(stat)
+adf.test(stationarySeries)
+kpss.test(stationarySeries)
 ```
 
 ADF rejects the unit root and KPSS does not reject stationarity, so the series is stationary, which is what we built it to be. The tools do not simply cry "unit root" at everything. They pass a series that has earned the assumption and flag one that has not. Plenty of measured series pass on the first try with no differencing at all, and the exercises put a few from earlier chapters through the same workflow so you can see both outcomes for yourself.

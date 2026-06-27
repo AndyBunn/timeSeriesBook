@@ -32,7 +32,7 @@ We will write a series as $y_t$, the value $y$ observed at time $t$. For a regul
 
 ## Storing a Time Series: the tsibble
 
-We'll start with daily weather from the Bellingham airport. Weather data are straightforward. Everybody likes to think and talk about the weather after all. The file ships with the book; for where it comes from and how to refresh it, see the [data appendix](A1DataSources.html). For now we just read it.
+We'll start with daily weather from the Bellingham airport. Weather data are straightforward. Everybody likes to think and talk about the weather after all. The file comes with the book; for where it comes from and how to refresh it, see the [data appendix](A1DataSources.html). For now we just read it.
 
 ```{r}
 #| label: intro-read-kbli
@@ -223,7 +223,7 @@ The slope comes out to about `r round(coef(trend_fit)[2], 3)` degrees C per year
 
 The tsibble is the main way we will work with time series data. But it is not the only way R stores a time series, and you will meet the other ways constantly. The oldest and most common is the `ts` class, built into base R. Most of R's time-series functions speak `ts`, a great deal of older code and many packages return it, and almost every example you find online uses it. So we need to be on friendly terms.
 
-R ships with a pile of example datasets, and several are already `ts` objects. Lake Huron's annual water level is a classic.
+R includes a pile of example datasets, and several are already `ts` objects. Lake Huron's annual water level is a classic.
 
 ```{r}
 #| label: intro-lakehuron

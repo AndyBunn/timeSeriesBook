@@ -114,7 +114,7 @@ yACF$acf[, 1, 1]
 
 Note the 1.0 at lag zero. Every series is perfectly correlated with itself at no lag, so that bar is always there and always one. I find it a little annoying, but that is the convention.
 
-Because we are living in the tidyverse, it is worth knowing that `forecast` also ships a ggplot version, `ggAcf`, which we will lean on from here.
+Because we are living in the tidyverse, it is worth knowing that `forecast` also provides a ggplot version, `ggAcf`, which we will lean on from here.
 
 ```{r}
 #| label: auto-ggacf
@@ -148,7 +148,7 @@ So an AR(2) model is $y_t = \phi_1 y_{t-1} + \phi_2 y_{t-2} + \epsilon_t$, an AR
 
 ## Autocorrelation in Measured Data
 
-Simulated series are clean by construction. Let's look at a few series that ship with R and see how the tools behave on data that nobody designed.
+Simulated series are clean by construction. Let's look at a few series that come with R and see how the tools behave on data that nobody designed.
 
 ### Nile
 
@@ -281,7 +281,7 @@ Use a loop to simulate an AR(2) series with mean 0 and standard deviation 1. You
 
 ### Sockeye
 
-I have been lucky enough to work on a project in Alaska studying how [returning salmon fertilize](https://esajournals.onlinelibrary.wiley.com/doi/10.1002/ecy.2453) the riparian areas around the stream, a project that involved [decades of tossing dead salmon onto the banks](https://www.washington.edu/news/2018/10/23/sockeye-carcasses-tossed-on-shore-over-two-decades-spur-tree-growth/). Through it I came across a detailed record of sockeye salmon escapement at Hansen Creek, a small stream (about 4 m wide and 10 cm deep) in the Wood River system of Bristol Bay, southwestern Alaska. The series gives the total number of salmon returning to spawn each year from 1950 on. The file `HansenSockeye.rds` ships with the book in the `data` folder; read it with `sock <- readRDS("data/HansenSockeye.rds")`.
+I have been lucky enough to work on a project in Alaska studying how [returning salmon fertilize](https://esajournals.onlinelibrary.wiley.com/doi/10.1002/ecy.2453) the riparian areas around the stream, a project that involved [decades of tossing dead salmon onto the banks](https://www.washington.edu/news/2018/10/23/sockeye-carcasses-tossed-on-shore-over-two-decades-spur-tree-growth/). Through it I came across a detailed record of sockeye salmon escapement at Hansen Creek, a small stream (about 4 m wide and 10 cm deep) in the Wood River system of Bristol Bay, southwestern Alaska. The series gives the total number of salmon returning to spawn each year from 1950 on. The file `HansenSockeye.rds` comes with the book in the `data` folder; read it with `sock <- readRDS("data/HansenSockeye.rds")`.
 
 Look at the series and its autocorrelation. As a hint at what drives it, sockeye spend two to three years in the ocean plus one to two in fresh water, returning to spawn at age three to five, and [otoliths](https://en.wikipedia.org/wiki/Otolith) from Hansen Creek suggest most return at age four. What does that life history lead you to expect in the ACF and PACF, and does the record bear it out? What does the intersection of the fish ecology and the time-series structure tell you?
 

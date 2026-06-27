@@ -134,7 +134,7 @@ make_date(2021, 2, 28) + 1   # 2021 is not
 
 Add a day to February 28 and you land on the 29th in a leap year and on March 1 otherwise. R handles that for you, so ordinary date arithmetic across a leap day is safe.
 
-Leap *seconds* are a different story. A body called the International Earth Rotation Service occasionally declares an extra second, slipped in to keep our clocks aligned with the Earth's slightly irregular spin, and R, following the POSIX standard, ignores them in its counting. It even ships the table of them, but does not use it for arithmetic.
+Leap *seconds* are a different story. A body called the International Earth Rotation Service occasionally declares an extra second, slipped in to keep our clocks aligned with the Earth's slightly irregular spin, and R, following the POSIX standard, ignores them in its counting. It even carries the table of them, but does not use it for arithmetic.
 
 ```{r}
 #| label: dt-leapsec
