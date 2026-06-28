@@ -374,7 +374,7 @@ How do you know multiplicative is the right call and not additive? You fit both 
 
 ## Stationarity
 
-A trend, a fanning variance, and a season are all ways a series can change its character over time, and a series that does is not stationary. Stationarity is the assumption most of the tools in this book rest on, so it gets its own chapter. See [Stationarity](035Stationarity.qmd).
+A trend, a fanning variance, and a season are all ways a series can change its character over time, and a series that does is not stationary. Stationarity is the assumption most of the tools in this book rest on, so it gets its own chapter. See [Stationarity](04Stationarity.qmd).
 
 ## Wrapping Up
 

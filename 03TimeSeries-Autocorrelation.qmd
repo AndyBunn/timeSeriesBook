@@ -31,6 +31,12 @@ $$ y_t = \phi y_{t-1} + \epsilon_t $$
 
 Here $y$ is the series, $t$ indexes time, $\phi$ (pronounced "fie," or "fee" if you are in Greece) is a coefficient between -1 and 1, and $\epsilon$ is a fresh disturbance at each step. That disturbance goes by several names: the error, the noise, the residual, and in time-series writing you will often see it called a shock, to stress that it is new information arriving at time $t$ that the past could not have predicted. We call this an AR(1) model, first-order because $y_t$ reaches back exactly one step. You will sometimes see it written $y_t - \phi y_{t-1} = \epsilon_t$. I prefer keeping $y_t$ alone on the left so it reads as the regression it is.
 
+::: {.callout-note}
+## A note on the word "shock"
+
+Of those names for $\epsilon_t$, "shock" is the one to watch, because it is borrowed from econometrics and is not how most of us in environmental science talk. It means the disturbance just described: the new, unpredictable input that arrives at time $t$ and knocks the series off whatever its history implied. If the word feels foreign, translate it to one you already use. An ecologist calls a disturbance a fire, a flood, a windthrow, something that hits the system from outside. A physical scientist might say a perturbation or a forcing. Same idea. I use "shock" because it is the standard term in time-series writing, but you can read it as "the disturbance at time $t$" every time it appears.
+:::
+
 The arithmetic is cleaner when the series has a mean of zero, so by convention we subtract the mean first, $y = Y - \bar Y$, and work with the centered series. We will stick to data centered at zero for now.
 
 Let's generate an AR(1) series by hand. Later we will meet `arima.sim`, which does this in one line, but building it with a loop shows you the machinery.
@@ -63,10 +69,12 @@ We planted a known $\phi = 0.7$ in that series. The first thing we will do with 
 Go read [Allison Horst's piece on the autocorrelation function](https://allisonhorst.com/time-series-acf). She is wonderful and I read everything she makes with a little envy.
 
 ```{r}
-#| label: auto-horst-gif
+#| label: auto-horst-jpg
 #| echo: false
 #| out-width: '100%'
-knitr::include_graphics("assets/allison_horst/host_acf_images.gif", error = FALSE)
+knitr::include_graphics("assets/host_acf.jpg", error = FALSE)
+# XXX add caption that says "Artwork by Allison Horst"
+# NB this artwork is available for free, open use by CC-BY (Creative Commons Attribution 4.0 International License).
 ```
 
 ### The less fun version
@@ -85,12 +93,13 @@ This is the same correlation you already know, applied to a series and a lagged 
 $$\rho(k) = \frac{\frac{1}{n-k}\sum_{t=k+1}^n (y_t - \bar{y})(y_{t-k} - \bar{y})}{
 \sqrt{\frac{1}{n}\sum_{t=1}^n (y_t - \bar{y})^2}}$$
 
-To see the whole autocorrelation structure at once, you compute $\rho$ at successive lags and plot it. That plot is called a correlogram, and the function `Acf` draws it. We use `Acf` from `forecast` rather than the base `acf`; they are nearly identical (see `?Acf` for the small differences).
+To see the whole autocorrelation structure at once, you compute $\rho$ at successive lags and plot it. That plot is called a correlogram, and the function `ggAcf` draws it. We use `ggAcf` from `forecast` rather than the base `acf`; they are nearly identical (see `?ggAcf` for the small differences).
 
 ```{r}
 #| label: auto-acf
 #| fig-height: 3
-Acf(y)
+ggAcf(y) + 
+  theme_minimal()
 ```
 
 The correlogram shows the correlation at each lag. The lag-1 bar sits right at the $\phi$ we recovered above. Notice that the autocorrelation does not stop at lag 1: there is still correlation at lags 2 and 3, decaying as $\phi^k$ ($\phi^2$, $\phi^3$, and so on). That geometric decay is the AR(1) signature in the ACF.
@@ -104,29 +113,21 @@ qnorm((1 + 0.95) / 2) / sqrt(n)
 
 A word of caution that is really the first conviction of this book in miniature. We just tested 25 lags. With a 95% band, you expect roughly one bar in twenty to poke past the line by chance even if the series is pure noise. So a single lag outside the band is no reason to fire off a paper to *Nature*. Read the plot against the mechanism. A strong lag-1 correlation in a biological or physical system that has obvious memory is meaningful; a lone barely-significant spike at lag 18 is probably nothing. Always ask whether what you see in the data makes sense for the process that made it.
 
-You will often want the numbers, not just the picture. They live inside the object `Acf` returns; `str` is, as always, your friend for finding them.
+You will often want the numbers, not just the picture. They live inside the object `ggAcf` returns; `str` is, as always, your friend for finding them.
 
 ```{r}
 #| label: auto-acf-values
-yACF <- Acf(y, plot = FALSE)
+yACF <- ggAcf(y, plot = FALSE)
 yACF$acf[, 1, 1]
 ```
 
-Note the 1.0 at lag zero. Every series is perfectly correlated with itself at no lag, so that bar is always there and always one. I find it a little annoying, but that is the convention.
-
-Because we are living in the tidyverse, it is worth knowing that `forecast` also provides a ggplot version, `ggAcf`, which we will lean on from here.
-
-```{r}
-#| label: auto-ggacf
-#| fig-height: 3
-ggAcf(y) + theme_minimal()
-```
+Note the 1.0 at lag zero. Every series is perfectly correlated with itself at no lag.
 
 ## The Partial Autocorrelation Function
 
 Return to the puzzle from the ACF: why is there correlation at lags 2 and 3 when our model only reaches back one step? Because the dependence chains. If $y_t$ leans on $y_{t-1}$, and $y_{t-1}$ leans on $y_{t-2}$, then $y_t$ and $y_{t-2}$ are correlated secondhand, through the value between them. The lag-2 correlation in the ACF is partly that echo.
 
-The partial autocorrelation strips the echo out. The partial autocorrelation at lag $k$ is the correlation between $y_t$ and $y_{t-k}$ after the effect of the intervening lags has been removed, which is exactly what a regression coefficient does when it controls for the other predictors. The `Pacf` function computes it.
+The partial autocorrelation strips the echo out. The partial autocorrelation at lag $k$ is the correlation between $y_t$ and $y_{t-k}$ after the effect of the intervening lags has been removed, which is exactly what a regression coefficient does when it controls for the other predictors. The `ggPacf` function computes it.
 
 ```{r}
 #| label: auto-pacf

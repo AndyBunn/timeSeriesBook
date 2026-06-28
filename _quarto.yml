@@ -16,32 +16,32 @@ book:
   chapters:
     - file: index.qmd
       text: "Cover"
-    - part: "Preamble"
+    - part: "Foundations"
       chapters:
         - 00Welcome.qmd
         - 01MeasureOfTime.qmd
         - 01xAsideMethods_and_generics.qmd
         - 01xAsideDatesAndTimes.qmd
-    - part: "Decomposition & Autocorrelation"
+    - part: "Modeling Temporal Dependence"
       chapters:
         - 02DecompTrends.qmd
         - 03TimeSeries-Autocorrelation.qmd
         - 03xAsideCorrelationVersusRegression.qmd
         - 03xAsideMA1-ACF-PACF-Interp.qmd
         - 03xAsidePACFByHand.qmd
-        - 035Stationarity.qmd
-        - 04TimeSeries-ARMA.qmd
+        - 04Stationarity.qmd
+        - 05TimeSeries-ARMA.qmd
     - part: "Forecasting & Cross-Correlation"
       chapters:
-        - 05TimeSeries-Forecast.qmd
-        - 06CrossCorrelation.qmd
+        - 06TimeSeries-Forecast.qmd
+        - 07CrossCorrelation.qmd
     - part: "Regression, Filters & Frequency"
       chapters:
-        - 07TimeSeries-Regression.qmd
-        - 07xAsideOLS-Algebra-Matrix.qmd
-        - 08TimeSeries-Filters.qmd
-        - 09TimeSeries-Freq.qmd
-    - 10PackagesUsed.qmd
+        - 08TimeSeries-Regression.qmd
+        - 08xAsideOLS-Algebra-Matrix.qmd
+        - 09TimeSeries-Filters.qmd
+        - 10TimeSeries-Freq.qmd
+    - 11PackagesUsed.qmd
   appendices:
     - A1DataSources.qmd
   repo-url: https://github.com/AndyBunn/timeSeriesBook
