@@ -22,23 +22,23 @@ book:
         - 01MeasureOfTime.qmd
         - 01xAsideMethods_and_generics.qmd
         - 01xAsideDatesAndTimes.qmd
-    - part: "Modeling Temporal Dependence"
-      chapters:
         - 02DecompTrends.qmd
+    - part: "The Anatomy of Dependence"
+      chapters:
         - 03TimeSeries-Autocorrelation.qmd
         - 03xAsideCorrelationVersusRegression.qmd
         - 03xAsideMA1-ACF-PACF-Interp.qmd
         - 03xAsidePACFByHand.qmd
         - 04Stationarity.qmd
         - 05TimeSeries-ARMA.qmd
-    - part: "Forecasting & Cross-Correlation"
+    - part: "Working with Dependence"
       chapters:
         - 06TimeSeries-Forecast.qmd
         - 07CrossCorrelation.qmd
-    - part: "Regression, Filters & Frequency"
-      chapters:
         - 08TimeSeries-Regression.qmd
         - 08xAsideOLS-Algebra-Matrix.qmd
+    - part: "The Frequency Domain"
+      chapters:
         - 09TimeSeries-Filters.qmd
         - 10TimeSeries-Freq.qmd
     - 11PackagesUsed.qmd
