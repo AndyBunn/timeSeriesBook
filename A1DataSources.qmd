@@ -190,6 +190,93 @@ write_csv(az_fresh, "data/az_electricity.csv")
 
 To use a different state or sector, change the `stateid` and `sectorid` facets in the query (for example `TX` and `RES`, or `AZ` and `COM` for commercial). If you would rather not register a key, the same series lives in EIA's no-key bulk download `ELEC.zip`, though that file is large and you have to filter it down to the one series yourself.
 
+## The Lake Washington Plankton Data
+
+The cross-correlation chapter uses two monthly series, `producers` and `grazers`, from the long-term plankton monitoring of Lake Washington. The underlying record was collected by W. T. Edmondson and the University of Washington and is distributed in tidy form with the `MARSS` package [@Holmes2012]; the ecological story behind it is told in @Hampton2006. The file that comes with the book is already pooled and cleaned, so the chapter just reads it.
+
+```{r}
+#| label: a1-read-lwa
+#| message: false
+lwa <- read_csv("data/lake_wa_plankton.csv")
+head(lwa)
+```
+
+Each row is one month, with `producers` an index of the phytoplankton and `grazers` an index of the zooplankton that eat them. Both are dimensionless: I built them by pooling several taxa, and because plankton abundances are right-skewed and span orders of magnitude across taxa, each taxon is log-transformed and standardized before pooling so that no single bloom dominates the index.
+
+### Building It
+
+Here is the recipe, in case you want to change which taxa go into each index or pull the source data yourself. The `MARSS` package ships the record as `lakeWAplanktonRaw`; you only need it to rebuild the file, so the book does not load it.
+
+```{r}
+#| label: a1-lwa-build
+#| eval: false
+library(MARSS)
+data(lakeWAplankton)
+raw <- as.data.frame(lakeWAplanktonRaw)
+
+algae   <- c("Cryptomonas", "Diatoms", "Greens",
+             "Bluegreens", "Unicells", "Other.algae")
+grazers <- c("Daphnia", "Diaptomus", "Cyclops",
+             "Epischura", "Non.daphnid.cladocerans", "Non.colonial.rotifers")
+
+# log each taxon to tame the skew, standardize so scales are comparable,
+# then average to a single producer and grazer index
+zlog <- function(m) scale(log1p(m))
+producers <- rowMeans(zlog(as.matrix(raw[algae])),   na.rm = TRUE)
+grazers   <- rowMeans(zlog(as.matrix(raw[grazers])), na.rm = TRUE)
+
+# linear-interpolate the handful of months a taxon went unrecorded
+fill <- function(v) approx(seq_along(v), ifelse(is.finite(v), v, NA),
+                           seq_along(v), rule = 2)$y
+
+lwa_fresh <- tibble(Year = raw$Year, Month = raw$Month,
+                    producers = round(fill(producers), 3),
+                    grazers   = round(fill(grazers),   3))
+write_csv(lwa_fresh, "data/lake_wa_plankton.csv")
+```
+
+The record runs monthly from 1962 to 1994. It does not update the way a weather station does, so there is no live source to refresh against; the recipe is here so you can see exactly how the two indices were built and swap taxa in or out if you want to.
+
+## The Colorado River Flow Data
+
+The regression chapter models annual flow on the Colorado River. The series is the water-year flow at Lees Ferry, Arizona, the gaging point used to divide the river's upper and lower basins, paired with cool-season precipitation, spring-summer temperature, and autumn soil moisture for the upper basin. The data come from the supplementary material of @Woodhouse2016, whose paper works out how temperature amplifies the effect of precipitation deficits on flow.
+
+### Reading It
+
+```{r}
+#| label: a1-read-woodhouse
+#| message: false
+flow <- read_csv("data/woodhouse.csv")
+glimpse(flow)
+```
+
+`LeesWYflow` is the water-year flow in acre feet, `OctAprP` is October-to-April precipitation in millimeters, `MarJulT` is March-to-July temperature in degrees Celsius, and `novsoil` is November soil moisture. The record runs from 1906 to 2012. The original supplement is an Excel file linked from the paper; the version here is the same table saved as CSV.
+
+## The New York Air Quality Data
+
+The regression chapter uses a short air-quality record as a counterexample, a time-series regression whose residuals turn out to be clean. The data are daily measurements of ground-level ozone and weather in New York over the summer of 1973, the same record distributed as `environmental` in the `lattice` package and as `airquality` in base R. The version here keeps the complete cases and adds a sequential day index.
+
+### Reading It
+
+```{r}
+#| label: a1-read-air
+#| message: false
+air <- read_csv("data/ny_air_quality.csv")
+glimpse(air)
+```
+
+`ozone` is the ground-level ozone concentration in parts per billion, `radiation` is solar radiation, `temperature` is in degrees Fahrenheit, and `wind` is wind speed in miles per hour. The `Day` column is just the row order, a stand-in for the calendar so the series can be treated as evenly spaced.
+
+### Building It
+
+```{r}
+#| label: a1-air-build
+#| eval: false
+library(lattice)
+air_fresh <- tibble(Day = seq_len(nrow(environmental)), environmental)
+write_csv(air_fresh, "data/ny_air_quality.csv")
+```
+
 ## The Rest of the Data
 
 Every other dataset the book uses lives in the same `data/` folder, and you can download the whole bundle as a single `data.zip` from the book's website. Each dataset is credited where it first appears, with a pointer back here when there is a way to refresh it yourself. As more chapters move over to this style, their sources will be documented in this appendix too.

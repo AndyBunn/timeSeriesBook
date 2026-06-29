@@ -35,6 +35,7 @@ book:
       chapters:
         - 06TimeSeries-Forecast.qmd
         - 07CrossCorrelation.qmd
+        - 07xAsideCcfNormalization.qmd
         - 08TimeSeries-Regression.qmd
         - 08xAsideOLS-Algebra-Matrix.qmd
     - part: "The Frequency Domain"

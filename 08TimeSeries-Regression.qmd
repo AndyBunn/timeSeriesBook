@@ -1,247 +1,362 @@
 # Regression
 
-```{r,echo=FALSE}
+```{r}
+#| label: reg-setup
+#| echo: false
 set.seed(872)
 ```
 
 ## Big Idea
-OLS regression can be problematic with time series because the assumption of independence gets violated pretty easily. But, there are other approaches that are useful.
 
-## Reading
-Have a look at Chapter five (through section 5.3) from @Cowpertwait2009. It's OK to skim the readings in this book. It's not a great book for our purposes as many of you haven't taken linear algebra and the book occasionally goes that way. But it's useful to hum your way through the chapter nonetheless.
+The last chapter ended by pointing here. Once a cross-correlation convinces you that one series tracks another, the natural next move is to fit a model and read the slope: how much does $y$ change when $x$ does? That is regression, and you have done it since intro stats. The wrinkle is that our data are ordered in time, and the errors of a time-series regression are almost never the tidy independent draws that ordinary least squares assumes. They carry memory. Yesterday's error tells you something about today's.
+
+That memory is the saboteur from the start of the book wearing a regression costume. When the residuals of a regression are autocorrelated, you have broken the independence assumption that the standard errors, the $t$-statistics, and the $p$-values all rest on. The estimate of the slope can still be fine. What goes wrong is your sense of how sure you are. Worse, the trouble is sharpest in the single most common thing an environmental scientist asks of a time series: is there a trend? Fit a line against time with autocorrelated errors and the software will hand you a slope and a tiny $p$-value whether or not anything is actually changing. This chapter is about spotting that, understanding why it happens, and fixing it with generalized least squares so that the number you report is one you can stand behind.
 
 ## Packages
-You'll want to install the `nlme` [@R-nlme] library if you don't have it. We are going to fit a linear model using generalized least squares as opposed to ordinary least squares and you'll need the `gls` function from `nlme`. I'll use `forecast` [@R-forecast] as well and tidyverse [@R-tidyverse]. 
 
-```{r, message=FALSE}
+We stay in the tsibble idiom and read example data from CSV. The new tool is `gls` from `nlme` [@R-nlme], which fits a linear model while letting the errors carry a correlation structure. We use `forecast` [@R-forecast] for `ggAcf`/`ggPacf`, `ggridges` for the simulation figure, and `PNWColors` for the book's palette.
+
+```{r}
+#| label: reg-packages
+#| message: false
 library(tidyverse)
 library(nlme)
 library(forecast)
+library(ggridges)
+library(PNWColors)
+
+sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
 ```
 
-## Regression
-### Adjusting OLS
-As know, time series data are typically autocorrelated in some way. We've seen this over and over and we've learned to spot it and to fit models of various complexity to describe it. 
+## A Trend That Isn't There
 
-A very common situation with environmental data is to want to do an ordinary least squares regression using time series data. If your data are a time series, you are doing time-series regression. And that has different pitfalls than standard regression.
+Let's start with the most dangerous case and see the saboteur in the open. We will build a series with no trend at all: pure AR(1) noise, wandering around a flat mean of zero. Then we will fit a straight line against time and ask whether the slope is significant. We know the right answer is no. There is no trend. We built it that way.
 
-The biggest issue is that if the residuals (errors) are autocorrelated, you have violated the assumption of independence.  What does this mean? Well, [the standard errors on the coefficient estimates tend to be underestimated (and the t-scores overestimated) when the autocorrelations of the errors at low lags are positive](https://en.wikipedia.org/wiki/Autocorrelation#Regression_analysis). This means that any statistical inference could be wrong, e.g., the the p-values from a t-test will be artificially low. But despair not! If we take the the time series structure of the errors into account we can usually still model the association between $x$ and $y$ effectively. 
-
-Is this a little opaque? Let's make up an example. Let's say you wanted to build a model of salmon in a creek as function of the summer water temperature. Temps get too warm  and the wee fish suffer and die before they get counted by the poor intern. You can make up a mechanism however you like. This is just a thought experiment, right? So you make a nice linear model $y=\beta_0 + \beta_1 x + \epsilon$ where $y$ is the number of salmon, $\beta_0$ is the intercept and $\beta_1$ is the coefficient on the variable $x$ which is the water temperature, and $\epsilon$ is the residual. You have a gorgeous time series every year ($t$) for some number of years which makes this a time series regression: $y_t=\beta_0 + \beta_1 x_t + \epsilon_t$. You run an OLS regression and get a negative slope and a t-test says that your model has skill (good $R^2$, $p<0.05$, etc). Great -- you fire off a letter to Nature, or write your thesis, or go put some wood in a stream, or just bathe in the satisfaction of a job well done. But of course your model won't fit perfectly so you'll have residuals or errors from the model ($\epsilon$). Now, if those residuals are not independent and identically distributed (~iid), you have violated the assumptions of the OLS regression. The standard errors might be wrong, the p-values might be inflated. Alas. The classic reason that residuals are not ~iid in time series is because they are not independent and that means autocorrelation.
-
-In general here is a good approach when dealing with time series variables in a regression.
-
-1. Start by doing an ordinary least squares regression.  
-
-2. Look at the AR structure of the residuals with ACF and PACF plots.
-
-3. If the residuals look clean then carry on. Note that it's OK for the variable $y$ or $x$ to be autocorrelated -- watch the residuals. If the residuals have AR structure, estimate and diagnose an appropriate AR or ARMA model.
-
-4. If needed, get the adjusted regression coefficients (estimates, standard errors). We want to have a model that adjusts for the AR structure in the residuals. We can create an adjusted data set by hand and use OLS (see text) or use GLS with an appropriate correlation structure (below).
-
-Let's create a data set to play with. We will generate two time series. The variable `x` will be ordinary white noise. The variable `y` will be a function of `x` plus AR(1) noise $\epsilon$. We will pretend we don't know about $\epsilon$ and perform two regressions of $y=f(x)$ and look at the residuals and the estimate of the slope ($\hat\beta$).  
-
-```{r, message=FALSE}
-set.seed(47) # for reproducibility
-n <- 100
-phi <- 0.8
-x <- ts(rnorm(n))
-epsilon <- arima.sim(model = list(ar=phi),n = n)
-epsilon <- epsilon - mean(epsilon) # demean
-B0 <- 0 # intercept
-B1 <- 0.5 # slope
-y <- B0 + B1*x + epsilon
-# step 1 - the regular ols regression
-ols1 <- lm(y~x)
-# step 2 - inspect the residuals
-Acf(residuals(ols1)) # problem with independence
-Pacf(residuals(ols1)) # looks like an AR1
-
-# step 3 - get a good model
-ar1 <- ar(residuals(ols1))$ar
-ar1
-
-# two ways of getting a model that works
-# step 4 - method 1 - adjust by hand
-# y lagged at one time step: 
-# (see poscript below of notes on lagging)
-y.lag1 <- c(NA,y[-n]) 
-head(cbind(y,y.lag1))
-y2 <- y - ar1*y.lag1 # Use ar1 to make y white noise
-
-x.lag1 <- c(NA,x[-n]) # x lagged at one time step
-x2 <- x - ar1*x.lag1 # Use ar1 to make x white noise
-
-ols2 <- lm(y2~x2)
-Acf(residuals(ols2)) # clean
+```{r}
+#| label: reg-trend-plant
+set.seed(22)
+n <- 120
+phi <- 0.85
+y <- as.numeric(arima.sim(model = list(ar = phi), n = n))
+time <- 1:n
 ```
 
-### GLS
+Always look at what you built. An AR(1) series with a coefficient near one wanders. It sets off in some direction and stays there for a while before turning, because each value is mostly a copy of the one before it. To the eye it can look exactly like a series that is trending.
 
-When the OLS assumptions are met -- independent errors, equal variance, normality -- OLS is hard to beat. The estimators are BLUE: Best Linear Unbiased Estimators. And OLS has a nice teaching property: you can derive it with algebra and a little calculus, without any matrix notation. That is probably how you learned it.
+```{r}
+#| label: reg-trend-plot
+tibble(time, y) |>
+  ggplot(aes(time, y)) +
+  geom_line(color = sfPal[1]) +
+  geom_smooth(method = "lm", se = FALSE, color = sfPal[5], linewidth = 0.7) +
+  labs(x = "Time", y = "y",
+       title = "A series with no trend, and the line OLS fits to it") +
+  theme_minimal()
+```
 
-The problem, as we have just seen, is that time series residuals are often autocorrelated. That violates the independence assumption, which means the standard errors on your coefficients can be badly wrong -- typically too small, which makes your p-values too optimistic. You think you have more evidence than you actually do.
+The red line is what ordinary least squares draws through it. Now fit that regression and look at what the software says.
 
-Generalized least squares (GLS) is the natural fix. The key difference between OLS and GLS is in what they assume about the errors. OLS assumes the errors are independent and identically distributed. GLS allows the errors to have a richer structure -- specifically, a covariance matrix $\Sigma$ that can encode both unequal variances and correlations between observations. You can think of it this way: OLS minimizes the sum of squared distances between observed and predicted values, treating all observations equally. GLS minimizes those same distances but **weighted** by the covariance structure of the residuals, so observations whose errors are strongly correlated with their neighbors get less weight -- they are carrying redundant information.
+```{r}
+#| label: reg-trend-ols
+ols_trend <- lm(y ~ time)
+summary(ols_trend)
+```
 
-Formally, the OLS and GLS estimators sit side by side like this:
+The $p$-value on the slope is around three in a billion. By any conventional standard that is a screaming, unambiguous trend. And it is completely false. There is no trend in this series. The only structure is the AR(1) memory, and that memory has fooled the regression into mistaking a slow random wander for a directed climb.
+
+This is not a fluke of one unlucky seed. Let's run it many times. For a range of AR(1) strengths, we will generate a trend-free series, fit the line, and record how often the slope comes back significant at the usual 5% level. If the test were behaving, that rate would sit near 5% no matter how much memory the errors carry.
+
+```{r}
+#| label: reg-trend-mc
+false_positive_rate <- function(phi, n = 100, sims = 1000) {
+  hits <- replicate(sims, {
+    y <- as.numeric(arima.sim(model = list(ar = phi), n = n))
+    p <- summary(lm(y ~ seq_len(n)))$coefficients[2, 4]
+    p < 0.05
+  })
+  mean(hits)
+}
+
+phis <- c(0, 0.3, 0.5, 0.7, 0.9)
+fp <- tibble(phi = phis,
+             rate = map_dbl(phis, false_positive_rate))
+fp
+```
+
+```{r}
+#| label: reg-trend-fp-plot
+ggplot(fp, aes(factor(phi), rate)) +
+  geom_col(fill = sfPal[5], width = 0.6) +
+  geom_hline(yintercept = 0.05, linetype = "dashed") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = expression("AR(1) coefficient of the errors  " * (phi)),
+       y = "Trends declared significant",
+       title = "OLS finds a trend in trend-free data",
+       subtitle = "Each bar: share of 1000 flat AR(1) series where OLS calls the slope significant") +
+  theme_minimal()
+```
+
+The dashed line is where a well-behaved test should sit. At $\phi = 0$, when the errors are independent, OLS behaves: it cries trend about 5% of the time, exactly the false-positive rate you signed up for. But as the memory in the errors climbs, so does the deception. By $\phi = 0.9$, ordinary least squares declares a significant trend in roughly two of every three series that have no trend at all. The software prints a trend either way. The only thing that changes is how often you get fooled.
+
+## Why It Happens
+
+The mechanism is worth getting straight, because it tells you exactly when to worry. The OLS slope estimate is still unbiased here. Across all those simulations it averages to zero, the truth. What breaks is the standard error. OLS computes the uncertainty on the slope under the assumption that every observation is an independent piece of evidence. When the errors are autocorrelated, consecutive points are partly copies of each other, so you have less independent information than the sample size suggests. OLS does not know this. It counts all $n$ points as full evidence, the standard error comes out too small, the $t$-statistic too big, and the $p$-value too optimistic.
+
+There is a clean way to see when this bites. The bias in the OLS standard error is, to a good approximation, proportional to the sum over lags of the error autocorrelation times the predictor autocorrelation:
+
+$$\text{SE bias} \;\propto\; \sum_k \rho_\epsilon(k)\,\rho_x(k)$$
+
+If the predictor has no time structure of its own, every $\rho_x(k)$ is zero, that sum collapses, and the OLS standard error is about right even when the errors are autocorrelated. There is nothing for the memory in the errors to align with. But the moment the predictor carries its own autocorrelation, both terms are positive, the sum grows, and the standard error shrinks below where it should be. And the predictor with the most autocorrelation imaginable is time itself: $1, 2, 3, \dots$ climbs as smoothly as a variable can. That is why fitting a trend is the worst case, and why it is the one to be most suspicious of.
+
+So the diagnosis is always the same. Fit your model, then look at the residuals the way we have looked at every series in this book. The ACF and PACF of the OLS residuals from our trend-free series tell the story immediately.
+
+```{r}
+#| label: reg-trend-resid
+#| fig-height: 3
+ggAcf(residuals(ols_trend)) + labs(title = "ACF of OLS residuals") +
+  theme_minimal()
+```
+
+The slow decay is the AR(1) signature. The residuals are not independent, the independence assumption is broken, and any $p$-value from that fit is not to be trusted. The plot is the warning. Now we fix it.
+
+## Generalized Least Squares
+
+When the OLS assumptions are met, independent errors, equal variance, normality, OLS is hard to beat. The estimators are BLUE: Best Linear Unbiased Estimators. And OLS has a nice teaching property: you can derive it with algebra and a little calculus, without any matrix notation. That is probably how you learned it.
+
+The problem, as we have just seen, is that time-series residuals are often autocorrelated. That violates the independence assumption, which means the standard errors on your coefficients can be badly wrong, typically too small, which makes your $p$-values too optimistic. You think you have more evidence than you actually do.
+
+Generalized least squares is the natural fix. The difference between OLS and GLS is in what they assume about the errors. OLS assumes the errors are independent and identically distributed. GLS allows them a richer structure: a covariance matrix $\boldsymbol{\Sigma}$ that can encode both unequal variances and correlations between observations. OLS minimizes the sum of squared distances between observed and predicted values, treating every observation as equal evidence. GLS minimizes those same distances weighted by the covariance structure of the residuals, so observations whose errors are strongly correlated with their neighbors get less weight. They are carrying redundant information, and GLS knows it.
+
+The two estimators sit side by side like this:
 
 $$\hat{\boldsymbol{\beta}}_{OLS} = (\mathbf{X}^\top \mathbf{X})^{-1} \mathbf{X}^\top \mathbf{y}$$
 $$\hat{\boldsymbol{\beta}}_{GLS} = (\mathbf{X}^\top \boldsymbol{\Sigma}^{-1} \mathbf{X})^{-1} \mathbf{X}^\top \boldsymbol{\Sigma}^{-1} \mathbf{y}$$
 
-GLS is OLS with $\boldsymbol{\Sigma}^{-1}$ inserted as a weighting matrix. When $\boldsymbol{\Sigma}$ is just $\sigma^2 \mathbf{I}$ (equal variances, no correlation), the two formulas are identical -- OLS is a special case of GLS. If the matrix notation here is unfamiliar, the [OLS via Algebra and Matrices aside](08xAsideOLS-Algebra-Matrix.html) walks through where both formulas come from and why they are structured the way they are.
+GLS is OLS with $\boldsymbol{\Sigma}^{-1}$ inserted as a weighting matrix. When $\boldsymbol{\Sigma}$ is just $\sigma^2 \mathbf{I}$, equal variances and no correlation, the two formulas are identical and OLS is a special case of GLS. If the matrix notation is unfamiliar, the [OLS via Algebra and Matrices aside](08xAsideOLS-Algebra-Matrix.html) walks through where both formulas come from and why they are built the way they are.
 
-In practice you do not know $\boldsymbol{\Sigma}$ exactly. When using `gls()` from the `nlme` package, you specify the *structure* of $\boldsymbol{\Sigma}$ -- for example, that the errors follow an AR(1) process -- and the software estimates the parameters of that structure from the data using maximum likelihood or restricted maximum likelihood (REML). This is also a reason not to use GLS carelessly. [Why not always use GLS over OLS?](https://www.reddit.com/r/AskStatistics/comments/36ocl1/why_not_always_use_gls_over_ols/) It's a fair question, and the answer comes down to the [KISS principle](https://en.wikipedia.org/wiki/KISS_principle). If you meet the OLS assumptions, use OLS. If you do not, GLS is a good option -- but it requires you to correctly specify the structure of the residual correlations. Get that wrong and you might do more harm than good.
+In practice you do not know $\boldsymbol{\Sigma}$ exactly. With `gls()` from `nlme` you specify the *structure* of the errors, for example that they follow an AR(1) process, and the software estimates the parameters of that structure from the data by maximum likelihood or restricted maximum likelihood (REML). This is also a reason not to reach for GLS reflexively. If you meet the OLS assumptions, use OLS. If you do not, GLS is a good option, but it asks you to specify the correlation structure correctly. Get that wrong and you can do more harm than good.
 
-We will start by assuming `epsilon` follows an iid process (e.g., $N(0,1)$) and we will fit a model with uncorrelated errors. E.g., here we use `gls` but this gives the same info as `lm` would because `gls` assumes iid errors unless told otherwise.
-
-```{r}
-# step 1 - the regular ols regression but fit with gls rather than lm
-gls1 <- gls(y~x)
-summary(gls1)
-# step 2 - inspect the residuals
-Acf(residuals(gls1)) # problem with independence
-Pacf(residuals(gls1)) # looks like an AR1
-```
-
-The residuals of this model are autocorrelated as an AR(1) process from looking at the plots. Thus, we have violated the assumption of independent residuals. But do not despair. We will use a GLS model that allows us to specify an AR(1) correlation structure for the residuals and perform hypothesis testing in the presence of this temporal structure. Doing so, will give us new and improved estimates of the parameters. We will thus sleep well knowing in our hearts that we have done good.
-
-We will do this by updating the `gls1` object and specifying that errors follow an autoregressive process with the `corARMA` function. By specifying `corARMA(p=1)` we are asking `nlme` to fit an AR(1) error structure. An AR(1) assumes that residuals closer in time are more similar and the correlation decays geometrically. If we had residuals that followed a different process (e.g., an ARMA(1,1) model) we could try to fit that with `corARMA(p=1, q=1)`. The `update` function will then try to estimate the AR and MA parameters using numerical optimization. This can fail when models are too complex (e.g., too high an order).
+Let's fix the trend regression. We fit the same model, $y$ against time, but tell `gls` that the errors follow an AR(1) process with `corAR1()`.
 
 ```{r}
-# step 3 - update the model with an appropriate correlation structure
-cs1 <- corARMA(p=1)
-gls2 <- update(gls1,correlation=cs1)
-summary(gls2)
-# step 4 - and inspect the residuals. Note type="normalized"
-# in the calls to `residuals`.
-Acf(residuals(gls2,type="normalized")) # clean!
+#| label: reg-trend-gls
+gls_trend <- gls(y ~ time, correlation = corAR1())
+summary(gls_trend)
 ```
 
-We ask for the "normalized" residuals above because they are the transformed residuals that account for the error correlation and heteroscedasticity structure we specified. They’re essentially standardized residuals that assume your model’s covariance matrix is correct.
+The slope estimate shrinks toward zero, and the standard error more than quadruples. The $p$-value climbs from three-in-a-billion to about 0.6. GLS has accounted for the memory in the errors, recognized that 120 autocorrelated points are worth far fewer than 120 independent ones, and reported the uncertainty correctly. The trend that OLS was certain of has evaporated, which is exactly what should happen, because we built a series with no trend.
 
-Zooming out a bit. We fit a linear model of the form $y=\beta_0 + \beta_1x$ using GLS and got out estimates for the intercept ($\hat\beta_0$) and slope ($\hat\beta_1$). First, we assumed that the error term was uncorrelated. Looking at summary, we can see the the estimate of the slope ($\hat\beta_1$) is `r round(summary(gls1)$tTable[2,1],3)` and significantly different than zero. We also have a variety of goodness of fit statistics and some other goodies. I'll walk through those in the video. The important thing to wrap your head around here is that we fit GLS with uncorrelated errors meaning it's essentially identical to OLS. Compare the above to the more familiar `summary(lm(y~x))`.
+## Recovering a Slope That Is There
 
-So what's the big deal? We started with a model that showed `x` as a significant predictor of `y`. We ended up, after much wailing and rending of garments, with a model that showed `x` as a significant predictor of `y`. Is it a better model? Was it worth the trouble? Let's consider a few things. 
+The trend case is the saboteur at its most destructive, because the predictor and the errors share so much structure. But GLS is not only a tool for tearing down false trends. It also recovers true relationships more reliably when the errors are autocorrelated. Let's build a case where there is an effect to find.
+
+We will make `x` ordinary white noise and build `y` as a function of `x` plus AR(1) noise. We know the true slope, so we can check who recovers it.
 
 ```{r}
-anova(gls1,gls2)
+#| label: reg-plant
+set.seed(47)
+n <- 100
+phi <- 0.8
+x <- rnorm(n)
+epsilon <- as.numeric(arima.sim(model = list(ar = phi), n = n))
+epsilon <- epsilon - mean(epsilon)
+B0 <- 0
+B1 <- 0.5
+y <- B0 + B1 * x + epsilon
 ```
 
-1. The GLS model with the correlated residuals has a lower AIC and BIC than the naive uncorrelated model.
+Notice that here the predictor `x` is white noise, so by the rule from a moment ago the OLS standard errors will be roughly right. What suffers instead is efficiency: the autocorrelated errors make the OLS slope estimate noisy, and on this particular draw it lands well off the truth.
 
-2. The original function we used to make $y$ was $y=\beta_0 + \beta_1x + \epsilon$ where $\beta_0 = 0$ and $\beta_1$ = `r B1`. Both the GLS models got the intercept right (`r round(coef(gls2)[1],2)` for `gls2` and `r round(coef(gls1)[1],2)` for `gls1`). But the GLS model with the correlated residuals does a better job of getting the true value of the slope (`r round(coef(gls2)[2],2)` vs `r round(coef(gls1)[2],2)`).
+```{r}
+#| label: reg-plant-ols
+ols_plant <- lm(y ~ x)
+coef(ols_plant)[2]
+```
 
-3. The error estimate on $\beta_1$ was lower on the model with correlated residuals than the naive uncorrelated model (`r round(summary(gls2)$tTable[2,2],4)` vs `r round(summary(gls1)$tTable[2,2],4)`). This is because GLS uses the correct structure of error variance and correlation, which improves **efficiency** of parameter estimation.
+The true slope is 0.5 and OLS returned something nearer 0.2. The residuals, predictably, are autocorrelated.
 
-Finally, we did it "right" -- that should be satisfying. What would have happened if $\beta_1$ had been lower? That is, what if $y$ was made up of more noise and less $x$? E.g., $y=\beta_0 + 0.5(\beta_1)x + 2(\epsilon)$? This model, with `r n` points should be pretty robust on the simple hypothesis test on the slope (H$_1$: $\beta_1 \neq 0$) but we know that parameter estimation is inefficient with autocorrelated residuals so having clean residuals and good parameter estimation is important.
+```{r}
+#| label: reg-plant-resid
+#| fig-height: 3
+ggAcf(residuals(ols_plant)) + labs(title = "ACF of OLS residuals") +
+  theme_minimal()
+```
 
-There is a lot to learn about how the `nlme` library goes about fitting the correlation structures. The definitive book on the subject is Pinheiro and Bates (2000) and should be something you look to for more information. Zuur's 2009 book "Mixed Effects Models and Extensions in Ecology with R" is also quite good.
+Before we hand this to `gls`, it is worth seeing what GLS does under the hood, because you already met the idea last chapter. Prewhitening. If we knew the AR(1) coefficient of the errors, we could transform both `y` and `x` to strip the memory out, then run an ordinary regression on the cleaned series. Estimate the coefficient from the OLS residuals, then subtract its lagged contribution from each variable.
 
-## Your work
-### What Does Generalized Mean?
-Below I'm going to ask you to compare GLS and OLS using some real data. But first, write a paragraph that explains the difference between OLS and GLS. What is a generalized model?
+```{r}
+#| label: reg-plant-byhand
+ar1 <- ar(residuals(ols_plant))$ar[1]
+y_lag1 <- dplyr::lag(y)
+x_lag1 <- dplyr::lag(x)
+y_white <- y - ar1 * y_lag1
+x_white <- x - ar1 * x_lag1
 
-### Regression Simulation
-Now, revisit the code above and adjust `n`, `B1`, and `phi` to see how the results of an OLS model change. Is OLS or GLS better at capturing the true value of `B1` when there are non-independent errors? Or is OLS robust to moderate autocorrelation? You can do this in a full blown simulation of course, but you can just mess around with the values a bit and try to get a feel for it.
+ols_white <- lm(y_white ~ x_white)
+coef(ols_white)[2]
+```
 
-```{r,echo=FALSE,eval=FALSE}
-params <- expand_grid(n=rep(c(50,100,150,200),15),
-                      phi = rep(c(0.3,0.5,0.7,0.9),15))
-params$gls1B1Hat <- 0
-params$gls2B1Hat <- 0
-B0 <- 0 # intercept
-B1 <- 0.5 # slope
-for(i in 1:nrow(params)){
-  x <- ts(rnorm(params$n[i]))
-  epsilon <- arima.sim(model = list(ar=params$phi[i]),n = params$n[i])
-  epsilon <- epsilon - mean(epsilon) # demean
-  y <- B0 + B1*x + epsilon
-  gls1 <- gls(y~x)
-  cs1 <- corARMA(p=1)
-  gls2 <- update(gls1,correlation=cs1)
-  params$gls1B1Hat[i] <- coef(gls1)[2]
-  params$gls2B1Hat[i] <- coef(gls2)[2]
+That slope is much closer to the true 0.5, and the residuals of `ols_white` are clean. This hand transform is the old Cochrane-Orcutt idea, and it is essentially what GLS automates, except GLS estimates the correlation structure and the regression coefficients together rather than in two passes. Here is the `gls` version.
+
+```{r}
+#| label: reg-plant-gls
+gls_plant <- gls(y ~ x, correlation = corARMA(p = 1))
+coef(gls_plant)[2]
+summary(gls_plant)$tTable
+```
+
+We ask for `corARMA(p = 1)`, which is an AR(1) error structure. Had the residuals looked like an ARMA(1,1) we could try `corARMA(p = 1, q = 1)`, and `gls` would estimate those parameters by numerical optimization, which can fail when the model is too complex. The GLS slope lands near 0.5, the value we built in, and its standard error reflects the true uncertainty. When you inspect GLS residuals for autocorrelation, ask for the `normalized` ones, which are the residuals transformed by the estimated correlation structure and so are what should look like white noise if the structure was right.
+
+```{r}
+#| label: reg-plant-gls-resid
+#| fig-height: 3
+ggAcf(residuals(gls_plant, type = "normalized")) +
+  labs(title = "ACF of normalized GLS residuals") +
+  theme_minimal()
+```
+
+Clean.
+
+## One Run Is an Anecdote
+
+A single simulation proves nothing. OLS got unlucky on that seed, and you could fairly object that another draw might flip it. So let's run the whole thing thousands of times across a grid of sample sizes and error strengths, fit both OLS and GLS to each, and look at the distribution of the slope estimates. The truth is always 0.5.
+
+```{r}
+#| label: reg-mc-sim
+sim_one <- function(n, phi) {
+  x <- rnorm(n)
+  epsilon <- as.numeric(arima.sim(model = list(ar = phi), n = n))
+  epsilon <- epsilon - mean(epsilon)
+  y <- 0.5 * x + epsilon
+  ols <- lm(y ~ x)
+  gls_fit <- tryCatch(gls(y ~ x, correlation = corARMA(p = 1)),
+                      error = function(e) NULL)
+  if (is.null(gls_fit)) return(NULL)
+  tibble(OLS = coef(ols)[2], GLS = coef(gls_fit)[2])
 }
 
-params <- params %>% 
-  mutate(phiFac = as.factor(phi),
-         nFac = as.factor(n))
+set.seed(872)
+grid <- expand_grid(n = c(50, 100, 150, 200),
+                    phi = c(0.3, 0.5, 0.7, 0.9),
+                    rep = 1:225)
 
-params$phiFac <- recode_factor(params$phiFac,
-                               "0.3" = "AR(1)<0.4",
-                               "0.5" = "0.4<AR(1)<0.6",
-                               "0.7" = "0.6<AR(1)<0.8",
-                               "0.9" = "AR(1)>0.8")
-
-params2 <-params %>%
-  select(gls1B1Hat,gls2B1Hat,phiFac,nFac) %>% 
-  rename("Naive OLS" = gls1B1Hat,
-         "GLS with AR(1) Corr Struct" = gls2B1Hat) %>%
-  pivot_longer(cols = 1:2,names_to = "model",values_to = "B1")
-
-params2 <- params2 %>% filter(between(B1,0,1))
-pBetaHat <- ggplot(params2,aes(x=nFac,y=B1)) +
-  geom_hline(yintercept = B1) +
-  geom_boxplot() + 
-  facet_grid(cols=vars(phiFac),rows=vars(model)) +
-  labs(x="Sample Size",y=expression(hat(beta[1])),
-       title = "Comparison of models under temporal autocorrelation",
-       subtitle=expression(y[t]==beta[0]+beta[1]*x[t]+epsilon[t]~where~beta[0]==0~beta[1]==0.5~and~epsilon~follows~an~AR1~process),
-       caption = "Results from 3600 MC simulations")
-pBetaHat
-png(filename = "ols and gls sim with ar1.png",width = 600,height = 400)
-pBetaHat
-dev.off()
-
-library(ggridges)
-pBetaHat2 <- ggplot(params2,aes(y=nFac,x=B1)) +
-  geom_density_ridges() +
-  geom_vline(xintercept = B1) +  
-  facet_grid(cols=vars(phiFac),rows=vars(model)) +
-  labs(y="Sample Size",x=expression(hat(beta[1])),
-       title = "Comparison of models under temporal autocorrelation",
-       subtitle=expression(y[t]==beta[0]+beta[1]*x[t]+epsilon[t]~where~beta[0]==0~beta[1]==0.5~and~epsilon~follows~an~AR1~process),
-       caption = "Results from 3600 MC simulations") +
-  scale_y_discrete(expand = c(0, 0)) +     
-  scale_x_continuous(expand = c(0, 0)) +   
-  coord_cartesian(clip = "off")
-pBetaHat2
-png(filename = "ols and gls sim with ar1 dens.png",width = 600,height = 400)
-pBetaHat2
-dev.off()
-
-
+sim <- grid |>
+  mutate(out = map2(n, phi, sim_one)) |>
+  unnest(out)
 ```
-
-### Regression for real
-Finally, let's look at some data. A great [paper](http://onlinelibrary.wiley.com/doi/10.1002/2015GL067613/full) by Connie Woodhouse and colleagues looks at how annual flows on the Colorado River are affected by precipitation, soil moisture, and temperature. Read the paper. It's great and short. 
 
 ```{r}
-dat <- readRDS("data/woodhouse.rds")
-dat <- dat %>% mutate(MAF = LeesWYflow / 1e6)
-# add a 5-yr moving average
-dat <- dat %>% mutate(MAF5yr = c(stats::filter(MAF,filter = rep(0.2,5))))
-ggplot(data=dat, aes(x=Year)) +
-  geom_line(aes(y=MAF),color="lightgreen") + 
-  geom_line(aes(y=MAF5yr),color="darkgreen") + 
-  labs(y= "Millions of Acre Feet", title="Colorado River at Lee's Ferry",
-       sub = "Total Flow for Water Year") + 
-  scale_x_continuous(expand=c(0,0))
+#| label: reg-mc-ridges
+#| fig-height: 5
+sim |>
+  pivot_longer(c(OLS, GLS), names_to = "model", values_to = "B1hat") |>
+  filter(between(B1hat, 0, 1)) |>
+  mutate(model = factor(model, levels = c("OLS", "GLS")),
+         phi_lab = factor(phi, labels = paste0("phi == ", c(0.3, 0.5, 0.7, 0.9))),
+         n_lab = factor(n)) |>
+  ggplot(aes(x = B1hat, y = n_lab, fill = model)) +
+  geom_density_ridges(alpha = 0.7, scale = 1.1) +
+  geom_vline(xintercept = 0.5, linetype = "dashed") +
+  facet_grid(rows = vars(model), cols = vars(phi_lab),
+             labeller = labeller(phi_lab = label_parsed)) +
+  scale_fill_manual(values = c(OLS = sfPal[5], GLS = sfPal[1]), guide = "none") +
+  labs(x = expression(hat(beta)[1]), y = "Sample size",
+       title = "GLS recovers the true slope more tightly than OLS",
+       subtitle = expression(y[t] == 0.5 * x[t] + epsilon[t] *
+                             "  with " * epsilon * " an AR(1) process; dashed line is the truth"),
+       caption = "3600 simulations") +
+  theme_minimal() +
+  theme(legend.position = "none")
 ```
 
-The main gist of the paper is that precipitation explains most of the variability in the river's flow but that temperature is important under certain conditions. E.g., "Different combinations of temperature, precipitation, and soil moisture can result in flow deficits of similar magnitude, but recent droughts have been amplified by warmer temperatures that exacerbate the effects of relatively modest precipitation deficits." This is cool: Transpiration and evaporation are greater when it's warmer, right? The cool thing that Woodhouse et al. have done is tease out the relationship between precipitation and temperature in a new way.
+Read down the columns as the error memory strengthens from left to right. Both methods are centered on the truth, so neither is biased. But the GLS distributions are tighter, and the gap widens as $\phi$ grows and as the sample size shrinks. At $\phi = 0.9$ with only 50 points, the OLS estimate is all over the place while GLS stays comparatively concentrated on 0.5. That is the efficiency gain. Even in this friendly case, where the white-noise predictor keeps the OLS standard errors roughly right, you still get a better estimate by modeling the structure in the errors. And in the unfriendly case, the trend, modeling the structure was the difference between a true result and a false one. Either way the lesson is the same one the whole book keeps arriving at: the dependence is there whether you account for it or not, so account for it.
 
-The data they used are [online](http://api.onlinelibrary.wiley.com/asset/v1/doi/10.1002%2F2015GL067613/asset/supinfo%2Fgrl54032-sup-0002-supplementary.xls?l=SkaBT8QEx2qJNlNuWYUA8egjXrDIGPrsc%2BJNFhVbgejndxaATsnxsKxw9Obx5z6ES3xmGsI%2BC8dr%0ATCeBc2NX422bcHVTPUXn) and I've grabbed the relevant info and put it in the file `woodhouse.rds` as a `data.frame`. Explore the data (go back to week one for ideas of what to do -- **plot your data!**) and eventually make a model of river flow (`LeesWYflow`) as a function of October to April precipitation (`OctAprP`). The units on flow are cumulative flow over the water year in acre feet and cumulative October to April precipitation is in mm.
+## An Observed Series: Colorado River Flow
 
-Is it a good model? How do the residuals look in a time series context? Interpret. Does a GLS approach change your interpretation from an OLS approach? Given your work with the simulated data above do you think Woodhouse et al. are on safe footing with OLS?
+Simulations are where you check that a method does what it claims. Observed data is where you find out whether the problem shows up in the wild. A short and excellent [paper](http://onlinelibrary.wiley.com/doi/10.1002/2015GL067613/full) by Connie Woodhouse and colleagues [@Woodhouse2016] looks at how annual flow on the Colorado River responds to precipitation, soil moisture, and temperature. The river is the water supply for forty million people, so whether its flow is predictable from climate, and whether warming is bending that relationship, is not an academic question. I have put their data in `data/woodhouse.csv`.
 
+```{r}
+#| label: reg-flow-data
+#| message: false
+flow <- read_csv("data/woodhouse.csv") |>
+  mutate(MAF = LeesWYflow / 1e6)
 
-### Write Up and Reflect
-Pass in a R Markdown doc with your analysis. Leave all code visible, although you may quiet messages and warnings if desired. Turn in your knitted html. The last section of your document should include a reflection where you explain how it all went. What triumphs did you have? What is still confusing?
-
-
-```{r,echo=FALSE,eval=FALSE}
-gls1 <- gls(LeesWYflow~OctAprP,data=dat)
-
+ggplot(flow, aes(Year, MAF)) +
+  geom_line(color = sfPal[1]) +
+  labs(y = "Flow (millions of acre feet)", x = "Water year",
+       title = "Colorado River at Lees Ferry") +
+  theme_minimal()
 ```
+
+The flow record is the annual total at Lees Ferry, where the river is measured before the big downstream diversions. We will model it as a function of October-to-April precipitation, the cool-season moisture that feeds the spring runoff. Start with OLS, then look at the residuals.
+
+```{r}
+#| label: reg-flow-ols
+ols_flow <- lm(LeesWYflow ~ OctAprP, data = flow)
+summary(ols_flow)
+```
+
+Precipitation explains about two thirds of the variance in annual flow, which is a strong relationship and makes physical sense: more cool-season precipitation, more water in the river. But this is a time series, so the slope and its standard error are only trustworthy if the residuals are independent.
+
+```{r}
+#| label: reg-flow-resid
+#| fig-height: 3
+ggAcf(residuals(ols_flow)) + labs(title = "ACF of OLS residuals, flow on precipitation") +
+  theme_minimal()
+```
+
+They are not. The lag-1 autocorrelation is around 0.4 and clears the significance band, so consecutive years' residuals are related. A wet year tends to follow a wet year, soil moisture and snowpack carry over, and whatever the precipitation predictor misses persists from one year to the next. The independence assumption is broken, and the OLS standard errors are suspect. Refit with an AR(1) error structure.
+
+```{r}
+#| label: reg-flow-gls
+gls_flow <- gls(LeesWYflow ~ OctAprP, data = flow,
+                correlation = corAR1())
+summary(gls_flow)
+```
+
+The slope stays large and overwhelmingly significant, so the headline finding survives: precipitation is a strong driver of flow. Now think back to the rule from "Why It Happens." The residuals here are strongly autocorrelated, but the predictor is not. Precipitation from one year to the next is close to independent, with a lag-1 autocorrelation near zero. That puts us in the efficiency regime, not the standard-error-deflation one, so the OLS standard error was not badly inflated to begin with, and GLS actually tightens it a little rather than widening it. Either way the effect is far too strong for the autocorrelation to change the verdict. The value of running the GLS fit is that you confirmed that, rather than assuming it. You looked at the residuals, saw the memory, and checked that it did not undermine the result.
+
+## When the Residuals Are Clean
+
+It would be easy to come away thinking every time-series regression needs GLS. It does not. The rule is to diagnose, not to assume. Here is a case that looks like it should be trouble and turns out fine. The `data/ny_air_quality.csv` file holds daily measurements of ground-level ozone in New York over a summer, along with the weather. Ozone is a photochemical pollutant: it cooks up on hot, sunny, stagnant days. So we expect temperature to predict it, and we expect the data to be autocorrelated, because weather comes in multi-day spells. Hot days cluster.
+
+```{r}
+#| label: reg-ozone
+#| message: false
+air <- read_csv("data/ny_air_quality.csv")
+ols_ozone <- lm(ozone ~ temperature, data = air)
+summary(ols_ozone)$coefficients
+```
+
+Temperature is a strong predictor, as expected. The day-to-day persistence of the weather means temperature itself is autocorrelated. By the instinct we have built, that should set off alarms. So check the residuals.
+
+```{r}
+#| label: reg-ozone-resid
+#| fig-height: 3
+ggAcf(residuals(ols_ozone)) + labs(title = "ACF of OLS residuals, ozone on temperature") +
+  theme_minimal()
+```
+
+Nothing. The residual autocorrelation is negligible and stays inside the band. Here is the resolution of the apparent paradox: it is fine for the predictor `x` or the response `y` to be autocorrelated. What has to be independent is the residuals. Temperature soaked up the persistence. Because the hot spells that drive ozone are themselves carried by temperature, once temperature is in the model there is no leftover day-to-day memory for the errors to inherit. The independence assumption holds, and OLS stands. You did not need GLS, and the only way you could know that was to look. The plot is what earns you the right to keep the simpler model.
+
+## Wrapping Up
+
+Time-series regression is the saboteur from the opening chapters in its most practical form. The slope estimate usually survives autocorrelated errors, but the uncertainty around it does not, and the damage is worst exactly where it matters most: testing for a trend against time, where the predictor's own structure aligns with the memory in the errors and OLS will conjure significance out of a flat random walk. The discipline is the same one the book has asked for throughout. Fit the model, then look at the residuals. If they are clean, as with the ozone, OLS is doing its job and you leave it alone. If they carry memory, as with the flow and the false trend, GLS lets you specify that structure and get a trustworthy answer back.
+
+There is a non-parametric version of this same story still to tell. When people test environmental series for a trend they often reach for the Mann-Kendall test and the Theil-Sen slope precisely because those methods avoid the straight-line assumption. But Mann-Kendall assumes independence too, and on autocorrelated data it over-rejects in exactly the way OLS just did, printing trends that are not there. The fix, prewhitening the series before the test, is the same move we made by hand above. That section is coming.
+
+## Exercises
+
+### Push the simulation
+
+Go back to the slope-recovery simulation and change `B1`, `phi`, and `n` by hand to get a feel for when OLS and GLS diverge. What happens to the gap between them when you make the true slope smaller relative to the noise? When does OLS get away with ignoring the autocorrelation, and when does it cost you? Then change the predictor from white noise to something with its own memory, for example `x <- as.numeric(arima.sim(list(ar = 0.8), n = n))`, refit both, and watch the OLS standard error start to lie the way it did in the trend example.
+
+### Colorado River, with temperature
+
+The Woodhouse paper's actual contribution is about temperature. Their point is that warm years amplify drought: "Different combinations of temperature, precipitation, and soil moisture can result in flow deficits of similar magnitude, but recent droughts have been amplified by warmer temperatures." Fit a multiple regression of flow on both October-to-April precipitation (`OctAprP`) and March-to-July temperature (`MarJulT`). Does adding temperature improve the model? Look at the residuals: are they still autocorrelated once temperature is in? Refit with GLS and compare the temperature coefficient and its standard error to the OLS version. Given your simulation work, do you think Woodhouse and colleagues are on safe footing reading a temperature effect from this record?
+
+## Further Reading
+
+- @Cowpertwait2009, chapter 5, covers regression with autocorrelated errors and the GLS approach, including the generalized least squares estimator and its use on environmental series.
+- @Pinheiro2000 is the definitive reference for the `nlme` package, written by its authors. It is the place to go for what the correlation structures are and how the fitting actually works.
+- @Zuur2009 is a gentler, ecology-facing treatment of mixed models and GLS, with worked environmental examples and a lot of practical advice about diagnosing and choosing correlation structures.

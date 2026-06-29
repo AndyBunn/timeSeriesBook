@@ -15,6 +15,7 @@ Imports:
     dplR,
     DT,
     forecast,
+    ggridges,
     gridExtra,
     Hmisc,
     hydroTSM,
