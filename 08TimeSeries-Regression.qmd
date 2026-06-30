@@ -10,7 +10,7 @@ set.seed(872)
 
 The last chapter ended by pointing here. Once a cross-correlation convinces you that one series tracks another, the natural next move is to fit a model and read the slope: how much does $y$ change when $x$ does? That is regression, and you have done it since intro stats. The wrinkle is that our data are ordered in time, and the errors of a time-series regression are almost never the tidy independent draws that ordinary least squares assumes. They carry memory. They are autocorrelated. 
 
-Autocorrelated errors (residuals) breaks the independence assumption that the standard errors, the $t$-statistics, and the $p$-values all rest on. The estimate of the slope can still be fine. What goes wrong is your sense of how sure you are. Worse, the trouble is sharpest in the single most common thing an environmental scientist asks of a time series: is there a trend? Fit a line against time with autocorrelated errors and the software will hand you a slope and a tiny $p$-value whether or not anything is actually changing. This chapter is about spotting that, understanding why it happens, and fixing it with generalized least squares so that the number you report is one you can stand behind.
+Autocorrelated errors (residuals) break the independence assumption that the standard errors, the $t$-statistics, and the $p$-values all rest on. The estimate of the slope can still be fine. What goes wrong is your sense of how sure you are. Worse, the trouble is sharpest in the single most common thing an environmental scientist asks of a time series: is there a trend? Fit a line against time with autocorrelated errors and the software will hand you a slope and a tiny $p$-value whether or not anything is actually changing. This chapter is about spotting that, understanding why it happens, and fixing it with generalized least squares so that the number you report is one you can stand behind.
 
 ## Packages
 
@@ -448,7 +448,7 @@ ggplot(air, aes(Day, ozone)) +
   theme_minimal()
 ```
 
-Now let's make and a model.
+Now let's make a model.
 
 ```{r}
 ols_ozone <- lm(ozone ~ temperature, data = air)
