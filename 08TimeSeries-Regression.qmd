@@ -34,7 +34,7 @@ Before we fit anything, it is worth separating two questions that both get answe
 
 What the arithmetic does not know, you have to. The autocorrelation issue does not treat the two questions equally. Time is the most autocorrelated predictor imaginable, marching $1, 2, 3, \dots$ in perfect order, so the trend question is where the issue is strongest, the place a flat and aimlessly wandering series most easily fakes a result that looks like change. The relationship question is exposed too, but only to the degree that the other variable carries its own memory through time. A rain gauge that is nearly independent from one year to the next is far safer to regress against than a slow-moving variable that drifts the way time does. We start with the trend question, because it is the most pernicious and the most common thing an environmental scientist asks of a time series, and the lesson there carries straight over to everything else.
 
-### A Ghost Trend
+### A Spurious Trend
 
 Let's start with a dangerous case. We will build a series with no trend at all: pure AR(1) noise, wandering around a flat mean of zero. Then we will fit a straight line against time and ask whether the slope is significant. We know the right answer in theory is no.
 
@@ -121,7 +121,7 @@ ggplot(fp, aes(factor(phi), rate)) +
 
 At $\phi = 0$, when the errors are independent, OLS behaves: it cries trend about 5% of the time (dashed line), exactly the false-positive rate we signed up for. But as the memory in the errors climbs, so do the problems. By $\phi = 0.9$, ordinary least squares declares a significant trend in roughly two of every three series drawn from a process with no trend at all. 
 
-### A Ghost Relationship
+### A Spurious Relationship
 
 That was the trend question. Now the second kind, the relationship question, and the same trap is waiting. This time we build two series that have nothing to do with each other. Call them `a` and `b`.  Each is its own AR(1) series, drawn separately, so by construction neither has any pull on the other. Then we regress one on the other and ask whether the slope is significant. The answer we should get is no.
 
@@ -195,9 +195,9 @@ c(white_noise = spurious_rate(0), phi_0.85 = spurious_rate(0.85))
 
 When the two series are white noise, OLS is fooled the 5% of the time it is supposed to be. By $\phi = 0.85$ it is fooled more than 40% of the time. Two questions, one trap.
 
-## Why the Ghosts Appear
+## Why Spurious Results Appear
 
-The mechanism is worth getting straight, because it tells you exactly when to worry. The OLS slope estimate is still unbiased in both ghosts. The true slope is zero in each, and across many runs the OLS estimate averages right back to zero. What breaks is the standard error. OLS computes the uncertainty on the slope under the assumption that every observation is an independent piece of evidence. When the errors are autocorrelated, consecutive points are partly copies of each other, so you have less independent information than the sample size suggests. OLS does not know this. It counts all $n$ points as full evidence, the standard error comes out too small, the $t$-statistic too big, and the $p$-value too optimistic.
+The mechanism is worth getting straight, because it tells you exactly when to worry. The OLS slope estimate is still unbiased in both cases. The true slope is zero in each, and across many runs the OLS estimate averages right back to zero. What breaks is the standard error. OLS computes the uncertainty on the slope under the assumption that every observation is an independent piece of evidence. When the errors are autocorrelated, consecutive points are partly copies of each other, so you have less independent information than the sample size suggests. OLS does not know this. It counts all $n$ points as full evidence, the standard error comes out too small, the $t$-statistic too big, and the $p$-value too optimistic.
 
 There is a clean way to see. The bias in the OLS standard error is, to a good approximation, proportional to the sum over lags of the error autocorrelation times the predictor autocorrelation:
 
@@ -220,7 +220,7 @@ The slow decay is the AR(1) signature. The residuals are not independent, the in
 
 We have all been taught OLS. It estimates the unknown parameters of a linear model, the intercept ($\beta_0$) and slope ($\beta_1$) of $y = \beta_0 + \beta_1 x$, by finding the values that minimize the sum of squared errors. When the assumptions are met, errors that are independent, of equal variance, and normal, the OLS estimators are optimal, often called BLUE: Best Linear Unbiased Estimators. OLS has the nice property that it can be taught without matrix algebra and connects naturally to ideas like correlation that most of us meet first in intro stats.
 
-Here is the problem with autocorrelated errors, and it is the same one behind both ghosts. OLS treats every observation as carrying the same amount of independent information. But when the errors are autocorrelated, observations close together in time share information: they are not fully independent. A positive residual at one step tends to sit next to positive residuals at the steps around it, not because of anything $x$ is doing, but because of the memory in the series. OLS ignores this and effectively overcounts the information in the data. The practical consequence is that standard errors on the coefficients are underestimated when residuals are positively autocorrelated at short lags, which means t-statistics get inflated and p-values get too small. The coefficients themselves ($\hat\beta_0$, $\hat\beta_1$) may still be unbiased, but they are inefficiently estimated and any inference from the standard errors is suspect.
+Here is the problem with autocorrelated errors, and it is the same one behind both. OLS treats every observation as carrying the same amount of independent information. But when the errors are autocorrelated, observations close together in time share information: they are not fully independent. A positive residual at one step tends to sit next to positive residuals at the steps around it, not because of anything $x$ is doing, but because of the memory in the series. OLS ignores this and effectively overcounts the information in the data. The practical consequence is that standard errors on the coefficients are underestimated when residuals are positively autocorrelated at short lags, which means t-statistics get inflated and p-values get too small. The coefficients themselves ($\hat\beta_0$, $\hat\beta_1$) may still be unbiased, but they are inefficiently estimated and any inference from the standard errors is suspect.
 
 Generalized least squares fixes this by explicitly accounting for the correlation structure of the errors. Instead of weighting every observation equally, GLS down-weights observations that are strongly correlated with their neighbors in time, because those observations carry less new information than they would if they were independent. In matrix form the two estimators sit side by side:
 
@@ -253,7 +253,7 @@ Two things from the `lm` summary are gone on purpose: there is no $R^2$ and no o
 A few smaller shifts. The coefficient columns are spelled `Value`, `Std.Error`, `t-value`, and `p-value`. The residual five-number summary is labeled `Standardized residuals`, since these are normalized by the fitted covariance. And `gls` prints a `Correlation:` block that `lm` hides; watch out, because that block is the correlation among the coefficient estimates, not the autocorrelation of the residuals. Different thing. The block that does report the error structure is `Correlation Structure: AR(1)`, which gives the estimated `Phi`, the lag-one autocorrelation `gls` fit to the errors. Here it landed near 0.9, close to the 0.85 we built in.
 :::
 
-GLS does the same favor for the ghost relationship. We refit the two independent series, now telling `gls` the errors follow an AR(1) process.
+GLS does the same favor for the spurious relationship. We refit the two independent series, now telling `gls` the errors follow an AR(1) process.
 
 ```{r}
 #| label: reg-spurious-gls
@@ -261,7 +261,7 @@ gls_spurious <- gls(b ~ a, correlation = corAR1())
 summary(gls_spurious)$tTable
 ```
 
-The slope that looked so convincing, significant at two in ten million, now carries a $p$-value around 0.15. The ghost is gone. Once GLS stops treating the autocorrelated wobbles of `a` and `b` as independent evidence, two series wandering on their own no longer look related. Both ghosts, the false trend and the false relationship, fall to the same fix.
+The slope that looked so convincing, significant at two in ten million, now carries a $p$-value around 0.15. Gone. Once GLS stops treating the autocorrelated wobbles of `a` and `b` as independent evidence, two series wandering on their own no longer look related. Both the false trend and the false relationship fall to the same fix.
 
 ## Recovering a True Effect
 
@@ -431,7 +431,7 @@ gls_flow <- gls(LeesWYflow ~ OctAprP, data = flow,
 summary(gls_flow)
 ```
 
-The slope stays large and overwhelmingly significant, so the headline finding survives: precipitation is a strong driver of flow. Now think back to the rule from "Why the Ghosts Appear." The residuals here are strongly autocorrelated, but the predictor is not. Precipitation from one year to the next is close to independent, with a lag-1 autocorrelation near zero. That puts us in the efficiency regime, not the standard-error-deflation one, so the OLS standard error was not badly inflated to begin with, and GLS actually tightens it a little rather than widening it. Either way the effect is far too strong for the autocorrelation to change the verdict. The value of running the GLS fit is that you confirmed that, rather than assuming it. You looked at the residuals, saw the memory, and checked that it did not undermine the result.
+The slope stays large and overwhelmingly significant, so the headline finding survives: precipitation is a strong driver of flow. Now think back to the rule from "Why Spurious Results Appear." The residuals here are strongly autocorrelated, but the predictor is not. Precipitation from one year to the next is close to independent, with a lag-1 autocorrelation near zero. That puts us in the efficiency regime, not the standard-error-deflation one, so the OLS standard error was not badly inflated to begin with, and GLS actually tightens it a little rather than widening it. Either way the effect is far too strong for the autocorrelation to change the verdict. The value of running the GLS fit is that you confirmed that, rather than assuming it. You looked at the residuals, saw the memory, and checked that it did not undermine the result.
 
 ## When the Residuals Are Clean
 
