@@ -40,6 +40,7 @@ book:
         - 08xAsideOLS-Algebra-Matrix.qmd
         - 09TrendDetection.qmd
         - 10Reconstruction.qmd
+        - 10xAsideCrossValidation.qmd
     - part: "The Frequency Domain"
       chapters:
         - 11TimeSeries-Filters.qmd
