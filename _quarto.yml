@@ -38,11 +38,13 @@ book:
         - 07xAsideCcfNormalization.qmd
         - 08TimeSeries-Regression.qmd
         - 08xAsideOLS-Algebra-Matrix.qmd
+        - 09TrendDetection.qmd
+        - 10Reconstruction.qmd
     - part: "The Frequency Domain"
       chapters:
-        - 09TimeSeries-Filters.qmd
-        - 10TimeSeries-Freq.qmd
-    - 11PackagesUsed.qmd
+        - 11TimeSeries-Filters.qmd
+        - 12TimeSeries-Freq.qmd
+    - 13PackagesUsed.qmd
   appendices:
     - A1DataSources.qmd
   repo-url: https://github.com/AndyBunn/timeSeriesBook

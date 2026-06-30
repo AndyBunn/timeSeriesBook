@@ -8,9 +8,9 @@ set.seed(872)
 
 ## Big Idea
 
-The last chapter ended by pointing here. Once a cross-correlation convinces you that one series tracks another, the natural next move is to fit a model and read the slope: how much does $y$ change when $x$ does? That is regression, and you have done it since intro stats. The wrinkle is that our data are ordered in time, and the errors of a time-series regression are almost never the tidy independent draws that ordinary least squares assumes. They carry memory. Yesterday's error tells you something about today's.
+The last chapter ended by pointing here. Once a cross-correlation convinces you that one series tracks another, the natural next move is to fit a model and read the slope: how much does $y$ change when $x$ does? That is regression, and you have done it since intro stats. The wrinkle is that our data are ordered in time, and the errors of a time-series regression are almost never the tidy independent draws that ordinary least squares assumes. They carry memory. They are autocorrelated. 
 
-That memory is the saboteur from the start of the book wearing a regression costume. When the residuals of a regression are autocorrelated, you have broken the independence assumption that the standard errors, the $t$-statistics, and the $p$-values all rest on. The estimate of the slope can still be fine. What goes wrong is your sense of how sure you are. Worse, the trouble is sharpest in the single most common thing an environmental scientist asks of a time series: is there a trend? Fit a line against time with autocorrelated errors and the software will hand you a slope and a tiny $p$-value whether or not anything is actually changing. This chapter is about spotting that, understanding why it happens, and fixing it with generalized least squares so that the number you report is one you can stand behind.
+Autocorrelated errors (residuals) breaks the independence assumption that the standard errors, the $t$-statistics, and the $p$-values all rest on. The estimate of the slope can still be fine. What goes wrong is your sense of how sure you are. Worse, the trouble is sharpest in the single most common thing an environmental scientist asks of a time series: is there a trend? Fit a line against time with autocorrelated errors and the software will hand you a slope and a tiny $p$-value whether or not anything is actually changing. This chapter is about spotting that, understanding why it happens, and fixing it with generalized least squares so that the number you report is one you can stand behind.
 
 ## Packages
 
@@ -28,9 +28,15 @@ library(PNWColors)
 sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
 ```
 
-## A Trend That Isn't There
+## Two Kinds of Regression
 
-Let's start with the most dangerous case and see the saboteur in the open. We will build a series with no trend at all: pure AR(1) noise, wandering around a flat mean of zero. Then we will fit a straight line against time and ask whether the slope is significant. We know the right answer is no. There is no trend. We built it that way.
+Before we fit anything, it is worth separating two questions that both get answered with the same straight line, because the rest of the chapter leans on the difference. The first is whether a single series is changing through time. Is the lake warming? Is a population sliding year over year? Here the predictor is time itself, and the slope you fit is the trend. The second question is whether one thing tracks another. Does tree growth increase with more precipitation? Does ozone climb with temperature? Does an algae bloom stem from nitrogen pollution? Here the predictor is some other measured variable, and the slope is the strength of the relationship between them. Mechanically the two are identical. You fit a line, read a slope, look at a $p$-value, and nothing in the arithmetic knows or cares whether the thing on the x-axis is a calendar or a rain gauge. You are not held to a single predictor either. The relationship question often arrives with several at once, tree growth on temperature and soil moisture together, which is multiple regression: the same line-fitting with more columns and one slope per predictor. You can even put time in alongside a covariate and ask whether a trend survives once the other driver is accounted for.
+
+What the arithmetic does not know, you have to. The autocorrelation issue does not treat the two questions equally. Time is the most autocorrelated predictor imaginable, marching $1, 2, 3, \dots$ in perfect order, so the trend question is where the issue is strongest, the place a flat and aimlessly wandering series most easily fakes a result that looks like change. The relationship question is exposed too, but only to the degree that the other variable carries its own memory through time. A rain gauge that is nearly independent from one year to the next is far safer to regress against than a slow-moving variable that drifts the way time does. We start with the trend question, because it is the most pernicious and the most common thing an environmental scientist asks of a time series, and the lesson there carries straight over to everything else.
+
+### A Ghost Trend
+
+Let's start with a dangerous case. We will build a series with no trend at all: pure AR(1) noise, wandering around a flat mean of zero. Then we will fit a straight line against time and ask whether the slope is significant. We know the right answer in theory is no.
 
 ```{r}
 #| label: reg-trend-plant
@@ -41,12 +47,13 @@ y <- as.numeric(arima.sim(model = list(ar = phi), n = n))
 time <- 1:n
 ```
 
-Always look at what you built. An AR(1) series with a coefficient near one wanders. It sets off in some direction and stays there for a while before turning, because each value is mostly a copy of the one before it. To the eye it can look exactly like a series that is trending.
+Always look at what you built. An AR(1) series with a coefficient near one wanders. It sets off in some direction and stays there for a while before turning, because each value is mostly a function of the one before it. To the eye it can look exactly like a series that is trending.
 
 ```{r}
 #| label: reg-trend-plot
 tibble(time, y) |>
   ggplot(aes(time, y)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
   geom_line(color = sfPal[1]) +
   geom_smooth(method = "lm", se = FALSE, color = sfPal[5], linewidth = 0.7) +
   labs(x = "Time", y = "y",
@@ -54,7 +61,17 @@ tibble(time, y) |>
   theme_minimal()
 ```
 
-The red line is what ordinary least squares draws through it. Now fit that regression and look at what the software says.
+The red line is what ordinary least squares draws through it. Is that trend significantly different from zero?
+
+::: {.callout-note}
+## Refresher: fitting and reading a linear model
+
+`lm(y ~ time)` fits the model $y = \beta_0 + \beta_1 \cdot \text{time} + \epsilon$ by ordinary least squares. The formula `y ~ time` reads as "y as a function of time," and the intercept is added for you. For more than one predictor, string them together with `+`, as in `lm(y ~ x1 + x2)`, and you get one slope per predictor.
+
+`summary()` prints the part you read. The `Coefficients` table has one row per term. `Estimate` holds the intercept and the slope(s), `Std. Error` is the uncertainty on each, `t value` is the estimate divided by its standard error, and `Pr(>|t|)` is the $p$-value for the test that the coefficient is zero. The slope you care about is the row named for your predictor. The intercept gets a row and a $p$-value too, but that test is usually silly: it asks whether $y$ is zero when the predictor is zero, which for a time trend is the value back at time zero and for most covariates means nothing at all. Read the intercept estimate if you need it, but the test on it is rarely worth a second look. Down at the bottom, `Multiple R-squared` is the fraction of the variance the model explains, and the `F-statistic` with its $p$-value tests the model as a whole, whether the predictors taken together do better than nothing. With a single predictor that F test just restates the slope's $t$ test, but with several predictors it asks the joint question.
+
+The important part here is that every standard error, $t$ value, and $p$-value in that table is computed assuming the errors are independent. When they are not, those columns are wrong, and `lm` prints them with exactly the same confidence either way.
+:::
 
 ```{r}
 #| label: reg-trend-ols
@@ -62,15 +79,21 @@ ols_trend <- lm(y ~ time)
 summary(ols_trend)
 ```
 
-The $p$-value on the slope is around three in a billion. By any conventional standard that is a screaming, unambiguous trend. And it is completely false. There is no trend in this series. The only structure is the AR(1) memory, and that memory has fooled the regression into mistaking a slow random wander for a directed climb.
+The coefficient on time is `r round(coef(ols_trend)[2],3)` and the $p$-value on the slope is around three in a billion. Recall what that number means: if the true slope were zero, you would see an estimate this far from zero only about three times in a billion tries. By any conventional standard that is a screaming, unambiguous trend.
 
-This is not a fluke of one unlucky seed. Let's run it many times. For a range of AR(1) strengths, we will generate a trend-free series, fit the line, and record how often the slope comes back significant at the usual 5% level. If the test were behaving, that rate would sit near 5% no matter how much memory the errors carry.
+This is important so read this a few times. The coefficient is not an illusion. The line not flat, the series ends lower than it began, and over these 120 steps it did move. That much is a description of the data in front of you. What is wrong is the next step, the inference that the series has a *tendency* to descend, some persistent pull that produced the fall and would go on producing it. There is no such pull. We built `y` from a stationary AR(1) process with mean zero and no drift, so the process has nowhere to trend toward. Autocorrelation lets a single realization wander off in one direction and hold there long enough to trace out a slope. If you ran that again with the same seed but a larger $n$ (say `n <- n*3`) the slope would trend weakly positive. Run it again under a different seed and it might lean the other way, or hardly lean at all.
+
+This is a question about inference. The OLS $p$-value answers one thing: if the errors were independent, how often would chance alone produce a slope this steep? Almost never, it says, which is the three in a billion. But the errors are not independent, so it is answering a question we did not ask. Under the process that actually made this series, a slope this steep is unremarkable. The movement is a feature of this one sample path. The trend, as a property of the process, is not there, and the $p$-value is certain about the wrong one of the two. We will return to this gap between what a model fits and what it lets you conclude.
+
+And! This is not a fluke of one unlucky seed. Let's prove it the way I love proving these things: turn the loose claim into an experiment and run it thousands of times. For a range of AR(1) strengths, we generate a trend-free series, fit the line, and record whether the slope came back significant at the usual 5% level, our significance threshold $\alpha$, then repeat that a thousand times over. Replaying the same setup under a known baseline and tallying how often the method gets it wrong is a Monte Carlo simulation, and it is one of my favorite tools in the whole book. If the test were behaving, that significant-slope rate would sit near 5% no matter how much memory the errors carry.
 
 ```{r}
 #| label: reg-trend-mc
 false_positive_rate <- function(phi, n = 100, sims = 1000) {
   hits <- replicate(sims, {
-    y <- as.numeric(arima.sim(model = list(ar = phi), n = n))
+    # phi = 0 is white noise; build it directly so arima.sim is not handed a
+    # zero coefficient (which throws a harmless but noisy warning)
+    y <- if (phi == 0) rnorm(n) else as.numeric(arima.sim(list(ar = phi), n = n))
     p <- summary(lm(y ~ seq_len(n)))$coefficients[2, 4]
     p < 0.05
   })
@@ -91,24 +114,98 @@ ggplot(fp, aes(factor(phi), rate)) +
   scale_y_continuous(labels = scales::percent) +
   labs(x = expression("AR(1) coefficient of the errors  " * (phi)),
        y = "Trends declared significant",
-       title = "OLS finds a trend in trend-free data",
+       title = "OLS finds a trend in trend-free data (length = 100)",
        subtitle = "Each bar: share of 1000 flat AR(1) series where OLS calls the slope significant") +
   theme_minimal()
 ```
 
-The dashed line is where a well-behaved test should sit. At $\phi = 0$, when the errors are independent, OLS behaves: it cries trend about 5% of the time, exactly the false-positive rate you signed up for. But as the memory in the errors climbs, so does the deception. By $\phi = 0.9$, ordinary least squares declares a significant trend in roughly two of every three series that have no trend at all. The software prints a trend either way. The only thing that changes is how often you get fooled.
+At $\phi = 0$, when the errors are independent, OLS behaves: it cries trend about 5% of the time (dashed line), exactly the false-positive rate we signed up for. But as the memory in the errors climbs, so do the problems. By $\phi = 0.9$, ordinary least squares declares a significant trend in roughly two of every three series drawn from a process with no trend at all. 
 
-## Why It Happens
+### A Ghost Relationship
 
-The mechanism is worth getting straight, because it tells you exactly when to worry. The OLS slope estimate is still unbiased here. Across all those simulations it averages to zero, the truth. What breaks is the standard error. OLS computes the uncertainty on the slope under the assumption that every observation is an independent piece of evidence. When the errors are autocorrelated, consecutive points are partly copies of each other, so you have less independent information than the sample size suggests. OLS does not know this. It counts all $n$ points as full evidence, the standard error comes out too small, the $t$-statistic too big, and the $p$-value too optimistic.
+That was the trend question. Now the second kind, the relationship question, and the same trap is waiting. This time we build two series that have nothing to do with each other. Call them `a` and `b`.  Each is its own AR(1) series, drawn separately, so by construction neither has any pull on the other. Then we regress one on the other and ask whether the slope is significant. The answer we should get is no.
 
-There is a clean way to see when this bites. The bias in the OLS standard error is, to a good approximation, proportional to the sum over lags of the error autocorrelation times the predictor autocorrelation:
+```{r}
+#| label: reg-spurious-plant
+set.seed(17)
+n <- 120
+phi <- 0.85
+a <- as.numeric(arima.sim(model = list(ar = phi), n = n))
+b <- as.numeric(arima.sim(model = list(ar = phi), n = n))
+```
+
+Always look at what you built. Two separate series. Any stretch where they happen to drift together is luck, because nothing connects them.
+
+```{r}
+#| label: reg-spurious-data
+tibble(t = 1:n, a, b) |>
+  pivot_longer(c(a, b)) |>
+  ggplot(aes(t, value, color = name)) +
+  geom_line() +
+  scale_color_manual(values = c(a = sfPal[1], b = sfPal[5])) +
+  labs(x = "Time", y = NULL, color = NULL, title = "Two independent series") +
+  theme_minimal()
+```
+
+Now regress `b` on `a`.
+
+```{r}
+#| label: reg-spurious-ols
+ols_spurious <- lm(b ~ a)
+summary(ols_spurious)
+```
+
+The slope comes back significant at a $p$-value around two in ten million, and the model claims to explain a fifth of the variation in `b`. If `a` and `b` were two variables you had measured in the field, you would think you had found something. Imagine `a` is some water quality measurement and `b` is some species abundance if you like. But this relationship is a mirage. We built the two series independently, so there is no association to find. This is the regression cousin of the spurious cross-correlation from the last chapter, where two independent random walks lined up into a correlation near 0.9. Same idea, fit with a straight line here instead of read off a cross-correlation plot.
+
+The tell is the same as it was for the trend. The residuals carry the memory the two series brought with them.
+
+```{r}
+#| label: reg-spurious-resid
+#| fig-height: 3
+ggAcf(residuals(ols_spurious)) + labs(title = "ACF of OLS residuals") +
+  theme_minimal()
+```
+
+And it is no more a fluke than the trend was. Pair up independent AR(1) series over and over and count how often OLS calls them significantly related, and the false-positive rate climbs with the autocorrelation just the way it did before.
+
+```{r}
+#| label: reg-spurious-mc
+# draw one AR(1) series; when phi = 0 that is just white noise, and we make it
+# directly so arima.sim is not handed a zero coefficient to complain about
+ar1_series <- function(phi, n) {
+  if (phi == 0) rnorm(n) else as.numeric(arima.sim(list(ar = phi), n = n))
+}
+
+# How often does OLS call two INDEPENDENT AR(1) series significantly related?
+spurious_rate <- function(phi, n = 120, sims = 1000) {
+  # run the experiment `sims` times; each run returns TRUE/FALSE, and the mean
+  # of a TRUE/FALSE vector is just the fraction that came back TRUE
+  mean(replicate(sims, {
+    a <- ar1_series(phi, n)   # one series
+    b <- ar1_series(phi, n)   # a second, unrelated one
+    # fit b ~ a and grab the slope's p-value: [2, 4] is row 2 (the slope) and
+    # column 4 (its Pr(>|t|)). Flag the run if that p-value clears 0.05.
+    summary(lm(b ~ a))$coefficients[2, 4] < 0.05
+  }))
+}
+
+# compare white-noise series (phi = 0) against strongly autocorrelated ones
+c(white_noise = spurious_rate(0), phi_0.85 = spurious_rate(0.85))
+```
+
+When the two series are white noise, OLS is fooled the 5% of the time it is supposed to be. By $\phi = 0.85$ it is fooled more than 40% of the time. Two questions, one trap.
+
+## Why the Ghosts Appear
+
+The mechanism is worth getting straight, because it tells you exactly when to worry. The OLS slope estimate is still unbiased in both ghosts. The true slope is zero in each, and across many runs the OLS estimate averages right back to zero. What breaks is the standard error. OLS computes the uncertainty on the slope under the assumption that every observation is an independent piece of evidence. When the errors are autocorrelated, consecutive points are partly copies of each other, so you have less independent information than the sample size suggests. OLS does not know this. It counts all $n$ points as full evidence, the standard error comes out too small, the $t$-statistic too big, and the $p$-value too optimistic.
+
+There is a clean way to see. The bias in the OLS standard error is, to a good approximation, proportional to the sum over lags of the error autocorrelation times the predictor autocorrelation:
 
 $$\text{SE bias} \;\propto\; \sum_k \rho_\epsilon(k)\,\rho_x(k)$$
 
-If the predictor has no time structure of its own, every $\rho_x(k)$ is zero, that sum collapses, and the OLS standard error is about right even when the errors are autocorrelated. There is nothing for the memory in the errors to align with. But the moment the predictor carries its own autocorrelation, both terms are positive, the sum grows, and the standard error shrinks below where it should be. And the predictor with the most autocorrelation imaginable is time itself: $1, 2, 3, \dots$ climbs as smoothly as a variable can. That is why fitting a trend is the worst case, and why it is the one to be most suspicious of.
+If the predictor has no time structure of its own, every $\rho_x(k)$ is zero, that sum collapses, and the OLS standard error is about right even when the errors are autocorrelated. There is nothing for the memory in the errors to align with. But the moment the predictor carries its own autocorrelation, both terms are positive, the sum grows, and the standard error shrinks below where it should be. And the predictor with the most autocorrelation imaginable is time itself: $1, 2, 3, \dots$ climbs as smoothly as a variable can. That is why fitting a trend is the worst case, and why it is the one to be most suspicious of. The spurious regression is the same rule a notch down the scale. The predictor there is not time, but an AR(1) series with strong memory of its own, so $\rho_x(k)$ stays large at the low lags, the products pile up, and the standard error shrinks. Time is the far end of that scale, and any predictor that carries memory sits somewhere along it.
 
-So the diagnosis is always the same. Fit your model, then look at the residuals the way we have looked at every series in this book. The ACF and PACF of the OLS residuals from our trend-free series tell the story immediately.
+So the diagnosis is always the same. Fit your model, then look at the residuals the way we have looked at every series in this book. The ACF and PACF of the OLS residuals from our initial example tell the story immediately.
 
 ```{r}
 #| label: reg-trend-resid
@@ -117,24 +214,22 @@ ggAcf(residuals(ols_trend)) + labs(title = "ACF of OLS residuals") +
   theme_minimal()
 ```
 
-The slow decay is the AR(1) signature. The residuals are not independent, the independence assumption is broken, and any $p$-value from that fit is not to be trusted. The plot is the warning. Now we fix it.
+The slow decay is the AR(1) signature. The residuals are not independent, the independence assumption is broken, and any $p$-value from that fit is not to be trusted. Now we fix it.
 
-## Generalized Least Squares
+## The Fix: Generalized Least Squares
 
-When the OLS assumptions are met, independent errors, equal variance, normality, OLS is hard to beat. The estimators are BLUE: Best Linear Unbiased Estimators. And OLS has a nice teaching property: you can derive it with algebra and a little calculus, without any matrix notation. That is probably how you learned it.
+We have all been taught OLS. It estimates the unknown parameters of a linear model, the intercept ($\beta_0$) and slope ($\beta_1$) of $y = \beta_0 + \beta_1 x$, by finding the values that minimize the sum of squared errors. When the assumptions are met, errors that are independent, of equal variance, and normal, the OLS estimators are optimal, often called BLUE: Best Linear Unbiased Estimators. OLS has the nice property that it can be taught without matrix algebra and connects naturally to ideas like correlation that most of us meet first in intro stats.
 
-The problem, as we have just seen, is that time-series residuals are often autocorrelated. That violates the independence assumption, which means the standard errors on your coefficients can be badly wrong, typically too small, which makes your $p$-values too optimistic. You think you have more evidence than you actually do.
+Here is the problem with autocorrelated errors, and it is the same one behind both ghosts. OLS treats every observation as carrying the same amount of independent information. But when the errors are autocorrelated, observations close together in time share information: they are not fully independent. A positive residual at one step tends to sit next to positive residuals at the steps around it, not because of anything $x$ is doing, but because of the memory in the series. OLS ignores this and effectively overcounts the information in the data. The practical consequence is that standard errors on the coefficients are underestimated when residuals are positively autocorrelated at short lags, which means t-statistics get inflated and p-values get too small. The coefficients themselves ($\hat\beta_0$, $\hat\beta_1$) may still be unbiased, but they are inefficiently estimated and any inference from the standard errors is suspect.
 
-Generalized least squares is the natural fix. The difference between OLS and GLS is in what they assume about the errors. OLS assumes the errors are independent and identically distributed. GLS allows them a richer structure: a covariance matrix $\boldsymbol{\Sigma}$ that can encode both unequal variances and correlations between observations. OLS minimizes the sum of squared distances between observed and predicted values, treating every observation as equal evidence. GLS minimizes those same distances weighted by the covariance structure of the residuals, so observations whose errors are strongly correlated with their neighbors get less weight. They are carrying redundant information, and GLS knows it.
+Generalized least squares fixes this by explicitly accounting for the correlation structure of the errors. Instead of weighting every observation equally, GLS down-weights observations that are strongly correlated with their neighbors in time, because those observations carry less new information than they would if they were independent. In matrix form the two estimators sit side by side:
 
-The two estimators sit side by side like this:
+$$\hat{\boldsymbol{\beta}}_{OLS} = (\mathbf{X}^T \mathbf{X})^{-1} \mathbf{X}^T \mathbf{y}$$
+$$\hat{\boldsymbol{\beta}}_{GLS} = (\mathbf{X}^T \boldsymbol{\Sigma}^{-1} \mathbf{X})^{-1} \mathbf{X}^T \boldsymbol{\Sigma}^{-1} \mathbf{y}$$
 
-$$\hat{\boldsymbol{\beta}}_{OLS} = (\mathbf{X}^\top \mathbf{X})^{-1} \mathbf{X}^\top \mathbf{y}$$
-$$\hat{\boldsymbol{\beta}}_{GLS} = (\mathbf{X}^\top \boldsymbol{\Sigma}^{-1} \mathbf{X})^{-1} \mathbf{X}^\top \boldsymbol{\Sigma}^{-1} \mathbf{y}$$
+where $\mathbf{X}$ is the design matrix (one row per observation, one column per predictor, plus a column of ones for the intercept), $\mathbf{y}$ is the vector of responses, and $\boldsymbol{\Sigma}$ is the covariance matrix of the errors. Think of $\boldsymbol{\Sigma}$ as an $n \times n$ table whose diagonal holds the variance of each observation and whose off-diagonal entry $\boldsymbol{\Sigma}_{ij}$ records the covariance between observations $i$ and $j$, a function of how far apart in time they are. GLS is OLS with $\boldsymbol{\Sigma}^{-1}$ inserted in both places as a weighting matrix. When $\boldsymbol{\Sigma} = \sigma^2 \mathbf{I}$, equal variances and no correlation, the $\boldsymbol{\Sigma}^{-1}$ terms cancel and the GLS estimator collapses exactly to OLS. OLS is a special case of GLS. The [OLS via Algebra and Matrices aside](08xAsideOLS-Algebra-Matrix.html) works through where both formulas come from.
 
-GLS is OLS with $\boldsymbol{\Sigma}^{-1}$ inserted as a weighting matrix. When $\boldsymbol{\Sigma}$ is just $\sigma^2 \mathbf{I}$, equal variances and no correlation, the two formulas are identical and OLS is a special case of GLS. If the matrix notation is unfamiliar, the [OLS via Algebra and Matrices aside](08xAsideOLS-Algebra-Matrix.html) walks through where both formulas come from and why they are built the way they are.
-
-In practice you do not know $\boldsymbol{\Sigma}$ exactly. With `gls()` from `nlme` you specify the *structure* of the errors, for example that they follow an AR(1) process, and the software estimates the parameters of that structure from the data by maximum likelihood or restricted maximum likelihood (REML). This is also a reason not to reach for GLS reflexively. If you meet the OLS assumptions, use OLS. If you do not, GLS is a good option, but it asks you to specify the correlation structure correctly. Get that wrong and you can do more harm than good.
+In practice you do not know $\boldsymbol{\Sigma}$ ahead of time. With `gls()` from `nlme` you specify the *structure* of the errors, for example that they follow an AR(1) process with `corAR1()`, and `gls` estimates the parameters of that structure from the data along with the regression coefficients, by default using restricted maximum likelihood (REML). The $\hat{\boldsymbol{\beta}}_{GLS}$ formula still applies; it just uses the estimated $\hat{\boldsymbol{\Sigma}}$ in place of the true one. The practical upshot follows the KISS principle: use OLS when its assumptions are met, try GLS when they are not. And because GLS asks you to specify the correlation structure, getting that structure wrong can do more harm than good.
 
 Let's fix the trend regression. We fit the same model, $y$ against time, but tell `gls` that the errors follow an AR(1) process with `corAR1()`.
 
@@ -146,9 +241,31 @@ summary(gls_trend)
 
 The slope estimate shrinks toward zero, and the standard error more than quadruples. The $p$-value climbs from three-in-a-billion to about 0.6. GLS has accounted for the memory in the errors, recognized that 120 autocorrelated points are worth far fewer than 120 independent ones, and reported the uncertainty correctly. The trend that OLS was certain of has evaporated, which is exactly what should happen, because we built a series with no trend.
 
-## Recovering a Slope That Is There
+::: {.callout-note}
+## Reading a `gls` summary
 
-The trend case is the saboteur at its most destructive, because the predictor and the errors share so much structure. But GLS is not only a tool for tearing down false trends. It also recovers true relationships more reliably when the errors are autocorrelated. Let's build a case where there is an effect to find.
+The coefficients table is the part you already know: an estimate, a standard error, a t-value, and a p-value for each term, tested the same way `lm` tests them. Everything around it is dressed differently.
+
+The header says "Generalized least squares fit by REML" where `lm` would say "Call," telling you the estimation method. Just under it `gls` prints AIC, BIC, and the log-likelihood by default, because a model fit by likelihood hands those to you for free. With `lm` you would call `AIC()` yourself.
+
+Two things from the `lm` summary are gone on purpose: there is no $R^2$ and no overall F-statistic. Both are built on splitting the total sum of squares into an explained part and a residual part, and that split only behaves once you assume iid errors. Weight the observations by a covariance structure and the tidy decomposition falls apart, so `nlme` declines to print a number that would mislead you. Use AIC to compare models instead.
+
+A few smaller shifts. The coefficient columns are spelled `Value`, `Std.Error`, `t-value`, and `p-value`. The residual five-number summary is labeled `Standardized residuals`, since these are normalized by the fitted covariance. And `gls` prints a `Correlation:` block that `lm` hides; watch out, because that block is the correlation among the coefficient estimates, not the autocorrelation of the residuals. Different thing. The block that does report the error structure is `Correlation Structure: AR(1)`, which gives the estimated `Phi`, the lag-one autocorrelation `gls` fit to the errors. Here it landed near 0.9, close to the 0.85 we built in.
+:::
+
+GLS does the same favor for the ghost relationship. We refit the two independent series, now telling `gls` the errors follow an AR(1) process.
+
+```{r}
+#| label: reg-spurious-gls
+gls_spurious <- gls(b ~ a, correlation = corAR1())
+summary(gls_spurious)$tTable
+```
+
+The slope that looked so convincing, significant at two in ten million, now carries a $p$-value around 0.15. The ghost is gone. Once GLS stops treating the autocorrelated wobbles of `a` and `b` as independent evidence, two series wandering on their own no longer look related. Both ghosts, the false trend and the false relationship, fall to the same fix.
+
+## Recovering a True Effect
+
+So far GLS has played the skeptic (all scientists are skeptics!), dissolving a trend and a relationship that were never there. But it is not only a tool for tearing down false findings. When there is an effect to find, GLS recovers it more reliably than OLS does once the errors are autocorrelated. Let's build a case where there is a true slope and check who gets closer to it.
 
 We will make `x` ordinary white noise and build `y` as a function of `x` plus AR(1) noise. We know the true slope, so we can check who recovers it.
 
@@ -205,7 +322,7 @@ coef(gls_plant)[2]
 summary(gls_plant)$tTable
 ```
 
-We ask for `corARMA(p = 1)`, which is an AR(1) error structure. Had the residuals looked like an ARMA(1,1) we could try `corARMA(p = 1, q = 1)`, and `gls` would estimate those parameters by numerical optimization, which can fail when the model is too complex. The GLS slope lands near 0.5, the value we built in, and its standard error reflects the true uncertainty. When you inspect GLS residuals for autocorrelation, ask for the `normalized` ones, which are the residuals transformed by the estimated correlation structure and so are what should look like white noise if the structure was right.
+We ask for `corARMA(p = 1)`, which is an AR(1) error structure. Had the residuals looked like an ARMA(1,1) we could try `corARMA(p = 1, q = 1)`, and `gls` would estimate those parameters by numerical optimization, which can (and does!) fail when the model is too complex. The GLS slope lands near 0.5, the value we built in, and its standard error reflects the true uncertainty. When you inspect GLS residuals for autocorrelation, ask for the `normalized` ones, which are the residuals transformed by the estimated correlation structure and so are what should look like white noise if the structure was right.
 
 ```{r}
 #| label: reg-plant-gls-resid
@@ -314,7 +431,7 @@ gls_flow <- gls(LeesWYflow ~ OctAprP, data = flow,
 summary(gls_flow)
 ```
 
-The slope stays large and overwhelmingly significant, so the headline finding survives: precipitation is a strong driver of flow. Now think back to the rule from "Why It Happens." The residuals here are strongly autocorrelated, but the predictor is not. Precipitation from one year to the next is close to independent, with a lag-1 autocorrelation near zero. That puts us in the efficiency regime, not the standard-error-deflation one, so the OLS standard error was not badly inflated to begin with, and GLS actually tightens it a little rather than widening it. Either way the effect is far too strong for the autocorrelation to change the verdict. The value of running the GLS fit is that you confirmed that, rather than assuming it. You looked at the residuals, saw the memory, and checked that it did not undermine the result.
+The slope stays large and overwhelmingly significant, so the headline finding survives: precipitation is a strong driver of flow. Now think back to the rule from "Why the Ghosts Appear." The residuals here are strongly autocorrelated, but the predictor is not. Precipitation from one year to the next is close to independent, with a lag-1 autocorrelation near zero. That puts us in the efficiency regime, not the standard-error-deflation one, so the OLS standard error was not badly inflated to begin with, and GLS actually tightens it a little rather than widening it. Either way the effect is far too strong for the autocorrelation to change the verdict. The value of running the GLS fit is that you confirmed that, rather than assuming it. You looked at the residuals, saw the memory, and checked that it did not undermine the result.
 
 ## When the Residuals Are Clean
 
@@ -324,6 +441,16 @@ It would be easy to come away thinking every time-series regression needs GLS. I
 #| label: reg-ozone
 #| message: false
 air <- read_csv("data/ny_air_quality.csv")
+ggplot(air, aes(Day, ozone)) +
+  geom_line(color = sfPal[1]) +
+  labs(x = "Day of summer", y = "Ozone (ppb)",
+       title = "Daily ground-level ozone, New York, summer 1973") +
+  theme_minimal()
+```
+
+Now let's make and a model.
+
+```{r}
 ols_ozone <- lm(ozone ~ temperature, data = air)
 summary(ols_ozone)$coefficients
 ```
@@ -341,9 +468,9 @@ Nothing. The residual autocorrelation is negligible and stays inside the band. H
 
 ## Wrapping Up
 
-Time-series regression is the saboteur from the opening chapters in its most practical form. The slope estimate usually survives autocorrelated errors, but the uncertainty around it does not, and the damage is worst exactly where it matters most: testing for a trend against time, where the predictor's own structure aligns with the memory in the errors and OLS will conjure significance out of a flat random walk. The discipline is the same one the book has asked for throughout. Fit the model, then look at the residuals. If they are clean, as with the ozone, OLS is doing its job and you leave it alone. If they carry memory, as with the flow and the false trend, GLS lets you specify that structure and get a trustworthy answer back.
+Time-series regression is the saboteur from the opening chapters in its most practical form. The slope estimate usually survives autocorrelated errors, but the uncertainty around it does not, and the damage is worst exactly where it matters most: testing for a trend against time, where the predictor's own structure aligns with the memory in the errors and OLS will conjure a significant trend out of a series that only wanders because of its own memory. The discipline is the same one the book has asked for throughout. Fit the model, then look at the residuals. If they are clean, as with the ozone, OLS is doing its job and you leave it alone. If they carry memory, as with the flow and the false trend, GLS lets you specify that structure and get a trustworthy answer back.
 
-There is a non-parametric version of this same story still to tell. When people test environmental series for a trend they often reach for the Mann-Kendall test and the Theil-Sen slope precisely because those methods avoid the straight-line assumption. But Mann-Kendall assumes independence too, and on autocorrelated data it over-rejects in exactly the way OLS just did, printing trends that are not there. The fix, prewhitening the series before the test, is the same move we made by hand above. That section is coming.
+There is a non-parametric version of this same story, and it is the next chapter. When people test environmental series for a trend they often reach for the Mann-Kendall test and the Theil-Sen slope precisely because those methods avoid the straight-line assumption. But Mann-Kendall assumes independence too, and on autocorrelated data it over-rejects in exactly the way OLS just did, printing trends that are not there. The fix is the same idea we used here, a careful count of how many independent observations you actually have.
 
 ## Exercises
 
