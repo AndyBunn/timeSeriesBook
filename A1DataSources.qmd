@@ -340,6 +340,21 @@ glimpse(rad)
 
 `tmp` is air temperature in degrees Celsius, recorded every other hour starting three minutes after the hour. `rad` is solar radiation in watts per square meter, hourly, with about 10% of one summer missing.
 
+## The Orbital Insolation Data
+
+The frequency chapter's Milankovitch example uses a reconstruction of July insolation at 65°N over the past five million years, from @BergerLoutre1991. Unlike everything else in this appendix, it isn't a measurement of anything: it's calculated directly from orbital mechanics, so there's no sensor, station, or survey behind it and nothing to refresh from a live source.
+
+### Reading It
+
+```{r}
+#| label: a1-read-jul65n
+#| message: false
+insolation <- read_csv("data/jul65N.csv")
+glimpse(insolation)
+```
+
+`kya` is thousands of years relative to the present and runs negative into the past (0 is now, -5000 is five million years ago). `W.per.m2` is the calculated insolation in watts per square meter.
+
 ## The Rest of the Data
 
 Every other dataset the book uses lives in the same `data/` folder, and you can download the whole bundle as a single `data.zip` from the book's website. Each dataset is credited where it first appears, with a pointer back here when there is a way to refresh it yourself. As more chapters move over to this style, their sources will be documented in this appendix too.

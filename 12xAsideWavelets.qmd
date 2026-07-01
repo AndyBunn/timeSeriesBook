@@ -1,0 +1,92 @@
+# Aside: A Glimpse of Wavelets {- .aside-chapter}
+
+```{r}
+#| label: wave-setup
+#| echo: false
+set.seed(872)
+```
+
+## Introduction
+
+A periodogram answers one question well: what frequencies are in this series, taken as a whole? It has nothing to say about when those frequencies were active, because it assumes the answer doesn't change, the same stationarity assumption that runs through the rest of this book. Wavelets are the tool built for the case where that assumption fails: a cycle that's strong for a while, fades out, and maybe comes back later, the way a system's dominant rhythm can drift as conditions change.
+
+Think of it this way: a periodogram tells you what's in a signal, not when. A wavelet transform tracks a signal's frequency content as it evolves through the record, which matters most for messy environmental data where a process comes and goes, a twenty-year cycle that's strong in one century and gone in the next.
+
+This aside runs two kinds of wavelet decomposition on a tree-ring chronology, the same `co021` data the filters chapter used for a single core, now averaged across many trees into a site chronology. Neither is something you need to reproduce yourself; they're here so you've seen what the fuss is about, and so you know where to look if a plain periodogram ever feels like it's hiding something.
+
+## Packages
+
+```{r}
+#| label: wave-packages
+#| message: false
+library(tidyverse)
+library(dplR)
+library(waveslim)
+```
+
+## Building a Chronology
+
+`co021` is the same collection of raw tree-ring measurements from Mesa Verde used in the filters chapter, one column per core. Detrend every core and average across trees to build a single site chronology, the way dendrochronologists turn many individual, noisy ring-width series into one signal.
+
+```{r}
+#| label: wave-chron
+data(co021)
+co021_rwi <- detrend(co021, method = "Spline")
+co021_crn <- chron(co021_rwi)
+
+chronVal <- co021_crn[, 1]
+chronYrs <- as.numeric(time(co021_crn))
+
+plot(co021_crn, add.spline = TRUE, nyrs = 64)
+```
+
+## A Continuous Wavelet Transform
+
+The continuous wavelet transform (CWT) produces a heat map: time along one axis, period along the other, and color showing how much power a given period has at a given moment. `morlet()` from `waveslim` computes it; `wavelet.plot()` draws it.
+
+```{r}
+#| label: wave-cwt
+cwtOut <- morlet(y1 = chronVal, x1 = chronYrs, p2 = 8, dj = 0.1, siglvl = 0.99)
+wavelet.plot(cwtOut, useRaster = NA, reverse.y = TRUE)
+```
+
+Read it like a topographic map of frequency content over time. A horizontal band of color means that period was active throughout the stretch it covers, and a band that appears, fades, and reappears somewhere else is exactly the kind of thing a single periodogram of the whole record would average away and hide.
+
+## A Discrete Wavelet Transform
+
+The discrete version, a multiresolution analysis (MRA), takes a different approach: instead of a heat map, it splits the series into additive components, each one carrying the variability at a particular timescale (2 years, 4 years, 8 years, and on up), so that summing every piece back together reconstructs the original chronology exactly.
+
+```{r}
+#| label: wave-dwt
+nYrs <- length(chronYrs)
+nScales <- trunc(log(nYrs) / log(2)) - 1
+dwtOut <- mra(chronVal, wf = "la8", J = nScales, method = "modwt", boundary = "periodic")
+
+scaleLabels <- paste0(2^(1:nScales), " yrs")
+dwtScaled <- scale(as.data.frame(dwtOut))
+```
+
+```{r}
+#| label: wave-dwt-plot
+#| fig-height: 7
+par(mar = c(3, 2, 2, 2), mgp = c(1.25, 0.25, 0), tcl = 0.5, xaxs = "i", yaxs = "i")
+plot(chronYrs, rep(1, nYrs), type = "n", axes = FALSE, ylab = "", xlab = "",
+     ylim = c(-3, 38))
+title(main = "Multiresolution decomposition of the chronology", line = 0.75)
+axis(side = 1)
+mtext("Years", side = 1, line = 1.25)
+
+offset <- 0
+for (i in nScales:1) {
+  lines(chronYrs, dwtScaled[, i] + offset)
+  abline(h = offset, lty = "dashed")
+  mtext(colnames(dwtScaled)[i], side = 2, at = offset, line = 0)
+  mtext(scaleLabels[i], side = 4, at = offset, line = 0)
+  offset <- offset + 5
+}
+box()
+```
+
+Each row is one timescale, labeled on the left by component name (`D1` through `D8`, plus a smooth `S8` at the bottom) and on the right in years. Stack them back up and you get the original chronology back exactly, a full accounting of its variance, timescale by timescale, with nothing averaged away.
+
+Wavelets are how you get at a signal that changes, not just in how strong a cycle is, but in when it shows up. They cost more to compute and read than a periodogram, which is exactly why the periodogram is where this book spent its time and the wavelet transform gets an aside instead of a chapter. But when a record is long enough for a process to plausibly change its own rhythm partway through, this is the tool that will show you.
