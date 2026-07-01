@@ -132,7 +132,39 @@ kbli_monthly_fresh <- full_grid |>
 write_csv(kbli_monthly_fresh, "data/kbli_monthly.csv")
 ```
 
-The `full_grid` join is the important step. Without it, a month with zero data just vanishes from the table instead of showing up as a calendar gap, an off-by-one error that's easy to miss because nothing throws a warning, and it shifts every later month one slot out of place the moment you convert the column to a `ts`.
+The `full_grid` join is the important step. Without it, a month with zero data just vanishes from the table instead of showing up as a calendar gap, an off-by-one error that's easy to miss because nothing throws a warning, and it shifts every later month one slot out of place the moment you convert the column to a `ts`. [A missing-data aside](01xAsideMissingStations.html) uses this exact gap as a worked example of filling one station's hole from a neighboring station, without altering the file above.
+
+### A Neighboring Station for Filling the Gap
+
+The missing-data aside pairs `kbli_monthly.csv` with a second station's monthly temperature: `USC00450587`, Bellingham 3 SSW, a Historical Climatology Network station about three miles from the airport that was reporting the whole time the airport gauge went dark.
+
+```{r}
+#| label: a1-read-donor
+#| message: false
+donor <- read_csv("data/bellingham_3ssw_temp.csv")
+glimpse(donor)
+```
+
+### Getting a Fresh Copy
+
+```{r}
+#| label: a1-donor-pull
+#| eval: false
+donor_raw <- daily("USC00450587", start_date = "1990-01-01", end_date = "2005-12-31",
+                    variables = c("tmax", "tmin"))
+```
+
+```{r}
+#| label: a1-donor-clean
+#| eval: false
+donor_fresh <- donor_raw |>
+  mutate(tavg = (tmax + tmin) / 2, date = as.Date(date), year = year(date), month = month(date)) |>
+  filter(!is.na(tavg)) |>
+  summarise(TAVG = mean(tavg), n_days = n(), .by = c(year, month)) |>
+  filter(n_days >= 20) |>
+  transmute(DATE = make_date(year, month, 1), TAVG = round(TAVG, 2))
+write_csv(donor_fresh, "data/bellingham_3ssw_temp.csv")
+```
 
 ## The Nooksack River Discharge
 
@@ -354,6 +386,48 @@ glimpse(insolation)
 ```
 
 `kya` is thousands of years relative to the present and runs negative into the past (0 is now, -5000 is five million years ago). `W.per.m2` is the calculated insolation in watts per square meter.
+
+## The Cherry Point Tide Data
+
+The frequency chapter's tides example is hourly water level for all of 2023 at Cherry Point, a NOAA CO-OPS tide gauge just north of Bellingham (station `9449424`).
+
+### Reading It
+
+```{r}
+#| label: a1-read-tides
+#| message: false
+tides <- read_csv("data/cherry_point_tides.csv")
+glimpse(tides)
+```
+
+`water_level_m` is water level in meters relative to mean lower low water (MLLW), the standard tidal datum.
+
+### Getting a Fresh Copy
+
+NOAA's Tides and Currents API is public and needs no key. This pulls one calendar year of the `hourly_height` product.
+
+```{r}
+#| label: a1-tides-pull
+#| eval: false
+library(jsonlite)
+
+url <- paste0(
+  "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?",
+  "product=hourly_height&application=timeSeriesBook",
+  "&begin_date=20230101&end_date=20231231",
+  "&datum=MLLW&station=9449424&time_zone=GMT&units=metric&format=json"
+)
+tides_raw <- fromJSON(url)$data
+```
+
+```{r}
+#| label: a1-tides-clean
+#| eval: false
+tides_fresh <- tides_raw |>
+  transmute(DateTime = as.POSIXct(t, tz = "UTC"),
+            water_level_m = as.numeric(v))
+write_csv(tides_fresh, "data/cherry_point_tides.csv")
+```
 
 ## The Rest of the Data
 

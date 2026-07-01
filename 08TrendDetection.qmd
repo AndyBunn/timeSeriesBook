@@ -1,0 +1,313 @@
+# Trend Detection
+
+```{r}
+#| label: trend-setup
+#| echo: false
+set.seed(872)
+```
+
+## Big Idea
+
+The last chapter tested for a trend by fitting a straight line, and watched ordinary least squares conjure trends out of autocorrelated noise. There is another way to ask whether a series is going up or down over time, one that many environmental scientists reach for precisely because it asks less of the data. Instead of fitting a line and trusting its slope, you can rank the observations and ask a simpler question: as time goes on, do later values tend to land above earlier ones? That is the Mann-Kendall test, and its companion the Theil-Sen slope gives you a rate of change that shrugs off outliers. Neither assumes a straight line, neither assumes normal errors, and that is why they are everywhere in climate and hydrology.
+
+But there is a catch, and by now you can probably guess it. Dropping the straight-line and normality assumptions does not drop the independence assumption. Mann-Kendall still treats your observations as independent draws, so on autocorrelated data it falls into the same trap ordinary least squares did: it finds trends in series that have none. This chapter builds both tools from scratch, walks them into the trap on purpose, and then climbs out the same way the regression chapter did, by recognizing that autocorrelated points are not worth a full point each.
+
+## Packages
+
+We hand-build everything in this chapter, so there are no new packages to install. We stay in the tidyverse for wrangling and plotting, read the example data from CSV, and use `PNWColors` for the palette.
+
+```{r}
+#| label: trend-packages
+#| message: false
+library(tidyverse)
+library(PNWColors)
+
+sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+```
+
+## Distribution-Free Trend Tools
+
+The OLS line is ubiquitous (in part because every Excel user sees the option to add it when they right click on a plot). But OLS assumes the trend is straight and the errors are normal, and environmental series routinely break both: a flood might be a wild outlier, things like streamflow and pollutant concentrations are right-skewed. A lot of environmental changes are monotonic (always increasing or always decreasing) but not linear. A rank-based test sidesteps all of that. It does not care how big the changes are, only which direction they go.
+
+### Mann-Kendall
+
+The Mann-Kendall statistic is almost embarrassingly simple. Walk through every pair of observations. If the later one is larger, score $+1$; if smaller, score $-1$. Add up the scores. That sum is $S$. A large positive $S$ means later values mostly sit above earlier ones, which is an increasing trend. A large negative $S$ is a decreasing trend. An $S$ near zero means no consistent direction.
+
+```{r}
+#| label: trend-mk-fn
+mann_kendall <- function(x) {
+  n <- length(x)
+  # S: for every pair (i < j), +1 if x_j > x_i, -1 if x_j < x_i, 0 if tied
+  S <- 0
+  for (j in 2:n) {
+    for (i in 1:(j - 1)) {
+      S <- S + sign(x[j] - x[i])
+    }
+  }
+  # variance of S under the no-trend null, with a correction for ties
+  ties <- table(x)
+  tie_term <- sum(ties * (ties - 1) * (2 * ties + 5))
+  varS <- (n * (n - 1) * (2 * n + 5) - tie_term) / 18
+  # standardized statistic (with a continuity correction) and two-sided p
+  Z <- (S - sign(S)) / sqrt(varS)
+  tau <- S / (n * (n - 1) / 2)
+  p <- 2 * (1 - pnorm(abs(Z)))
+  tibble(S = S, varS = varS, Z = Z, tau = tau, p = p)
+}
+```
+
+A few lines in that function deserve a closer look. Under the null hypothesis of no trend, every ordering of the data is equally likely, and from that you can work out that $S$ has mean zero and variance $\frac{n(n-1)(2n+5)}{18}$. The `tie_term` subtracts a correction when values repeat, since tied pairs carry no directional information. Dividing $S$ by its standard deviation gives a $Z$ score that is approximately normal for $n$ bigger than about ten, which is where the $p$-value comes from. The last quantity, `tau`, is Kendall's $\tau$: the same $S$ scaled to run from $-1$ to $1$, so it reads like a correlation between value and time.
+
+### Theil-Sen
+
+Mann-Kendall tells you whether there is a trend while Theil-Sen says how steep the slope is. It's just as direct: compute the slope between every pair of points and take the median.
+
+```{r}
+#| label: trend-ts-fn
+theil_sen <- function(x, t = seq_along(x)) {
+  n <- length(x)
+  slopes <- c()
+  for (j in 2:n) {
+    for (i in 1:(j - 1)) {
+      slopes <- c(slopes, (x[j] - x[i]) / (t[j] - t[i]))
+    }
+  }
+  median(slopes)
+}
+```
+
+The median is what makes it robust. One wild observation corrupts a handful of the pairwise slopes, but the median ignores them. The OLS slope, by contrast, is a mean, and a single outlier drags a mean wherever it likes.
+
+Let's see how these work on a planted series. We build a clear upward trend of slope 0.3, add noise, and drop in two large outliers late in the record.
+
+```{r}
+#| label: trend-planted
+set.seed(40)
+n <- 40
+t <- 1:n
+x <- 2 + 0.3 * t + rnorm(n, sd = 2)
+x[32] <- x[32] + 25   # two wild years
+x[37] <- x[37] + 21   # two wild years
+
+ols_planted <- lm(x ~ t)
+summary(ols_planted)
+
+tibble(t, x) |>
+  ggplot(aes(t, x)) +
+  geom_point(color = sfPal[1]) +
+  geom_smooth(method = "lm", se = FALSE, color = sfPal[5]) +
+  labs(x = "Time", y = "Some variable", title = "A trend with an outlier") +
+  theme_minimal()
+```
+
+Look at the output from the OLS model and see that the slope is dragged up toward `r round(coef(lm(x ~ t))[2], 2)` by that one point. It's also wildly significant. Let's look at MK and TS output
+
+```{r}
+mk_planted <- mann_kendall(x)
+mk_planted
+```
+
+Note that Mann-Kendall, meanwhile, sees the trend clearly, with $\tau$ = `r round(mk_planted$tau, 2)` and a $p$-value of `r format(mk_planted$p, scientific = TRUE, digits = 2)`.
+
+```{r}
+ts_planted <- theil_sen(x)
+ts_planted
+```
+
+And that Theil-Sen has the slope nearer the true 0.3 at `r round(ts_planted, 2)`. 
+
+Here are the two fits side by side.
+
+```{r}
+#| label: trend-planted-plot
+tibble(t, x) |>
+  ggplot(aes(t, x)) +
+  geom_point(color = sfPal[1]) +
+  geom_abline(data = tibble(slope = coef(ols_planted)[2], 
+                            intercept = coef(ols_planted)[1], 
+                            Line = "OLS"),
+              aes(slope = slope, intercept = intercept, color = Line),
+              linewidth = 0.7) +
+  geom_abline(data = tibble(slope = ts_planted, 
+                            intercept = median(x) - ts_planted * median(t), 
+                            Line = "Theil-Sen"),
+              aes(slope = slope, intercept = intercept, color = Line),
+              linewidth = 0.7) +
+  scale_color_manual(values = c("OLS" = sfPal[5], "Theil-Sen" = sfPal[3]), name = NULL) +
+  labs(x = "Time", y = "Some variable", title = "One outlier, two slopes") +
+  theme_minimal()
+```
+
+The OLS line tips up to chase the outlier. The Theil-Sen line stays with the bulk of the data. For environmental records, where the wild years are often the ones you most want to not overreact to, that robustness is the whole appeal.
+
+So why not just use GLS for everything? Because GLS only fixes one of this chapter's two problems. Correcting for autocorrelation, whether by inflating Mann-Kendall's variance or by giving OLS a corAR1 structure, is the same idea applied to two different statistics, and once that correction is made neither test has an edge over the other. What GLS does not fix is the outlier you just watched drag the OLS line: it is still a least-squares fit, so a single wild value pulls its slope the same way no matter how well the dependence in time is modeled. Theil-Sen does not move, because it is a median, not a mean. Reach for Mann-Kendall and Theil-Sen when you don't trust the trend to be a straight line, when the errors are skewed or outlier-prone, or when you just want a clean read on direction without committing to a parametric model. Stick with OLS or GLS when you need an actual model: a slope with a full uncertainty interval, more than one predictor, or a fitted line you plan to use later for forecasting or detrending. The two are not in competition. A common move is to run both: let the rank test confirm the direction and a slope that shrugs off outliers, and let OLS or GLS supply the rest of the inferential machinery.
+
+## An Observed Series: the Nooksack in Winter
+
+The North Fork Nooksack drains the glaciers and snowfields of Mount Baker down into Bellingham Bay. A warming climate should leave a fingerprint on a river like this: more cool-season precipitation falling as rain instead of snow, which means higher winter flows, and less snowpack to melt through the summer, which means lower summer flows. Let's test both with the tools we just built. We read the daily discharge record and collapse it to mean winter and mean summer flow for each year.
+
+```{r}
+#| label: trend-nooksack
+#| message: false
+nooksack <- read_csv("data/nooksack.csv") |>
+  mutate(year = year(DATE), month = month(DATE))
+
+full_years <- nooksack |> count(year) |> filter(n >= 350) |> pull(year)
+
+annual <- nooksack |>
+  filter(year %in% full_years) |>
+  group_by(year) |>
+  summarise(winter = mean(FLOW[month %in% c(12, 1, 2)]),
+            summer = mean(FLOW[month %in% 7:9]),
+            .groups = "drop")
+```
+
+Start with winter. Always look at the data first, with both slopes drawn through it.
+
+```{r}
+#| label: trend-winter-plot
+ts_winter <- theil_sen(annual$winter, annual$year)
+ols_winter <- lm(winter ~ year, data = annual)
+
+ggplot(annual, aes(year, winter)) +
+  geom_line(color = sfPal[1]) +
+  geom_abline(data = tibble(slope = coef(ols_winter)[2],
+                            intercept = coef(ols_winter)[1],
+                            Line = "OLS"),
+              aes(slope = slope, intercept = intercept, color = Line),
+              linewidth = 0.7) +
+  geom_abline(data = tibble(slope = ts_winter,
+                            intercept = median(annual$winter) - ts_winter * median(annual$year),
+                            Line = "Theil-Sen"),
+              aes(slope = slope, intercept = intercept, color = Line),
+              linewidth = 0.7) +
+  scale_color_manual(values = c(OLS = sfPal[5], "Theil-Sen" = sfPal[3]), name = NULL) +
+  labs(x = "Water year", y = expression("Mean winter flow (m"^3*"/s)"),
+       title = "North Fork Nooksack, December-February mean flow") +
+  theme_minimal()
+```
+
+```{r}
+#| label: trend-winter-mk
+mk_winter <- mann_kendall(annual$winter)
+c(tau = mk_winter$tau, p = mk_winter$p, theil_sen_per_yr = ts_winter)
+```
+
+Winter flow is rising. Mann-Kendall returns $\tau$ = `r round(mk_winter$tau, 2)` with a $p$-value of `r round(mk_winter$p, 3)`, and the Theil-Sen slope of `r round(ts_winter, 3)` cubic meters per second per year works out to roughly `r round(ts_winter * (max(annual$year) - min(annual$year)))` more over the length of the record. Maybe that is the rain-not-snow fingerprint showing up in the data? Now summer.
+
+```{r}
+#| label: trend-summer-mk
+mk_summer <- mann_kendall(annual$summer)
+c(tau = mk_summer$tau, p = mk_summer$p, theil_sen_per_yr = theil_sen(annual$summer, annual$year))
+```
+
+Summer flow is sliding the other way, with a negative slope, but Mann-Kendall returns a $p$-value of `r round(mk_summer$p, 2)`, nowhere near significant. The melt-season decline is the half of the fingerprint we would most expect, and on this single gauge it is buried in the noise. 
+
+So, the same physical story leaves one signal you can stand behind and one you cannot, at least not from a single record. Report the winter trend, flag the summer one as suggestive, and resist the urge to round it up.
+
+## The Same Trap
+
+There is a problem we have been stepping past. Mann-Kendall's $p$-value, like every $p$-value, rests on a null hypothesis, and that null assumes the observations are independent. River flow is not. Wet years cluster, drought persists, and a high-flow winter makes the next winter a little more likely to run high too. We have seen exactly what unmodeled autocorrelation does to a trend test. It should do it here too.
+
+So let's check, the same way we did in the regression chapter. Generate a flat series with no trend at all, just AR(1) noise, run Mann-Kendall, and count how often it cries trend. Do that across a range of autocorrelation strengths.
+
+```{r}
+#| label: trend-mc
+ar1_series <- function(phi, n) {
+  if (phi == 0) rnorm(n) else as.numeric(arima.sim(list(ar = phi), n = n))
+}
+
+mk_false_positive <- function(phi, n = 60, sims = 500) {
+  mean(replicate(sims, mann_kendall(ar1_series(phi, n))$p < 0.05))
+}
+
+set.seed(10)
+phis <- c(0, 0.3, 0.5, 0.7, 0.9)
+fp <- tibble(phi = phis, rate = map_dbl(phis, mk_false_positive))
+fp
+```
+
+```{r}
+#| label: trend-mc-plot
+ggplot(fp, aes(factor(phi), rate)) +
+  geom_col(fill = sfPal[5], width = 0.6) +
+  geom_hline(yintercept = 0.05, linetype = "dashed") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = expression("AR(1) coefficient " * (phi)),
+       y = "Trends declared significant",
+       title = "Mann-Kendall finds a trend in trend-free data",
+       subtitle = "Share of 500 flat AR(1) series called significant at the 5% level") +
+  theme_minimal()
+```
+
+Same trap. When the series is white noise, Mann-Kendall behaves and cries trend about 5% of the time. As the autocorrelation climbs, so does the false-positive rate, until by $\phi = 0.9$ it is declaring a significant trend in roughly two of every three series that have no trend at all. The rank test is no more immune than the regression was. Both treat dependent observations as if they were independent, no matter what shape the trend takes.
+
+## Counting the Effective Sample Size
+
+The fix is the same idea that powered generalized least squares in the last chapter, stated in plain terms: when your observations are autocorrelated, you do not have $n$ independent pieces of information. You have fewer. A run of high-flow winters that come partly from one another is not as many independent votes for a trend as the same number of unrelated years would be. Mann-Kendall's variance formula assumes all $n$ count, so it reports a standard deviation that is too small, a $Z$ that is too big, and a $p$-value that is too eager. We just need to tell it the truth about how many independent observations it has.
+
+For an AR(1) process with lag-one correlation $r_1$, the effective sample size is a standard result:
+
+$$n_{\text{eff}} = n \,\frac{1 - r_1}{1 + r_1}$$
+
+When $r_1$ is zero the two are equal. As $r_1$ climbs toward one, $n_{\text{eff}}$ shrinks. We inflate the variance of $S$ by the factor $n / n_{\text{eff}} = (1 + r_1)/(1 - r_1)$ and recompute the test.
+
+```{r}
+#| label: trend-mk-ess
+mann_kendall_ess <- function(x) {
+  base <- mann_kendall(x)
+  r1 <- acf(x, plot = FALSE)$acf[2]
+  inflation <- if (r1 > 0) (1 + r1) / (1 - r1) else 1
+  varS <- base$varS * inflation
+  Z <- (base$S - sign(base$S)) / sqrt(varS)
+  tibble(r1 = r1, p = 2 * (1 - pnorm(abs(Z))))
+}
+```
+
+Does it close the trap? Run the same Monte Carlo, this time with the corrected test.
+
+```{r}
+#| label: trend-mc-corrected
+mk_fp_corrected <- function(phi, n = 60, sims = 500) {
+  mean(replicate(sims, mann_kendall_ess(ar1_series(phi, n))$p < 0.05))
+}
+
+set.seed(10)
+tibble(phi = phis,
+       naive = fp$rate,
+       corrected = map_dbl(phis, mk_fp_corrected))
+```
+
+The corrected false-positive rate drops back to where it belongs, near 5%, no matter how strong the autocorrelation. We have stopped the test from overcounting. Now turn it on the winter Nooksack, where the question actually matters.
+
+```{r}
+#| label: trend-winter-corrected
+mann_kendall_ess(annual$winter)
+```
+
+The lag-one correlation in winter flow is modest, around `r round(mann_kendall_ess(annual$winter)$r1, 2)`, so the correction is gentle. The $p$-value moves from `r round(mk_winter$p, 3)` to `r round(mann_kendall_ess(annual$winter)$p, 3)`. Still significant. That is the outcome you hope for: the warming signal in winter flow is strong enough to survive a careful accounting of the dependence in the record. Had it not survived, you would have learned that the trend you were about to report was partly an artifact of wet years clustering, which is exactly the thing this correction exists to catch.
+
+A note on what we built. Inflating the variance with a single lag-one correlation is the readable core of an idea with a fuller form. The standard reference, @HamedRao1998, sums the correction over the autocorrelation at all lags rather than just the first, which matters when a series carries memory beyond one step. There is also a second school of thought that fixes the problem by prewhitening, the same move we made in the cross-correlation and regression chapters: estimate the autocorrelation, filter it out of the series, then run the test on what remains [@Yue2002]. Both approaches are after the same thing we are, a fair count of the independent information in a dependent series.
+
+## Wrapping Up
+
+Mann-Kendall and Theil-Sen are the right tools when you distrust the straight line, and you often should. They ask only about direction and they laugh off outliers. But robustness to the shape of the trend and the shape of the noise is not robustness to dependence, and on a time series the dependence is always there. The rank test ran into the same autocorrelation problem the regression chapter did, and the fix is the same: autocorrelated observations are worth less than independent ones, so the uncertainty has to account for that. It doesn't matter whether you're reading a slope off a line or a sign off a pair of ranks. Check the dependence in your data before you trust the p-value.
+
+That's the last question this part asks about whether an effect is there. What's left is whether a model predicts anything at all, and that's where we turn next.
+
+## Exercises
+
+### Is winter warming faster than summer?
+
+Read the Bellingham weather data in `data/kbli.csv`, derive daily mean temperature as `(TMAX + TMIN) / 2`, and build two annual series: mean winter (December-February) temperature and mean summer (June-August) temperature. Test each for a trend with Mann-Kendall and estimate the rate with Theil-Sen. Then apply the effective-sample-size correction. Is one season warming faster than the other? Does the correction change either verdict, and what does the lag-one correlation in each series tell you about how much it should?
+
+### A trend that isn't there
+
+Take the summer Nooksack flow, the series that came back not significant. Run the effective-sample-size correction on it and confirm that a correction cannot rescue a trend that was never significant to begin with. Then build your own version of the Monte Carlo from this chapter, but vary the sample size instead of the autocorrelation. Hold $\phi$ at 0.7 and sweep $n$ from 30 to 200. Does a longer record make Mann-Kendall any more reliable on autocorrelated data, or just more confident in the wrong answer?
+
+## Further Reading
+
+- @Mann1945 and @Kendall1975 are the original sources for the trend test and the rank correlation it is built on.
+- @Sen1968 introduced the median-of-pairwise-slopes estimator we used for the rate of change.
+- @HamedRao1998 gives the full variance correction for autocorrelated data, summing over all lags rather than the single one we used here.
+- @Yue2002 works through prewhitening as the alternative remedy and shows, with hydrological series, how badly autocorrelation distorts trend detection when it is ignored.

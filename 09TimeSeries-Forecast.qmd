@@ -1,0 +1,437 @@
+# Forecasting
+
+```{r}
+#| label: fc-setup
+#| echo: false
+set.seed(872)
+```
+
+## Big Idea
+
+A forecast has two halves. The first half is the prediction: if a series leans on its own past, you can push that dependence forward and see where it is likely to go next. We built that machinery back in the ARMA chapter. An AR or ARMA model is already a statement about how tomorrow relates to today, so turning it into a forecast is mostly bookkeeping. The second half is the part too many people skip, and it is the only part that decides whether the first half was worth anything: checking the forecast against values it did not get to see. Hold back the end of a series, predict it from the rest, and compare. You never trust a forecast you have not backtested, because the software will hand you one whether or not it means anything. This chapter does both halves: it makes the prediction, and then sees if we believe it.
+
+## Packages
+
+We stay in the tsibble idiom. `forecast` gives us the AR fitting and prediction tools and a tidy autoplot, and we read example data from CSV as usual.
+
+```{r}
+#| label: fc-packages
+#| message: false
+library(tidyverse)
+library(tsibble)
+library(forecast)
+```
+
+## Forecasting an AR(1) by Hand
+
+Start with the simplest process that has any memory at all, the AR(1):
+
+$$
+y_t = \phi y_{t-1} + \epsilon_t
+$$
+
+with $\phi = 0.7$ and $\epsilon_t \sim \mathcal{N}(0, 1)$. The model says today is $\phi$ times yesterday plus a fresh shock. If we know $y_t$ and want $y_{t+1}$, the shock has not happened yet and its expected value is zero, so the best one-step forecast is the deterministic part:
+
+$$
+\hat{y}_{t+1} = \phi y_t
+$$
+
+That forecast is unbiased, but it is not certain. The error is whatever the shock turns out to be:
+
+$$
+e_{t+1} = y_{t+1} - \hat{y}_{t+1} = (\phi y_t + \epsilon_{t+1}) - \phi y_t = \epsilon_{t+1}
+$$
+
+so the one-step error has the variance of a single shock, $\text{Var}(e_{t+1}) = \sigma^2 = 1$. One step out, the uncertainty is just the noise.
+
+Now push to two steps. We do not know $y_{t+1}$, so we forecast it and feed our own forecast back in:
+
+$$
+\hat{y}_{t+2} = \phi \hat{y}_{t+1} = \phi^2 y_t
+$$
+
+This is chained forecasting: each step uses the previous forecast as if it were data. It is what you have to do when the future is unknown, and it is where the uncertainty starts to compound. Expanding the true value,
+
+$$
+y_{t+2} = \phi(\phi y_t + \epsilon_{t+1}) + \epsilon_{t+2} = \phi^2 y_t + \phi \epsilon_{t+1} + \epsilon_{t+2}
+$$
+
+the error now carries two shocks instead of one:
+
+$$
+e_{t+2} = \phi \epsilon_{t+1} + \epsilon_{t+2}, \qquad \text{Var}(e_{t+2}) = \phi^2 \sigma^2 + \sigma^2 = (0.49 + 1)\,\sigma^2 = 1.49
+$$
+
+Three steps out brings in a third shock, scaled by another power of $\phi$, and the variance climbs to $\phi^4 + \phi^2 + 1$. The pattern is a geometric series. For a $k$-step forecast from an AR(1) with white-noise variance $\sigma^2$,
+
+$$
+\text{Var}(e_{t+k}) = \sigma^2 \sum_{j=0}^{k-1} \phi^{2j}
+$$
+
+and because $|\phi| < 1$, that series does not run off to infinity. It converges:
+
+$$
+\lim_{k \to \infty} \text{Var}(e_{t+k}) = \frac{\sigma^2}{1 - \phi^2}
+$$
+
+The uncertainty grows with the horizon, but it levels off at a ceiling. For $\phi = 0.7$ and $\sigma^2 = 1$ the ceiling is $1 / (1 - 0.49) \approx 1.96$, a standard deviation of about 1.4. This is the same geometric decay you saw in the AR(1) autocorrelation function, just read from the other end. The ACF told you how fast the past stops mattering; the forecast variance tells you how fast the future stops being knowable, and they are governed by the same $\phi$.
+
+But there is a point hiding in the ceiling. As $k$ grows, $\hat{y}_{t+k} = \phi^k y_t$ decays toward zero, the mean of the process, while the interval fattens toward $\sigma / \sqrt{1 - \phi^2}$, the standard deviation of the process. Far enough out, the model stops telling you anything useful and just hands you back the unconditional distribution of the series. I like to think about it as the forecast forgets where it started.
+
+Let's watch it happen. Simulate an AR(1), then chain the forecast forward from the last observed value and draw the interval as $\pm$ one forecast standard deviation.
+
+```{r}
+#| label: fc-ar1-sim
+phi <- 0.7
+sigma <- 1
+n <- 60
+h <- 25
+
+set.seed(62)
+epsilon <- rnorm(n)
+y <- numeric(n)
+y[1] <- epsilon[1]
+for (t in 2:n) {
+  y[t] <- phi * y[t - 1] + epsilon[t]
+}
+
+# chained forecast and its standard deviation, h steps out
+fc_sd <- function(k) sigma * sqrt(cumsum(phi^(2 * (0:(k - 1)))))
+forecast_df <- tibble(
+  time = (n + 1):(n + h),
+  yhat = phi^(1:h) * y[n],
+  sd   = fc_sd(h)
+)
+observed_df <- tibble(time = 1:n, y = y)
+ceiling_sd <- sigma / sqrt(1 - phi^2)
+```
+
+```{r}
+#| label: fc-ar1-plot
+#| echo: false
+#| fig-height: 3.5
+ggplot() +
+  geom_hline(yintercept = c(-ceiling_sd, ceiling_sd),
+             linetype = "dotted", color = "grey50") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_line(data = observed_df, aes(time, y)) +
+  geom_ribbon(data = forecast_df,
+              aes(time, ymin = yhat - sd, ymax = yhat + sd),
+              fill = "darkgreen", alpha = 0.3) +
+  geom_line(data = forecast_df, aes(time, yhat), color = "darkgreen") +
+  labs(x = "Time", y = expression(y[t]),
+       title = "AR(1) forecast: the interval fattens to a ceiling") +
+  theme_minimal()
+```
+
+The green forecast slides toward the mean and the band around it widens, fast at first and then hardly at all, flattening against the dotted lines that mark $\pm$ the ceiling standard deviation. By ten or fifteen steps out the forecast has essentially given up and is reporting the long-run mean give or take the long-run spread. That is the shape of a forecast from a short-memory process: useful for a few steps, then asymptotically useless, and the math tells you exactly where the cutoff is.
+
+## The Forecast Runs Both Ways
+
+Look again at the variance formula. There is no $t$ in it and no sign that says which way time is running. $\text{Var}(e_{t+k})$ depends on $k$, the number of steps, not on the direction of the step. Nothing in the AR(1) machinery cares whether you are projecting into the future or into the past. An AR(1) is symmetric in time: the same $\phi$ that links $y_t$ to $y_{t-1}$ links it to $y_{t+1}$, so you can run the chain backward off the first observation exactly as you ran it forward off the last. Predict the prehistory of the series, and the forecast reverts to the same mean and the interval fattens to the same ceiling.
+
+```{r}
+#| label: fc-direction
+backward_df <- tibble(
+  time = (1 - h):0,
+  yhat = rev(phi^(1:h) * y[1]),
+  sd   = rev(fc_sd(h))
+)
+```
+
+```{r}
+#| label: fc-direction-plot
+#| echo: false
+#| fig-height: 3.5
+ggplot() +
+  geom_hline(yintercept = c(-ceiling_sd, ceiling_sd),
+             linetype = "dotted", color = "grey50") +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  geom_line(data = observed_df, aes(time, y)) +
+  geom_ribbon(data = forecast_df,
+              aes(time, ymin = yhat - sd, ymax = yhat + sd),
+              fill = "darkgreen", alpha = 0.3) +
+  geom_line(data = forecast_df, aes(time, yhat), color = "darkgreen") +
+  geom_ribbon(data = backward_df,
+              aes(time, ymin = yhat - sd, ymax = yhat + sd),
+              fill = "darkorange", alpha = 0.3) +
+  geom_line(data = backward_df, aes(time, yhat), color = "darkorange") +
+  labs(x = "Time", y = expression(y[t]),
+       title = "Same model, projected both directions") +
+  theme_minimal()
+```
+
+The orange forecast running off the left edge is a mirror of the green one running off the right. Projecting backward to estimate values you never measured is hindcasting, or reconstruction, and it is how a paleoclimatologist turns a tree-ring width into a temperature for a year with no thermometer in it. The point to carry forward is that prediction does not have a preferred direction. The model is a statement about how neighbors in time relate, and you can lean on it to fill a gap on either side. We will build a whole chapter on the backward case at the end of this part. The symmetry buys us something now: everything we are about to say about checking a forward forecast applies, unchanged, to checking a backward one.
+
+## A Forward Forecast: Sunspots
+
+Synthetic data is obliging. Let's forecast something measured. The annual sunspot count cycles over roughly eleven years, the kind of long, strong memory that gives a forecast something to grab. The record runs back to 1700.
+
+```{r}
+#| label: fc-sunspot-plot
+#| fig-height: 3
+data(sunspot.year)
+autoplot(sunspot.year) +
+  labs(x = "Year", y = "Sunspots (n)") +
+  theme_minimal()
+```
+
+Up to now we have chosen model orders by hand, reading the ACF and PACF and comparing information criteria. That is the thoughtful way, because it makes you reason about the process. But you have probably found `ar` and `auto.arima`, which pick the order for you. We will use `ar` here. It fits a sequence of AR(p) models and keeps the one with the lowest AIC.
+
+```{r}
+#| label: fc-sunspot-ar
+sunspot_ar <- ar(sunspot.year)
+sunspot_ar$order
+```
+
+::: {.callout-warning}
+## The blind algorithm
+
+`ar` and `auto.arima` are convenient and dangerous. They optimize an information criterion until a stopping rule trips, and that is all they do. An information criterion rewards fit and penalizes parameters, but the penalty is not harsh enough when the sample is large or the noise is structured, so the algorithm will reach for a complicated model that fits the idiosyncrasies of your particular series rather than the process behind it. By default `auto.arima` will consider AR and MA orders up to five, plenty of room to fit noise. In a short series that can be reckless. And because near-identical scores can come from very different models, two runs on two samples of the same process can hand you two different stories. The criterion measures fit, not predictive skill, and those are not the same thing. Use these functions, but read what they return with suspicion, and never let one pick a model you cannot defend on mechanism. The software prints an order either way. The backtest later in this chapter is how you catch it when it is being overly optimistic.
+:::
+
+Here `ar` landed on an AR(9), and for once the order is defensible. The sunspot cycle is solar physics, not an artifact, and nine years of memory on an eleven-year cycle is a model you can argue for. Most models have a `predict` method, so we forecast forward forty years and ask for the standard errors too.
+
+```{r}
+#| label: fc-sunspot-forecast
+sunspot_fc <- predict(sunspot_ar, n.ahead = 40)
+
+forecast_tb <- tibble(
+  year  = as.numeric(time(sunspot_fc$pred)),
+  yhat  = as.numeric(sunspot_fc$pred),
+  lower = yhat - sunspot_fc$se,
+  upper = yhat + sunspot_fc$se
+)
+observed_tb <- tibble(
+  year = as.numeric(time(sunspot.year)),
+  y    = as.numeric(sunspot.year)
+)
+```
+
+```{r}
+#| label: fc-sunspot-forecast-plot
+#| echo: false
+#| fig-height: 3.5
+ggplot() +
+  geom_line(data = observed_tb, aes(year, y)) +
+  geom_ribbon(data = forecast_tb, aes(year, ymin = lower, ymax = upper),
+              fill = "darkgreen", alpha = 0.4) +
+  geom_line(data = forecast_tb, aes(year, yhat), color = "darkgreen") +
+  labs(x = "Year", y = "Sunspots (n)") +
+  coord_cartesian(xlim = c(1950, 2030)) +
+  theme_minimal()
+```
+
+The AR(9) keeps the cycle going for a couple of oscillations, the peaks shrinking and the troughs filling as the forecast loses confidence, and the error band swelling around it. This is the AR(1) story from before, now with a longer memory: the forecast decays toward the mean and the interval fattens toward the ceiling, only the decay is slower and the path more interesting because the cycle takes a while to wash out. A few cycles ahead, the model has forgotten the phase and is reporting the average sunspot number with a wide band.
+
+Now look harder at that band, because it is telling on itself. The error ribbon dips below zero in a dozen of those forty years, bottoming out around -19. A sunspot count cannot be negative. You cannot have fewer than no spots on the sun. The model does not know that. It was handed a column of numbers and a recipe for propagating Gaussian uncertainty, and nowhere in that recipe is the fact that the thing being counted has a floor at zero. The central forecast stays positive, but the interval wanders into territory that does not exist. This is the first conviction of the book in miniature: the software will print a number whether or not it makes physical sense, and it falls to you to catch it. The fix is not exotic. You would forecast on a scale that cannot go negative, modeling the square root or the log of the count and transforming back, so the interval respects the floor. The lesson underneath it is bigger than sunspots. A forecast is only as sensible as the constraints you build into it, and a generic AR model builds in none. It does not know it is counting sunspots, or measuring a river, or pricing a stock. It knows the numbers.
+
+The plot looks impressive anyway. Whether it is any good is a separate question, and the only way to answer it is to check.
+
+## Backtesting
+
+So far we have admired forecasts without ever testing one. Every forecast in this chapter has run off the end of the data into territory where nothing can contradict it. That is the comfortable place to stop, and it is exactly where you fool yourself. The fix is to hold some data back. Split the series into a training piece and a testing piece, fit the model on the training piece only, forecast across the span you withheld, and compare the forecast to the values you were hiding. This is backtesting, and it is the same train-and-test discipline you would use on any model. The difference is that with a time series you cannot shuffle and split at random, because the order is the information. You withhold the tail.
+
+Let's do it on a river. The North Fork Nooksack drains Mount Baker and runs past Glacier, Washington, the same watershed as our Bellingham weather example. The daily discharge record goes back to 1938. We will aggregate it to monthly mean flow, which smooths the daily spikes and leaves a clean snowmelt cycle.
+
+```{r}
+#| label: fc-nooksack-load
+nooksack <- read_csv("data/nooksack.csv", show_col_types = FALSE) |>
+  as_tsibble(index = DATE)
+
+nooksack_monthly <- nooksack |>
+  index_by(month = ~ yearmonth(.)) |>
+  summarise(flow = mean(FLOW, na.rm = TRUE))
+```
+
+```{r}
+#| label: fc-nooksack-plot
+#| echo: false
+#| fig-height: 3
+nooksack_monthly |>
+  ggplot(aes(month, flow)) +
+  geom_line(linewidth = 0.3) +
+  labs(x = "Year", y = expression(Mean~flow~(m^3~s^-1)),
+       title = "North Fork Nooksack, monthly mean discharge") +
+  theme_minimal()
+```
+
+The melt freshet every June dominates the picture, and the level is flat over the long haul: a river does not grow the way a city's electricity demand does. Our analysis functions want a `ts`, so we hand the monthly column over with a start year and a frequency of twelve, then withhold the last five years.
+
+```{r}
+#| label: fc-nooksack-split
+flow <- ts(nooksack_monthly$flow, start = c(1938, 1), frequency = 12)
+
+h <- 60  # withhold five years
+flow_train <- head(flow, length(flow) - h)
+flow_test  <- tail(flow, h)
+```
+
+Fit an AR model on the training span and forecast across the test span.
+
+```{r}
+#| label: fc-nooksack-ar
+flow_ar <- ar(flow_train)
+flow_ar$order
+ar_fc <- predict(flow_ar, n.ahead = h)
+```
+
+```{r}
+#| label: fc-nooksack-ar-plot
+#| echo: false
+#| fig-height: 3.5
+test_tb <- tibble(month = nooksack_monthly$month[(length(flow) - h + 1):length(flow)],
+                  flow = as.numeric(flow_test))
+ar_tb <- tibble(month = test_tb$month, yhat = as.numeric(ar_fc$pred))
+ggplot() +
+  geom_line(data = test_tb, aes(month, flow)) +
+  geom_line(data = ar_tb, aes(month, yhat), color = "darkgreen") +
+  labs(x = "Year", y = expression(Mean~flow~(m^3~s^-1)),
+       title = "AR forecast (green) against the withheld five years (black)") +
+  theme_minimal()
+```
+
+The forecast tracks the seasonal swing, which looks like a win. Put a number on it.
+
+```{r}
+#| label: fc-nooksack-ar-skill
+ar_rmse <- sqrt(mean((ar_fc$pred - flow_test)^2))
+ar_cor  <- cor(ar_fc$pred, flow_test)
+c(order = flow_ar$order, rmse = ar_rmse, cor = ar_cor)
+```
+
+A correlation around 0.68 with the held-out data, off a model the algorithm chose on its own. That feels like skill. But look at the order `ar` picked: twenty-four. Twenty-four months of memory on a river. There is no mechanism on Earth that gives the Nooksack a physical dependence on its flow two years ago; what the algorithm has done is reconstruct the annual cycle the dumb way, by stacking up enough lags to span twelve months and then twelve more. This is the blind algorithm from the callout, caught in the act. The order is indefensible even though the forecast is not bad.
+
+So is it any good? You cannot answer that from the forecast alone, and you cannot answer it from the correlation, because a number near 0.68 sounds high until you ask what an idiot could score. Here is the idiot. Forget dynamics entirely and predict each month by its long-run average in the training data: every June gets the mean June flow, every January the mean January flow. That is climatology, the seasonal cycle and nothing else.
+
+```{r}
+#| label: fc-nooksack-clim
+monthly_mean <- tapply(as.numeric(flow_train), cycle(flow_train), mean)
+clim_pred <- monthly_mean[cycle(flow_test)]
+clim_rmse <- sqrt(mean((clim_pred - flow_test)^2))
+c(ar_rmse = ar_rmse, clim_rmse = clim_rmse)
+```
+
+The AR(24), with its two dozen estimated coefficients, beats "what does the river usually do this month" by a rounding error. Almost all of the apparent skill was the season, and the season was free. This is the lesson the backtest exists to teach, and it is the first conviction again: an impressive-looking forecast and a high correlation can both be hiding the fact that a trivial baseline does nearly as well. The held-out comparison is what tells you whether your model is worth its complexity, and here it mostly was not. If a fitted AR cannot clear climatology, you have learned something worth knowing before you stake anything on the forecast.
+
+## Holt-Winters
+
+The AR model treated the seasonality as a nuisance to be reconstructed from raw lags. A model built to handle season and trend on purpose ought to do better, or at least do it with parameters that mean something. Holt-Winters forecasts by exponential smoothing, applied separately to the level, the trend, and the season, and the whole thing rests on one simple idea about weighted averages. Let's build up to it from scratch so we can see the logic.
+
+Suppose you have a short series and you want to predict the next value.
+
+```{r}
+#| label: fc-es-data
+#| fig-height: 2.5
+x <- 1:7
+y <- c(8, 5, 12, 11, 12, 9, 19)
+p1 <- ggplot(mapping = aes(x, y)) +
+  geom_point() + geom_line() + lims(x = c(1, 9)) +
+  theme_minimal()
+p1
+```
+
+The plainest guess for $\hat{y}_8$ is the mean of what you have. If $y$ has a central tendency, predicting it to the average is not unreasonable. A small step up from there is a moving average that uses only the last few points instead of all of them, on the theory that recent values are more relevant. Either way, every point that goes into the average is weighted the same. The three-point moving average of $y_5, y_6, y_7$ is
+
+$$
+\hat{y}_8 = \tfrac{1}{3} y_5 + \tfrac{1}{3} y_6 + \tfrac{1}{3} y_7
+$$
+
+which is the same sum-over-count you always compute, just written with the count moved up into each term. Written that way, it invites a question: why should the three weights be equal? In a time series we usually want recent points to count for more. So replace the equal weights with a vector of weights that sum to one, heavier near the present.
+
+```{r}
+#| label: fc-es-wma
+wma <- function(x, w) {
+  nx <- length(x)
+  nw <- length(w)
+  sum(x[(nx - nw + 1):nx] * w)
+}
+wma(y, w = c(0.1, 0.2, 0.3, 0.4))
+```
+
+That predicts $\hat{y}_8$ from the last four points with weights climbing toward the present:
+
+$$
+\hat{y}_8 = 0.1\,y_4 + 0.2\,y_5 + 0.3\,y_6 + 0.4\,y_7
+$$
+
+The weights have to sum to one or the answer drifts off scale. (This is exactly what `stats::filter` does with a weight vector, if you want to see the connection; we call it with the `stats::` prefix because dplyr also has a `filter`.) Now take the idea to its limit. What if every point in the series contributed, with weights that shrink exponentially as you go back in time? Start with a smoothing coefficient $\alpha = 0.9$ and let the weights be $0.9, 0.9^2, 0.9^3, \dots$ going backward.
+
+```{r}
+#| label: fc-es-decay
+#| echo: false
+#| fig-height: 2.5
+tibble(steps = 1:40, weight = 0.9^(1:40)) |>
+  ggplot(aes(steps, weight)) +
+  geom_point() +
+  labs(x = "Steps back in time", y = "Weight") +
+  theme_minimal()
+```
+
+The weights decay smoothly to nothing, which is what we wanted, but there is a problem: they sum to more than one, so we cannot use them directly as a weighted average. Holt's fix is clean. Write the smoothed value recursively:
+
+$$
+\hat{y}_t = \alpha\, y_t + (1 - \alpha)\, \hat{y}_{t-1}
+$$
+
+Look at what that does. The new smoothed value is a weighted average of the current observation and the previous smoothed value, with weights $\alpha$ and $1 - \alpha$ that sum to one by construction. And because $\hat{y}_{t-1}$ was itself built the same way from $\hat{y}_{t-2}$, the recursion reaches all the way back, folding in every past value with a weight that decays geometrically. The infinite exponential weighting falls out of a two-term update. In a loop:
+
+```{r}
+#| label: fc-es-loop
+exp_smooth <- function(x, alpha = 0.5) {
+  xhat <- x[1]
+  for (i in 2:length(x)) {
+    xhat[i] <- alpha * x[i] + (1 - alpha) * xhat[i - 1]
+  }
+  xhat[length(x)]
+}
+exp_smooth(y, alpha = 0.9)
+```
+
+A large $\alpha$ trusts the most recent point and barely smooths; a small $\alpha$ leans on the accumulated history and smooths hard. That single dial is simple exponential smoothing. Holt-Winters runs three of these dials at once, one for the level ($\alpha$), one for the trend ($\beta$), and one for the season ($\gamma$), and adds them up into a forecast. The `HoltWinters` function finds the three coefficients by numerical optimization, minimizing the squared one-step errors. We do not have to set them by hand.
+
+Now put it on the river, fit on the same training span, and backtest against the same withheld five years.
+
+```{r}
+#| label: fc-hw-fit
+flow_hw <- HoltWinters(flow_train)
+hw_fc <- predict(flow_hw, n.ahead = h)
+hw_rmse <- sqrt(mean((hw_fc - flow_test)^2))
+c(ar_rmse = ar_rmse, hw_rmse = hw_rmse, clim_rmse = clim_rmse)
+```
+
+```{r}
+#| label: fc-hw-plot
+#| echo: false
+#| fig-height: 3.5
+hw_tb <- tibble(month = test_tb$month, yhat = as.numeric(hw_fc))
+ggplot() +
+  geom_line(data = test_tb, aes(month, flow)) +
+  geom_line(data = hw_tb, aes(month, yhat), color = "darkblue") +
+  labs(x = "Year", y = expression(Mean~flow~(m^3~s^-1)),
+       title = "Holt-Winters forecast (blue) against the withheld years") +
+  theme_minimal()
+```
+
+Holt-Winters edges out the AR model, and both edge out climatology, but none of it is a landslide. On held-out data the three of them land within a hair of one another. If the numbers will not separate the models, what does? Two things the backtest cannot see. One is parsimony: Holt-Winters reaches its forecast with a handful of interpretable parameters, where the AR(24) spent two dozen coefficients to say the same thing less clearly. The other is mechanism. The Holt-Winters seasonal component is the snowmelt signature written down as twelve numbers you can read, the freshet and the winter low, and that is a model you can connect to the physics of the watershed. Box's line holds: all models are wrong, and here several are about equally wrong, so you keep the one you can explain. Pattern is a clue. The process driving the river is the prize.
+
+## Wrapping Up
+
+We forecast a series by pushing its own dependence forward, and we watched the uncertainty grow as a geometric series that saturates at a ceiling set by $\phi$, the same coefficient that governs the ACF decay. We saw that the forecast has no preferred direction in time, which is the seed of reconstruction and the reason hindcasting is the same act as forecasting. And we made backtesting the centerpiece, because a forecast you have not checked against withheld data is a number the software printed, not a result. Holding out the tail of the Nooksack and racing two models against a climatology baseline showed how little the fancy machinery added once the season was accounted for, which is the kind of thing you only ever learn by checking.
+
+That checking discipline is going to come back immediately. The split-sample idea, fit on part of the record and verify against the part you hid, is the engine of the reconstruction chapter next, which runs the same discipline backward instead of forward: calibrate on part of a long record, verify on the part held out, and only then trust the model to reach past the years anyone measured.
+
+## Exercises
+
+### Beat the climatology
+
+Take the Bellingham weather record, `data/kbli.csv`, and build a monthly mean temperature series the way we built monthly flow: read it as a tsibble, derive `TAVG` as the mean of `TMAX` and `TMIN`, and aggregate to monthly means with `index_by` and `yearmonth`. Convert it to a `ts` with frequency twelve and withhold the last three years. Fit an AR model and a Holt-Winters model on the training span, forecast across the withheld years, and compute the RMSE of each against the held-out data. Then build the climatology baseline, predicting each month by its training-period average, and compute its RMSE too. Does either model clear the baseline by enough to justify itself? Write a sentence on what that tells you about how much of the predictability in monthly temperature is just the season.
+
+### How far can you see?
+
+The forecast-error variance of an AR(1) climbs to a ceiling of $\sigma^2 / (1 - \phi^2)$. Simulate AR(1) series with $\phi = 0.3$, $0.7$, and $0.95$, holding $\sigma^2 = 1$. For each, compute the $k$-step forecast standard deviation out to fifty steps and find roughly how many steps it takes to reach 95 percent of the ceiling. How does that horizon change as $\phi$ approaches one, and how does it line up with how slowly the ACF of each series decays? Use your answer to explain why a strongly autocorrelated series is both harder to forecast far out (a higher ceiling) and forecastable for longer (a slower approach to it).
+
+## Further Reading
+
+- @Cowpertwait2009, chapter 3, develops exponential smoothing and the full Holt-Winters method, including the trend and seasonal updates we only sketched, and works the algebra from the single smoothing equation up to the complete forecast.
+- @Hyndman2021fpp3 is the standard modern reference for forecasting in the tidy ecosystem. Its treatment of forecast evaluation, training and test splits, cross-validation, and accuracy measures is the natural next step past the single backtest we did here.

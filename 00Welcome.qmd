@@ -26,20 +26,47 @@ You can skip the Asides and still follow the core material. But they're there be
 
 ## What's in These Notes
 
-The notes move through the core ideas of time series analysis in roughly this order:
+The chapters fall into four parts, each with its own job.
+
+### Foundations
+
+Get oriented: how R represents a time series, and how to pull one apart into trend, season, and noise before anything harder starts.
 
 - **The Measure of Time**: What a time series is, how R represents temporal data, and the vocabulary we'll use throughout.
-  - *Aside: Methods and Generics in R*. A quick look under the hood at how R dispatches functions like `plot()` and `summary()` depending on the class of the object you give them. Useful background for the whole course.
+  - *Aside: Understanding Methods and Generics in R*. A quick look under the hood at how R dispatches functions like `plot()` and `summary()` depending on the class of the object you give them. Useful background for the whole book.
+  - *Aside: How R Keeps Track of Dates and Times*. Parsing dates, time zones, daylight saving, leap days, and the calendar quirks that show up in climate data specifically.
 - **Decomposition**: How to separate a time series into trend, seasonal, and irregular components. The core ideas are simple; the implications for analysis are not.
-- **AR(p), ACF, PACF**: Autocorrelation: what it is, how to measure it, and what the ACF and PACF are actually telling you. This chapter is foundational for everything that follows.
-  - *Aside: Why the ACF and PACF Look the Way They Do in an MA(1) Process*. Works through the theory behind those canonical ACF and PACF shapes. Worth reading once you've seen the patterns and started wondering where they come from.
-- **ARMA(p,q)**: Autoregressive and moving average models for stationary series. How to identify, fit, and check them.
-- **Forecasting**: Using a fitted model's correlation structure to predict future values, and being clear-eyed about what that uncertainty actually looks like.
-- **Cross Correlation**: How to measure the relationship between two time series, including lagged relationships. A sockeye salmon run and the climate that shaped it. That kind of thing.
-- **Regression**: What happens when your regression residuals are autocorrelated, why it matters, and how to deal with it.
-  - *Aside: OLS via Algebra and Matrices*. Derives the OLS solution from scratch in both algebraic and matrix form, then implements it in R. Useful background before we generalize to GLS in the regression chapter.
-- **Filtering and Smoothing**: Extracting signals from noisy data using moving averages, splines, and other filters. When you want to see the forest, not the individual trees.
+
+### The Anatomy of Dependence
+
+A series' own past is the first kind of dependence you'll meet. This part builds the vocabulary for it: the ACF and PACF to see it, stationarity to say when it holds steady, and ARMA to model it directly.
+
+- **Autocorrelation**: What it is, how to measure it, and what the ACF and PACF are actually telling you. Foundational for everything that follows.
+  - *Aside: Correlation is not Regression*. Why a correlation coefficient and a regression slope answer different questions, even on the same pair of numbers.
+  - *Aside: Why the ACF and PACF Look the Way They Do in an MA(1) Process*. Works through the theory behind those canonical shapes. Worth reading once you've seen the patterns and started wondering where they come from.
+  - *Aside: The PACF by Hand*. Derives the partial autocorrelation function from the Durbin-Levinson recursion instead of just calling `pacf()`.
+- **Stationarity**: What it means for a series to behave the same way throughout its length, why almost everything else in this book assumes it, and how to test for it.
+- **ARMA(p,q)**: Autoregressive and moving-average models for stationary series, and how to identify, fit, and check them.
+
+### Explore, Infer, Predict
+
+Once you can describe a series' own memory, this part asks what that buys you: whether two series move together, whether a slope or a trend can be trusted, and whether any of it predicts something you haven't already seen.
+
+- **Cross-Correlation**: How to measure the relationship between two time series, including lagged relationships, and why a raw cross-correlation can lie to you.
+  - *Aside: How `Ccf` Normalizes*. Reproduces R's cross-correlation normalization by hand.
+- **Regression**: What happens when your regression residuals are autocorrelated, why it matters, and how to fix it with generalized least squares.
+  - *Aside: OLS via Algebra and Matrices*. Derives the OLS solution from scratch in both algebraic and matrix form, then implements it in R. Useful background before GLS.
+- **Trend Detection**: Mann-Kendall and Theil-Sen as a rank-based alternative to a regression trend, and why they need the same autocorrelation fix regression does.
+- **Forecasting**: Using a fitted model's correlation structure to predict future values, and backtesting before you trust any of it.
+- **Reconstruction**: Reconstructing centuries of streamflow from tree rings, and the calibration-and-verification habit that makes any out-of-sample prediction trustworthy.
+
+### The Frequency Domain
+
+Trade the clock for the cycle. Smooth a series to see its slow-moving pattern, then decompose it into the frequencies it's built from.
+
+- **Filtering and Smoothing**: Extracting signal from noisy data using moving averages, splines, and other filters. When you want to see the forest, not the individual trees.
 - **The Frequency Domain**: Spectral methods for identifying periodic signals. If you've ever wondered how to find a cycle in noisy data, this is the chapter.
+  - *Aside: A Glimpse of Wavelets*. Extends the frequency domain to methods that let a cycle's strength change over time.
 
 ## Go Do Great Things
 

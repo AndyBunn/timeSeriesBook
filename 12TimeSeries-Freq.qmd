@@ -14,7 +14,7 @@ It takes a minute to get used to. A squiggly line and a spike at some particular
 
 ## Packages
 
-We'll build every periodogram in this chapter with base R's own `spectrum()` function, so nothing about a Fourier transform happens out of view. `tidyverse` does the wrangling and plotting, `PNWColors` supplies the figure colors, and `cowplot` stacks a time-domain plot on top of its frequency-domain twin. The wavelet material that used to close this chapter now lives in the aside right after it, which loads `waveslim` and `dplR` on its own.
+We'll build every periodogram in this chapter with base R's own `spectrum()` function, so nothing about a Fourier transform happens out of view. `tidyverse` does the wrangling and plotting, `PNWColors` supplies the figure colors, and `cowplot` stacks a time-domain plot on top of its frequency-domain twin. The wavelet material that used to close this chapter now has a chapter of its own right after this one, which loads `waveslim` and `dplR` on its own.
 
 ```{r}
 #| label: freq-packages
@@ -47,7 +47,7 @@ Here are two plots of the same signal, one in each domain.
 #| fig-height: 6
 n <- 1000
 tm <- 1:n
-twoDomainSignal <- sin(2 * pi * tm / 50) + 0.5 * sin(2 * pi * tm / 200) + rnorm(n, sd = 0.5)
+twoDomainSignal <- sin(2 * pi * tm / 50) + 0.5 * sin(2 * pi * tm / 200) + rnorm(n, sd = 0.75)
 twoDomainDat <- tibble(time = tm, signal = twoDomainSignal)
 
 pTime <- ggplot(twoDomainDat, aes(time, signal)) +
@@ -68,6 +68,8 @@ plot_grid(pTime, pFreq, ncol = 1)
 
 The two plots carry exactly the same information, just through a different lens.^[In theory the time and frequency domains are mathematically equivalent, and you can reconstruct one from the other with a full Fourier transform. In practice, smoothing, truncation, or sampling limits can obscure some details in one domain that the other shows plainly.] The time-domain plot shows the signal as it changes; the frequency-domain plot shows how much of the signal's variance sits at each frequency. You can see strong peaks around 0.02 (a 50-unit cycle) and 0.005 (a 200-unit cycle), exactly the two sine waves this signal was built from. That's spectral analysis working as advertised: it reveals periodicity that's actually there even when the time-domain plot just looks like noise.
 
+Let's do that again but more explicitly.
+  
 ## Can We Recover the Cycles We Built?
 
 Simulated data are convenient for exactly this reason: you get to write the answer key before you look at the periodogram. We'll build a signal out of four sine waves with known periods, bury it in noise, and check whether `spectrum()` finds all four.
@@ -134,17 +136,6 @@ ggplot(waveDat, aes(tm, allWave)) +
   theme_minimal()
 ```
 
-Zoom in on a hundred-point stretch and the mix is even harder to read by eye.
-
-```{r}
-#| label: freq-wave-zoom
-ggplot(waveDat, aes(tm, allWave)) +
-  geom_line(color = sfPal[5]) +
-  labs(x = "Time", y = "Signal", title = "Four frequencies combined") +
-  lims(x = c(500, 600)) +
-  theme_minimal()
-```
-
 Add some noise and this looks a lot like something you'd actually meet in the field: a little wiggle, a lot of repeating structure, none of it obvious from the plot alone.
 
 ```{r}
@@ -154,6 +145,17 @@ waveDat <- waveDat |> mutate(allWaveNoisy = allWave + rnorm(1000))
 ggplot(waveDat, aes(tm, allWaveNoisy)) +
   geom_line(color = sfPal[5]) +
   labs(x = "Time", y = "Signal", title = "Four frequencies plus noise") +
+  theme_minimal()
+```
+
+Zoom in on a hundred-point stretch and the mix is even harder to read by eye.
+
+```{r}
+#| label: freq-wave-noisy-zoom
+ggplot(waveDat, aes(tm, allWaveNoisy)) +
+  geom_line(color = sfPal[5]) +
+  labs(x = "Time", y = "Signal", title = "Four frequencies plus noise") +
+  lims(x = c(500, 600)) +
   theme_minimal()
 ```
 
@@ -185,9 +187,139 @@ ggplot(waveSpecDat, aes(freq, spec)) +
 
 The four tallest peaks in that plot land right on the four dashed lines, periods 5, 10, 50, and 250, in that order by strength. Nothing was fit or tuned to make that happen. `spectrum()` just took the noisy sum and handed back the pieces it was built from, which is the whole promise of this chapter: a squiggly line can be a stack of cycles in disguise, and the frequency domain is how you find out which ones.
 
+## Why the Periodogram Is Noisy
+
+The raw periodogram above worked because we already knew the answer and were hunting for four specific spikes. Turn that around: imagine you didn't know what was in the noise and had to trust the whole shape of the curve, spike by spike. That's a worse position than it sounds, because a raw periodogram is a surprisingly poor estimator of the true spectrum, and more data does not fix it the way more data fixes almost everything else in this book.
+
+Here's the demonstration. Draw 500 independent white-noise series, compute the periodogram of each, and look at just one frequency bin (0.1) across all 500 draws. White noise has a flat spectrum everywhere, so every one of those 500 numbers is estimating the same true value. Do it once with series of length 400 and again with series ten times longer.
+
+```{r}
+#| label: freq-noise-mc
+noiseOrdinate <- function(n) {
+  x <- rnorm(n)
+  sp <- spectrum(x, plot = FALSE)
+  sp$spec[which.min(abs(sp$freq - 0.1))]
+}
+
+ordinates400  <- replicate(500, noiseOrdinate(400))
+ordinates4000 <- replicate(500, noiseOrdinate(4000))
+
+tibble(n = factor(rep(c("400", "4000"), each = 500), levels = c("400", "4000")),
+       value = c(ordinates400, ordinates4000)) |>
+  ggplot(aes(value, fill = n)) +
+  geom_histogram(position = "identity", alpha = 0.6, bins = 30) +
+  scale_fill_manual(values = c(`400` = sfPal[1], `4000` = sfPal[5])) +
+  labs(x = "Periodogram value at frequency 0.1", y = "Count", fill = "n",
+       title = "Ten times the data, the same amount of noise") +
+  theme_minimal()
+```
+
+The two histograms sit right on top of each other. Ten times the data bought nothing: the coefficient of variation (standard deviation divided by mean) is `r round(sd(ordinates400) / mean(ordinates400), 2)` at $n=400$ and `r round(sd(ordinates4000) / mean(ordinates4000), 2)` at $n=4000$. That's not a fluke of this particular simulation; it's a property of the periodogram itself. Each ordinate is built from just two numbers (a sine and a cosine coefficient at that frequency), and adding more data doesn't give any single ordinate more information, it just adds more ordinates alongside it. A longer series gives you a finer-grained frequency axis, not a more precise reading at any one frequency on it.
+
+Two fixes are in play, and you've already seen a pointer to the first one: `spectrum()`'s `span` argument averages a periodogram ordinate together with its neighbors, borrowing strength across frequency the same way a moving average borrows strength across time.
+
+```{r}
+#| label: freq-noise-smooth
+smoothedOrdinate <- function(span) {
+  x <- rnorm(400)
+  sp <- spectrum(x, span = span, plot = FALSE)
+  sp$spec[which.min(abs(sp$freq - 0.1))]
+}
+arOrdinate <- function() {
+  x <- rnorm(400)
+  sp <- spectrum(x, method = "ar", plot = FALSE)
+  sp$spec[which.min(abs(sp$freq - 0.1))]
+}
+
+cv <- function(x) sd(x) / mean(x)
+tibble(estimator = c("raw", "span = 5", "span = 21", "spec.ar()"),
+       cv = c(cv(replicate(500, smoothedOrdinate(NULL))),
+              cv(replicate(500, smoothedOrdinate(5))),
+              cv(replicate(500, smoothedOrdinate(21))),
+              cv(replicate(500, arOrdinate()))))
+```
+
+Widening the smoothing span from 5 to 21 roughly halves the coefficient of variation again, the usual averaging-more-neighbors payoff, at the cost of blurring together frequencies that used to be distinguishable. The other fix is `spectrum(x, method = "ar")`, which sidesteps the whole averaging trade-off by fitting an AR model to the series (the same `ar()` the forecasting chapter used) and reporting that model's own theoretical spectrum instead of the raw Fourier transform. Borrowing a smooth parametric shape from an AR fit turns out to be an even more efficient way to estimate a spectrum than averaging neighboring frequencies, provided the AR model is a reasonable description of the series. Every periodogram in this chapter so far has used `span = 5` for exactly this reason: not to make the plots prettier, but because an unsmoothed periodogram is close to un-trustworthy on its own.
+
+## Filters Have a Frequency Too
+
+Smoothing a periodogram with a moving average of neighboring frequencies is itself a filter, just applied to a different axis than the ones the filters chapter used. That coincidence is worth taking literally: a filter has its own frequency response, a curve that tells you exactly what fraction of a cycle at each frequency survives it, and computing one settles a question the filters chapter left as an observation rather than a derivation.
+
+Recall the finding: a 100-point moving average completely erased a planted 100-period cycle, while a 100-point Hanning filter, built from the same 100 points, did not. Here's why, computed directly instead of just watched happening. A moving average of width $W$ has a closed-form frequency response (the same "Dirichlet kernel" shape that turns up all over signal processing):
+
+$$H(f) = \left| \frac{\sin(\pi f W)}{W \sin(\pi f)} \right|$$
+
+```{r}
+#| label: freq-filter-response
+boxWidth <- 100
+Hbox <- function(f) abs(sin(pi * f * boxWidth) / (boxWidth * sin(pi * f)))
+
+hanWeights <- 1 - cos(2 * pi / (boxWidth - 1) * (0:(boxWidth - 1)))
+hanWeights <- hanWeights / sum(hanWeights)
+Hhan <- function(f) Mod(sapply(f, \(ff) sum(hanWeights * exp(-2i * pi * ff * (0:(boxWidth - 1))))))
+
+fseq <- seq(0.0002, 0.035, length.out = 3000)
+filterRespDat <- bind_rows(
+  tibble(freq = fseq, response = Hbox(fseq), filter = "100-point moving average"),
+  tibble(freq = fseq, response = Hhan(fseq), filter = "100-point Hanning")
+)
+
+ggplot(filterRespDat, aes(freq, response, color = filter)) +
+  geom_line(linewidth = 0.8) +
+  geom_vline(xintercept = 1 / boxWidth, linetype = "dashed", color = "grey40") +
+  scale_color_manual(values = c("100-point moving average" = sfPal[1], "100-point Hanning" = sfPal[5])) +
+  labs(x = "Frequency", y = "Fraction of amplitude that survives", color = NULL,
+       title = "The same 100-point width, two very different filters",
+       subtitle = "Dashed line: the period-100 cycle from the filters chapter") +
+  theme_minimal()
+```
+
+At the dashed line, the moving average's response is `r formatC(Hbox(1/100), format = "e", digits = 1)`, zero to floating-point precision, not an approximation. A box filter's response has an exact null at every frequency $f = k/W$, and $f = 1/100$ sits precisely on the first one, which is the whole mechanism behind the filters chapter's "erases the cycle exactly" finding. The Hanning filter's response at that same frequency is `r round(Hhan(1/100), 2)`, roughly half the amplitude gone but nowhere near zero, because a Hanning window's main lobe is close to twice as wide as a box filter's, so its own first null gets pushed out past period 100 rather than landing on it. Same width, same target frequency, completely different fates: one filter is exactly blind at that frequency, and the other merely needs glasses.
+
+## An Observed Series: Ocean Tides
+
+Simulated series are a good place to learn the mechanics, but let's point the same tool at data nobody built, starting with a periodic driver you don't need a telescope to see: the tide outside almost anyone's window on a coastline. `data/cherry_point_tides.csv` holds hourly water level for all of 2023 at Cherry Point, a NOAA tide gauge just north of Bellingham.
+
+```{r}
+#| label: freq-tides-plot
+#| message: false
+tides <- read_csv("data/cherry_point_tides.csv")
+
+tides |>
+  filter(DateTime < as.POSIXct("2023-01-16", tz = "UTC")) |>
+  ggplot(aes(DateTime, water_level_m)) +
+  geom_line(color = sfPal[1]) +
+  labs(x = "Date", y = "Water level (m, MLLW)", title = "Two weeks of Cherry Point tides") +
+  theme_minimal()
+```
+
+Two highs and two lows a day, but not identical highs or identical lows: some days show a barely-there notch on the way up, others show the tide almost stall halfway before finishing the climb. That lopsidedness is called diurnal inequality, and it's the visible fingerprint of more than one cycle stacked on top of each other. Run the whole year through `spectrum()` and find out which ones.
+
+```{r}
+#| label: freq-tides-spec
+tideSpec <- spectrum(tides$water_level_m, span = 5, plot = FALSE)
+tideSpecDat <- tibble(freq = tideSpec$freq, spec = tideSpec$spec)
+
+tidalConstituents <- tibble(name = c("K1 (diurnal)", "O1 (diurnal)",
+                                       "M2 (semidiurnal)", "S2 (semidiurnal)"),
+                              period_hr = c(23.9345, 25.8193, 12.4206, 12.0)) |>
+  mutate(freq = 1 / period_hr)
+
+ggplot(tideSpecDat |> filter(freq < 0.12), aes(freq, spec)) +
+  geom_line(color = "grey40") +
+  geom_vline(data = tidalConstituents, aes(xintercept = freq, color = name),
+             linetype = "dashed", linewidth = 0.7) +
+  scale_color_manual(values = setNames(sfPal[c(1, 2, 4, 5)], tidalConstituents$name)) +
+  labs(x = "Frequency (cycles / hour)", y = "Spectral density", color = NULL,
+       title = "Named tidal constituents recovered from a year of hourly data") +
+  theme_minimal()
+```
+
+Four peaks, four names, each one a named gravitational term with a period nobody had to estimate: `K1` and `O1` come from the moon and sun's daily pull as the Earth spins under them, `M2` and `S2` from the same pull acting roughly twice a day. Puget Sound and the rest of the Salish Sea sit in what oceanographers call a mixed, mainly semidiurnal regime [@PughWoodworth2014]: the semidiurnal `M2`/`S2` pair sets the basic twice-a-day rhythm, but the diurnal `K1`/`O1` pair is strong enough here to throw the two highs and two lows out of balance every day rather than fading into a footnote, which is exactly the notch-and-stall pattern in the two-week plot above. Four cycles nobody had to plant, recovered from a single year of hourly readings, each one traceable to a specific piece of orbital mechanics.
+
 ## An Observed Series: Sunspots
 
-Simulated series are a good place to learn the mechanics, but let's point the same tool at data nobody built: the sunspot count, one of the longest continuously kept scientific records there is.
+Now for a cycle further from daily experience: the sunspot count, one of the longest continuously kept scientific records there is.
 
 ```{r}
 #| label: freq-sunspot-annual-plot
@@ -318,7 +450,7 @@ Here's the twist, and it's the reason paleoclimatologists still argue about this
 
 The frequency domain answers a question the time domain can't: not when does something happen, but how often, and how much of the total variance belongs to each timescale. We built that idea from scratch with four sine waves whose periods we already knew, buried them in noise, and watched `spectrum()` hand every one of them back. Then we pointed the same tool at data nobody built: three centuries of sunspot activity, and five million years of the Earth's own orbit. Both cycles were sitting there the whole time, waiting for the right axis to become visible.
 
-One thing worth carrying forward: a periodogram assumes the frequency content of a series stays put for the whole record, whatever cycles are there at the beginning are assumed to still be there at the end. That's a stationarity assumption wearing a different costume, and it isn't automatically true of environmental data (a species' calling frequency shifting as its habitat warms, a tree's dominant growth cycle changing as it ages past its fastest-growing years). When that assumption breaks down, a plain periodogram will average two very different eras together and hand you a blurred picture of both. There's a fix, wavelets, and it's worth a look even though nothing in it will be graded: see [the wavelets aside](12xAsideWavelets.html) right after this chapter.
+One thing worth carrying forward: a periodogram assumes the frequency content of a series stays put for the whole record, whatever cycles are there at the beginning are assumed to still be there at the end. That's a stationarity assumption wearing a different costume, and it isn't automatically true of environmental data (a species' calling frequency shifting as its habitat warms, a tree's dominant growth cycle changing as it ages past its fastest-growing years). When that assumption breaks down, a plain periodogram will average two very different eras together and hand you a blurred picture of both. There's a fix, wavelets, and it gets the next chapter.
 
 ## Exercises
 
@@ -333,6 +465,7 @@ Go back to the four-sine-wave demo and make it your own. Change an amplitude, ad
 ## Further Reading
 
 - @Cowpertwait2009, ch. 9, works through spectral analysis of AR(1) processes for both positive and negative $\phi$, a good companion if you want the fuller derivation of what a periodogram is actually estimating, and what its smoothing (`span`) is doing for you.
+- @PughWoodworth2014 is the standard reference on tidal harmonic analysis, well past what this chapter needed but the place to go if four constituents wasn't enough.
 - @BergerLoutre1991 is the original orbital solution behind `jul65N.csv`, computed well before satellite-era climate science and still a standard reference in paleoclimatology.
 - @Peristykh2003 documents the Gleissberg cycle using cosmogenic-isotope records reaching back roughly 12,000 years, far past what the annual sunspot count alone can show.
-- [The wavelets aside](12xAsideWavelets.html) picks up where this chapter's Wrapping Up leaves off: what to do when a series's frequency content changes over time.
+- [Wavelets](13Wavelets.html) picks up where this chapter's Wrapping Up leaves off: what to do when a series's frequency content changes over time.

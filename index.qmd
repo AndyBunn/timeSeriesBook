@@ -189,7 +189,7 @@ date: ""
     <div class="tags">
       <span class="tag">Foundations</span>
       <span class="tag">The Anatomy of Dependence</span>
-      <span class="tag">Working with Dependence</span>
+      <span class="tag">Explore, Infer, Predict</span>
       <span class="tag">The Frequency Domain</span>
     </div>
     <a href="00Welcome.html" class="enter-button">Welcome &nbsp;→</a>

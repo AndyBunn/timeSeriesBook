@@ -22,6 +22,7 @@ book:
         - 01MeasureOfTime.qmd
         - 01xAsideMethods_and_generics.qmd
         - 01xAsideDatesAndTimes.qmd
+        - 01xAsideMissingStations.qmd
         - 02DecompTrends.qmd
     - part: "The Anatomy of Dependence"
       chapters:
@@ -31,21 +32,21 @@ book:
         - 03xAsidePACFByHand.qmd
         - 04Stationarity.qmd
         - 05TimeSeries-ARMA.qmd
-    - part: "Working with Dependence"
+    - part: "Explore, Infer, Predict"
       chapters:
-        - 06TimeSeries-Forecast.qmd
-        - 07CrossCorrelation.qmd
-        - 07xAsideCcfNormalization.qmd
-        - 08TimeSeries-Regression.qmd
-        - 08xAsideOLS-Algebra-Matrix.qmd
-        - 09TrendDetection.qmd
+        - 06CrossCorrelation.qmd
+        - 06xAsideCcfNormalization.qmd
+        - 07TimeSeries-Regression.qmd
+        - 07xAsideOLS-Algebra-Matrix.qmd
+        - 08TrendDetection.qmd
+        - 09TimeSeries-Forecast.qmd
         - 10Reconstruction.qmd
     - part: "The Frequency Domain"
       chapters:
         - 11TimeSeries-Filters.qmd
         - 12TimeSeries-Freq.qmd
-        - 12xAsideWavelets.qmd
-    - 13PackagesUsed.qmd
+        - 13Wavelets.qmd
+    - 14PackagesUsed.qmd
   appendices:
     - A1DataSources.qmd
   repo-url: https://github.com/AndyBunn/timeSeriesBook

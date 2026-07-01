@@ -325,7 +325,7 @@ Those residuals are clean, so the ARMA(0,1) on the differenced series is a defen
 
 We added the moving-average half of the model, merged it with the autoregression into ARMA, and ran the full workflow: plant a process, fit a grid of orders, select one with BIC, and check the winner against both the planted truth and its own residuals. We saw that a stunning fitted-versus-observed $R^2$ is nearly free for an autoregressive model and proves little, while the residual diagnostics are what actually test the fit. We saw that the "I" in ARIMA is just the differencing from the stationarity chapter, applied before the ARMA step, and that the decision to difference belongs to the tests and the mechanism, not the eye.
 
-We now have a model for the dependence in a stationary series. The obvious next question is what it lets us do, and the headline answer is forecasting: if today leans on yesterday, then today tells us something about tomorrow. It also tells us how fast that something runs out. In the next chapter we push an AR(1) forward and watch the uncertainty in the forecast grow shock by shock, as a geometric series that saturates at a ceiling set by $\phi$. The same coefficient that governs the ACF decay governs how far ahead the model can usefully see.
+We now have a model for the dependence in a stationary series, and the chapters ahead ask what that buys you: whether a second series leans on this one, whether a slope or a trend can be trusted once the errors carry memory, and whether any of it predicts something you have not already seen. The next chapter starts with the first of those questions, asking whether a second series tracks this one, and by how much lag.
 
 ## Exercises
 
