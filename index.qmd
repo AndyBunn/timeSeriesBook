@@ -74,8 +74,18 @@ date: ""
     font-style: italic;
     font-size: 18px;
     color: #5a7a9a;
-    margin-bottom: 36px;
+    margin-bottom: 6px;
     line-height: 1.5;
+  }
+
+  .banner-tagline {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #8a9aaa;
+    margin-bottom: 32px;
   }
 
   .divider {
@@ -173,15 +183,14 @@ date: ""
   <div class="left-col">
     <div class="eyebrow">Course Notes &nbsp;·&nbsp; ESCI 506</div>
     <div class="banner-title">Time <em>Series</em><br>Analysis</div>
-    <div class="banner-subtitle">for Environmental Science</div>
+    <div class="banner-subtitle">for Environmental Data</div>
+    <div class="banner-tagline">An R-based Introduction</div>
     <div class="divider"></div>
     <div class="tags">
-      <span class="tag">Decomposition</span>
-      <span class="tag">ARMA</span>
-      <span class="tag">Forecasting</span>
-      <span class="tag">Cross-correlation</span>
-      <span class="tag">Spectral</span>
-      <span class="tag">Regression</span>
+      <span class="tag">Foundations</span>
+      <span class="tag">The Anatomy of Dependence</span>
+      <span class="tag">Working with Dependence</span>
+      <span class="tag">The Frequency Domain</span>
     </div>
     <a href="00Welcome.html" class="enter-button">Welcome &nbsp;→</a>
     <div class="credit">Andy Bunn</div>
@@ -370,11 +379,6 @@ date: ""
       <rect x="462" y="262" width="9" height="23" fill="#b04020"/>
       <rect x="486" y="262" width="9" height="17" fill="#b04020"/>
 
-      <!-- annotation: annual spike lag 12 -->
-      <line x1="322" y1="228" x2="322" y2="210"
-            stroke="#c8922a" stroke-width="1.1" marker-end="url(#ann)"/>
-      <text class="ann" x="333" y="209">annual cycle (lag 12)</text>
-
       <!-- separator -->
       <line class="sep" x1="30" y1="352" x2="510" y2="352"/>
 
@@ -459,10 +463,6 @@ date: ""
       <line x1="63"  y1="386" x2="96"  y2="368"
             stroke="#c8922a" stroke-width="1.1" marker-end="url(#ann)"/>
       <text class="ann" x="100" y="367">AR(2) signature</text>
-
-      <!-- annotation: seasonal spike lag 12 PACF -->
-      <line x1="322" y1="408" x2="355" y2="394"
-            stroke="#2a6aaa" stroke-width="1.1" marker-end="url(#ann)"/>
 
     </svg>
   </div>

@@ -88,6 +88,52 @@ Finding the id for a different station is the one fiddly part. The easiest route
 
 A note on why GHCN-Daily and not the airport-feed alternatives like GSOD. GHCN-Daily assigns precipitation to the calendar day it actually fell on, midnight to midnight. The aviation summaries report on accumulation windows tied to the observation hour, which smears rain across the wrong day even when the yearly totals come out right. For a course about when things happen in time, getting the day right matters.
 
+### A Longer Monthly Record
+
+The filters chapter wants a longer, coarser record than the daily file above: monthly mean temperature for the whole period this station has been reporting, not just since 2000. The file `data/kbli_monthly.csv` holds one row per month from January 1949 (as far back as GHCN-Daily goes for this station) through the most recently completed month, built the same way as the daily temperature above, the midpoint of each day's high and low, averaged over the month.
+
+```{r}
+#| label: a1-read-kbli-monthly
+#| message: false
+kbli_monthly <- read_csv("data/kbli_monthly.csv")
+glimpse(kbli_monthly)
+```
+
+A month is only kept if at least 20 of its days have a valid temperature; short of that it comes back as `NA` rather than a mean built on a handful of days. That rule catches an actual hole in the record: the station stopped reporting for about two years in the mid-1990s, so July 1996 through September 1998 are all `NA`. Build it fresh with the same `GHCNr` call as above, starting the date range at `1949-01-01`, then aggregate to monthly means with the completeness rule shown here.
+
+```{r}
+#| label: a1-kbli-monthly-build
+#| eval: false
+raw <- daily(
+  station_id = "USW00024217",
+  start_date = "1949-01-01",
+  end_date   = as.character(Sys.Date())
+)
+
+daily_temp <- raw |>
+  mutate(
+    tmax = if_else(tmax_flag != "", NA_real_, tmax),
+    tmin = if_else(tmin_flag != "", NA_real_, tmin),
+    tavg = (tmax + tmin) / 2
+  )
+
+monthly <- daily_temp |>
+  mutate(year = year(date), month = month(date)) |>
+  summarise(n_valid = sum(!is.na(tavg)), TAVG = mean(tavg, na.rm = TRUE),
+            .by = c(year, month)) |>
+  mutate(TAVG = if_else(n_valid >= 20, TAVG, NA_real_),
+         DATE = make_date(year, month, 1))
+
+full_grid <- tibble(DATE = seq(min(monthly$DATE), max(monthly$DATE), by = "month"))
+kbli_monthly_fresh <- full_grid |>
+  left_join(select(monthly, DATE, TAVG), by = "DATE") |>
+  mutate(TAVG = round(TAVG, 2))
+
+write_csv(kbli_monthly_fresh, "data/kbli_monthly.csv")
+```
+
+The `full_grid` join is the important step. Without it, a month with zero data just vanishes from the table instead of showing up as a calendar gap, an off-by-one error that's easy to miss because nothing throws a warning, and it shifts every later month one slot out of place the moment you convert the column to a `ts`.
+
 ## The Nooksack River Discharge
 
 The book includes a long, clean record of a snowmelt-driven river: the North Fork Nooksack River below Cascade Creek near Glacier, Washington, which drains the west side of Mount Baker. The data are daily mean discharge from the U.S. Geological Survey, gage `12205000`, which has been read since 1938.^[<https://waterdata.usgs.gov/monitoring-location/12205000/>]
@@ -276,6 +322,23 @@ library(lattice)
 air_fresh <- tibble(Day = seq_len(nrow(environmental)), environmental)
 write_csv(air_fresh, "data/ny_air_quality.csv")
 ```
+
+## The Poorly-Launched Sensor Data
+
+The filters chapter uses two short logger records, hourly radiation and a misaligned temperature series, to teach time alignment and gap-filling. Both are constructed examples built to look like a field deployment gone sideways (a temperature logger running on the wrong schedule, a radiation sensor with a loose cable), not readings from a station that exists. There's no live source to refresh, and no need for one: the point of the exercise is the alignment and interpolation mechanics, not the specific numbers.
+
+### Reading It
+
+```{r}
+#| label: a1-read-sensors
+#| message: false
+tmp <- read_csv("data/tmp.csv")
+rad <- read_csv("data/rad.csv")
+glimpse(tmp)
+glimpse(rad)
+```
+
+`tmp` is air temperature in degrees Celsius, recorded every other hour starting three minutes after the hour. `rad` is solar radiation in watts per square meter, hourly, with about 10% of one summer missing.
 
 ## The Rest of the Data
 

@@ -13,7 +13,6 @@ Imports:
     broom,
     cowplot,
     dplR,
-    DT,
     forecast,
     ggridges,
     gridExtra,

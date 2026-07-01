@@ -1,4 +1,4 @@
-# Time Series Analysis for Environmental Science
+# Time Series Analysis for Environmental Data: An R-based Introduction
 
 *Course Notes*
 
@@ -14,10 +14,10 @@ This started as weekly handouts for ESCI 504, a graduate course in time series a
 
 The book works through time series analysis from the ground up, in four parts:
 
-- **Preamble** - what a time series is, how R represents temporal data, and the vocabulary we'll use throughout
-- **Decomposition & Autocorrelation** - trend and seasonal decomposition, the ACF and PACF, and ARMA models for stationary series
-- **Forecasting & Cross-Correlation** - predicting from a fitted model and being honest about the uncertainty, plus measuring lagged relationships between two series
-- **Regression, Filters & Frequency** - regression with autocorrelated errors, filtering and smoothing, and spectral methods for finding cycles
+- **Foundations** - what a time series is, how R represents temporal data, and trend/seasonal decomposition
+- **The Anatomy of Dependence** - autocorrelation, the ACF and PACF, stationarity, and ARMA models for stationary series
+- **Working with Dependence** - forecasting, cross-correlation between two series, regression with autocorrelated errors, trend detection, and reconstruction/out-of-sample validation
+- **The Frequency Domain** - filtering and smoothing, and spectral methods for finding cycles
 
 The emphasis is on doing the analysis in R and understanding what you're doing, not on mathematical derivation. Scattered *Asides* dig into the math and the R internals for readers who want them, but you can skip every one and still follow the core material.
 
