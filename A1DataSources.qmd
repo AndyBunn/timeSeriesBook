@@ -374,7 +374,7 @@ glimpse(rad)
 
 ## The Orbital Insolation Data
 
-The frequency chapter's Milankovitch example uses a reconstruction of July insolation at 65°N over the past five million years, from @BergerLoutre1991. Unlike everything else in this appendix, it isn't a measurement of anything: it's calculated directly from orbital mechanics, so there's no sensor, station, or survey behind it and nothing to refresh from a live source.
+The spectral analysis chapter's Milankovitch exercise uses a reconstruction of July insolation at 65°N over the past five million years, from @BergerLoutre1991. Unlike everything else in this appendix, it isn't a measurement of anything: it's calculated directly from orbital mechanics, so there's no sensor, station, or survey behind it and nothing to refresh from a live source.
 
 ### Reading It
 
@@ -389,7 +389,7 @@ glimpse(insolation)
 
 ## The Cherry Point Tide Data
 
-The frequency chapter's tides example is hourly water level for all of 2023 at Cherry Point, a NOAA CO-OPS tide gauge just north of Bellingham (station `9449424`).
+The spectral analysis chapter's tides example is hourly water level for all of 2023 at Cherry Point, a NOAA CO-OPS tide gauge just north of Bellingham (station `9449424`).
 
 ### Reading It
 
@@ -428,6 +428,23 @@ tides_fresh <- tides_raw |>
             water_level_m = as.numeric(v))
 write_csv(tides_fresh, "data/cherry_point_tides.csv")
 ```
+
+## The Blowfly Population Data
+
+The wavelets chapter's last exercise uses a record with nothing to do with weather: adult counts from one of A. J. Nicholson's laboratory blowfly experiments, tabulated in @Nicholson1957. Nicholson raised the Australian sheep blowfly, *Lucilia cuprina*, on a fixed food ration and counted the population by hand every two days for two years, watching food-limited generations drive their own boom and bust.
+
+### Reading It
+
+```{r}
+#| label: a1-read-blowfly
+#| message: false
+blowfly <- read_csv("data/blowfly.csv")
+glimpse(blowfly)
+```
+
+`Day` counts days since the start of the experiment, in steps of two. `Count` is the number of adult flies counted that day.
+
+There is no live source to refresh here. This is one closed lab experiment run once in the 1950s, not a station still reporting; the digitized table traces back through @Nicholson1957 and a widely used retabulation by Brillinger, Guckenheimer, Guttorp, and Oster (1980).^[<http://ionides.github.io/531w16/final_project/blowfly4.csv>]
 
 ## The Rest of the Data
 

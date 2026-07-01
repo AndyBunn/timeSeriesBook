@@ -43,7 +43,7 @@ wavelet.plot(cwtOut2, useRaster = NA, reverse.y = TRUE, crn.lab = "Signal")
 # Exercise 2: Confirm it with numbers (tree-ring chronology)
 # ---------------------------------------------------------------------------
 data(co021)
-co021_rwi <- detrend(co021, method = "Spline")
+co021_rwi <- detrend(co021, method = "AgeDepSpline")  # matches the chapter's wave-chron chunk
 co021_crn <- chron(co021_rwi)
 chronVal <- co021_crn[, 1]
 chronYrs <- as.numeric(time(co021_crn))
@@ -57,12 +57,89 @@ tibble(level = names(dwtOut),
        late  = map_dbl(dwtOut, ~ var(.x[(mid + 1):length(chronYrs)]))) |>
   mutate(ratio = round(late / early, 2))
 # Unlike the planted demo, no single level flips as dramatically here; measured
-# data rarely hands you a clean answer. The biggest mover is D6 (roughly a
-# 32-64 year timescale), whose variance climbs about 3.5-fold in the late
-# half of the record. That's consistent with the continuous wavelet plot
-# above it, which shows a red patch at similar periods concentrated later in
-# the record rather than spread evenly across all 788 years. The moral: the
+# data rarely hands you a clean answer. The two biggest movers are D6 (roughly
+# a 32-64 year timescale) and D8 (roughly 128-256 years), whose variance each
+# climb close to 4-fold in the late half of the record. That's consistent with
+# the continuous wavelet plot above it, which shows the strongest, longest-held
+# color at multi-decadal-to-centennial periods concentrated later in the
+# record rather than spread evenly across all 788 years. The moral: the
 # discrete and continuous transforms are two views of the same underlying
 # fact, and measured chronologies are messier than a two-cycle simulation, which
 # is exactly why you plant a known signal first before trusting either tool
 # on data where you don't already know the answer.
+
+# ---------------------------------------------------------------------------
+# Exercise 3: A new rhythm (blowflies)
+# ---------------------------------------------------------------------------
+blowfly <- read_csv("data/blowfly.csv", show_col_types = FALSE)
+
+plot(blowfly$Day, blowfly$Count, type = "l", xlab = "Day", ylab = "Adult count",
+     main = "Nicholson's blowfly population")
+# The raw series alone shows more than one thing changing: the population
+# swings get bigger in the back half of the record (mean count roughly
+# doubles, and the max goes from under 9000 to nearly 14700), not just slower.
+# Worth flagging before either transform, since it previews what the CWT's
+# color will show: rising power, not just a longer period.
+
+blowflyCwt <- morlet(y1 = blowfly$Count, x1 = blowfly$Day, p2 = 8, dj = 0.1, siglvl = 0.99)
+wavelet.plot(blowflyCwt, useRaster = NA, reverse.y = TRUE, crn.lab = "Count")
+
+# Same helper the chapter builds for the switching demo and the chronology,
+# reproduced here since this script doesn't source the .qmd.
+plot_mra <- function(dwtOut, x, xlab, unit, title) {
+  nLevels <- length(dwtOut)
+  dwtScaled <- scale(as.data.frame(dwtOut))
+  levelLabels <- colnames(dwtScaled)
+  scaleLabels <- c(paste0(2^(1:(nLevels - 1)), " ", unit),
+                    paste0("> ", 2^(nLevels - 1), " ", unit))
+
+  par(mar = c(3, 2, 2, 2), mgp = c(1.25, 0.25, 0), tcl = 0.5, xaxs = "i", yaxs = "i")
+  plot(x, rep(1, length(x)), type = "n", axes = FALSE, ylab = "", xlab = "",
+       ylim = c(-3, 5 * nLevels))
+  title(main = title, line = 0.75)
+  axis(side = 1)
+  mtext(xlab, side = 1, line = 1.25)
+
+  offset <- 0
+  for (i in nLevels:1) {
+    lines(x, dwtScaled[, i] + offset)
+    abline(h = offset, lty = "dashed")
+    mtext(levelLabels[i], side = 2, at = offset, line = 0)
+    mtext(scaleLabels[i], side = 4, at = offset, line = 0)
+    offset <- offset + 5
+  }
+  box()
+}
+
+blowflyScales <- trunc(log(length(blowfly$Day)) / log(2)) - 1
+blowflyDwt <- mra(blowfly$Count, wf = "la8", J = blowflyScales, method = "modwt", boundary = "periodic")
+plot_mra(blowflyDwt, blowfly$Day, "Day", "days", "Multiresolution decomposition of the blowfly population")
+
+mid <- length(blowfly$Day) %/% 2
+tibble(level = names(blowflyDwt),
+       early = map_dbl(blowflyDwt, ~ var(.x[1:mid])),
+       late  = map_dbl(blowflyDwt, ~ var(.x[(mid + 1):length(blowfly$Day)]))) |>
+  mutate(ratio = round(late / early, 2))
+# The period does drift. Taking the CWT's dominant period at each time step
+# (whichever period has the most power that day) and comparing the two halves
+# of the record: a period around 19 days in the first half, stretching to
+# around 25 days in the second. The MRA backs this up: D5 (the ~32-day detail
+# level, the closest rung on this dyadic ladder to that stretch) carries about
+# 8 times more variance in the late half than the early half, the largest
+# jump of any level, and lines up with where the CWT plot's color shifts to a
+# longer period. Nicholson varied the adult food ration over the course of
+# the experiment; a food-limited generation cycle has a built-in feedback
+# delay, so changing the food changes the delay, which changes the period.
+# That's a real, physical reason for a real series to do exactly what the
+# planted switch demo did on purpose.
+#
+# The amplitude story shows up at the fast end of the decomposition too: D1,
+# the finest ~2-day wiggle, carries more than twice the variance in the late
+# half. That tracks the raw plot, once the population is running at roughly
+# twice its earlier level, its fastest day-to-day swings scale up right along
+# with it. That rise is local to the fast levels, though; D4 and D6 actually
+# carry less variance late than early, so a level shift alone doesn't explain
+# D5's 8-fold jump. D5 is doing something the level shift by itself can't,
+# which is the tell that the period story and the amplitude story are two
+# separate findings, not one.
+

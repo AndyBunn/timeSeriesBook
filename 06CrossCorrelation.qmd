@@ -96,8 +96,8 @@ One spike stands out at a lag of negative three, which by the convention above s
 Planted data is obliging. Here is a measured series with a relationship we did not design. Lake Washington, the lake Seattle sits against, has been sampled month after month since the early 1960s, one of the longest plankton records anywhere. From it I have built two monthly series: `producers`, an index of the phytoplankton, the algae at the base of the food web, and `grazers`, an index of the zooplankton that eat them, the water fleas and copepods. Each index pools several taxa that have been log-transformed and standardized so no single bloom dominates, which is the kind of bookkeeping plankton data needs; the recipe is in the [data appendix](A1DataSources.html) if you want it. What matters here is that we have two measured series, the eaten and the eaters, sampled monthly for thirty-odd years.
 
 ```{r}
-#| label: ccf-lwa-load
-lwa <- read_csv("data/lake_wa_plankton.csv", show_col_types = FALSE) |>
+#| label: ccf-planktonData-load
+planktonData <- read_csv("data/lake_wa_plankton.csv", show_col_types = FALSE) |>
   mutate(month = make_yearmonth(Year, Month)) |>
   as_tsibble(index = month)
 ```
@@ -105,10 +105,10 @@ lwa <- read_csv("data/lake_wa_plankton.csv", show_col_types = FALSE) |>
 Plotting all thirty years at once is a hairball, so here is a representative decade.
 
 ```{r}
-#| label: ccf-lwa-plot
+#| label: ccf-planktonData-plot
 #| echo: false
 #| fig-height: 3
-lwa |>
+planktonData |>
   filter(year(month) %in% 1975:1984) |>
   pivot_longer(c(producers, grazers)) |>
   ggplot(aes(month, value, color = name)) +
@@ -121,9 +121,9 @@ lwa |>
 Both series ride the same annual rhythm, climbing in spring and falling toward winter, and the grazers seem to follow the algae by a beat. The story you would expect is the food chain: the algae bloom, the grazers have something to eat and multiply, the grazers graze the algae down, and the algae crash. So we expect the producers to lead. Cross-correlation can check it.
 
 ```{r}
-#| label: ccf-lwa-raw
+#| label: ccf-planktonData-raw
 #| fig-height: 3
-ggCcf(lwa$producers, lwa$grazers, lag.max = 24) +
+ggCcf(planktonData$producers, planktonData$grazers, lag.max = 24) +
   labs(title = "Producers and grazers, raw cross-correlation") +
   theme_minimal()
 ```
@@ -187,18 +187,18 @@ The forest of correlation collapses. Every bar is back inside the band, which is
 Now turn the same tool on the producers and grazers, where we believe there is something but the annual cycle is burying it. The recipe for a series that is not a simple random walk is to fit it a model, take the residuals as the whitened version, and apply that same filter to the other series before comparing. Fit an autoregressive model to the producers, whiten the producers with its residuals, run the grazers through the producers' filter, and cross-correlate what is left.
 
 ```{r}
-#| label: ccf-lwa-prewhiten
-ar_prod <- ar(lwa$producers)           # model the producers' own structure
+#| label: ccf-planktonData-prewhiten
+ar_prod <- ar(planktonData$producers)           # model the producers' own structure
 ar_prod$order
 
 prod_white <- ar_prod$resid                                   # whitened producers
-graz_filt  <- stats::filter(lwa$grazers, c(1, -ar_prod$ar),
+graz_filt  <- stats::filter(planktonData$grazers, c(1, -ar_prod$ar),
                             sides = 1, method = "convolution") # same filter on grazers
 ok <- is.finite(prod_white) & is.finite(graz_filt)            # drop the leading NAs
 ```
 
 ```{r}
-#| label: ccf-lwa-prewhiten-plot
+#| label: ccf-planktonData-prewhiten-plot
 #| echo: false
 #| fig-height: 3
 ggCcf(as.numeric(prod_white[ok]), as.numeric(graz_filt[ok]), lag.max = 24) +

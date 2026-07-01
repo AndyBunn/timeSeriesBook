@@ -65,8 +65,9 @@ Once you can describe a series' own memory, this part asks what that buys you: w
 Trade the clock for the cycle. Smooth a series to see its slow-moving pattern, then decompose it into the frequencies it's built from.
 
 - **Filtering and Smoothing**: Extracting signal from noisy data using moving averages, splines, and other filters. When you want to see the forest, not the individual trees.
-- **The Frequency Domain**: Spectral methods for identifying periodic signals. If you've ever wondered how to find a cycle in noisy data, this is the chapter.
-  - *Aside: A Glimpse of Wavelets*. Extends the frequency domain to methods that let a cycle's strength change over time.
+- **Spectral Analysis**: Spectral methods for identifying periodic signals. If you've ever wondered how to find a cycle in noisy data, this is the chapter.
+  - *Aside: A Glimpse of Cross-Spectral Analysis*. Extends the periodogram to a pair of series: a correlation and a lag, computed separately for every frequency instead of once for the whole record.
+- **Wavelets**: A periodogram assumes a series's frequency content holds steady for the whole record. Wavelets keep time and frequency on the same plot, so you can ask what frequency and when at once.
 
 ## Go Do Great Things
 

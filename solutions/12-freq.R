@@ -1,4 +1,4 @@
-# Solutions for The Frequency Domain chapter
+# Solutions for the Spectral Analysis chapter
 # Instructor answer key. Not part of the book build (.R, ignored by Quarto).
 
 library(tidyverse)
@@ -73,3 +73,49 @@ cat("lowest-frequency bin, detrend = FALSE:          ", spec_notrend$spec[1], "\
 # you the trend's own footprint in the frequency domain, which is a good way
 # to convince yourself that a trend really is just an extremely low
 # frequency, not some separate kind of thing.
+
+# ---------------------------------------------------------------------------
+# Exercise 3: Orbital insolation and the Milankovitch cycles
+# ---------------------------------------------------------------------------
+insolation <- read_csv("data/jul65N.csv", show_col_types = FALSE)
+
+insolationSpec <- spectrum(insolation$W.per.m2, span = 5, plot = FALSE)
+peakFreq   <- insolationSpec$freq[which.max(insolationSpec$spec)]
+peakPeriod <- 1 / peakFreq
+cat("tallest peak, period (kyr):", round(peakPeriod, 1), "\n")
+
+milankovitchBands <- tibble(cycle = c("precession", "precession", "obliquity", "eccentricity"),
+                             period = c(23, 19, 41, 100)) |>
+  mutate(freq = 1 / period)
+
+insolationSpecDat <- tibble(freq = insolationSpec$freq, spec = insolationSpec$spec)
+eccPct <- insolationSpecDat$spec[which.min(abs(insolationSpecDat$freq - 1/100))] /
+  max(insolationSpecDat$spec) * 100
+cat("eccentricity peak, % of tallest peak:", round(eccPct, 2), "\n")
+
+ggplot(insolationSpecDat, aes(freq, spec)) +
+  geom_line(color = "grey40") +
+  geom_vline(data = milankovitchBands, aes(xintercept = freq, color = cycle),
+             linetype = "dashed", linewidth = 0.8) +
+  scale_x_continuous(limits = c(0, 0.06)) +
+  labs(x = "Frequency (cycles / kyr)", y = "Spectral density", color = NULL,
+       title = "The Milankovitch bands in July insolation at 65°N")
+# All three bands show up. The tallest peak sits at about 23.8 kyr, squarely
+# in the precession band (19-24 kyr, the wobble of Earth's axis interacting
+# with its elliptical orbit); a smaller peak lands right at the 41 kyr
+# obliquity period (about 22% the height of the tallest peak); eccentricity,
+# at 100 kyr, is almost invisible, about 0.07% the height of the tallest
+# peak on a linear scale. Every one of those numbers comes out of celestial
+# mechanics, not from fitting anything to the data.
+#
+# The 100-kyr problem: eccentricity is the weakest of the three signals here,
+# yet the last 800,000 years of ice-core and ocean-sediment records are
+# dominated by a roughly 100,000-year glacial-interglacial cycle, riding on
+# the weakest orbital band rather than the strongest. If ice volume responded
+# to insolation the way a simple linear filter would, the biggest swings
+# ought to track precession, not a peak too small to see on this plot.
+# Untangling why the climate system amplifies the weak eccentricity signal so
+# far out of proportion to its size is still an open problem in
+# paleoclimatology; the periodogram hands you the forcing, clean and
+# unambiguous, but what the planet does with that forcing is a separate
+# question this exercise doesn't answer.
