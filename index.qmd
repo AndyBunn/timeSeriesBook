@@ -192,7 +192,7 @@ date: ""
       <span class="tag">Explore, Infer, Predict</span>
       <span class="tag">The Frequency Domain</span>
     </div>
-    <a href="00Welcome.html" class="enter-button">Welcome &nbsp;→</a>
+    <a href="01Welcome.html" class="enter-button">Welcome &nbsp;→</a>
     <div class="credit">Andy Bunn</div>
   </div>
 

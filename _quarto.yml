@@ -19,38 +19,41 @@ book:
     - 00Preface.qmd
     - part: "Foundations"
       chapters:
-        - 00Welcome.qmd
-        - 01MeasureOfTime.qmd
-        - 01xAsideMethods_and_generics.qmd
-        - 01xAsideDatesAndTimes.qmd
-        - 01xAsideMissingStations.qmd
-        - 02DecompTrends.qmd
+        - 01Welcome.qmd
+        - 02MeasureOfTime.qmd
+        - 02xAsideMethods_and_generics.qmd
+        - 02xAsideDatesAndTimes.qmd
+        - 02xAsideMissingStations.qmd
+        - 03DecompTrends.qmd
     - part: "The Anatomy of Dependence"
       chapters:
-        - 03Autocorrelation.qmd
-        - 03xAsideCorrelationVersusRegression.qmd
-        - 03xAsideMA1-ACF-PACF-Interp.qmd
-        - 03xAsidePACFByHand.qmd
-        - 04Stationarity.qmd
-        - 05ARMA.qmd
+        - 04Autocorrelation.qmd
+        - 04xAsideCorrelationVersusRegression.qmd
+        - 04xAsideMA1-ACF-PACF-Interp.qmd
+        - 04xAsidePACFByHand.qmd
+        - 05Stationarity.qmd
+        - 06ARMA.qmd
     - part: "Explore, Infer, Predict"
       chapters:
-        - 06CrossCorrelation.qmd
-        - 06xAsideCcfNormalization.qmd
-        - 07Regression.qmd
-        - 07xAsideOLS-Algebra-Matrix.qmd
-        - 08TrendDetection.qmd
-        - 09Forecast.qmd
-        - 10Reconstruction.qmd
+        - 07CrossCorrelation.qmd
+        - 07xAsideCcfNormalization.qmd
+        - 08Regression.qmd
+        - 08xAsideOLS-Algebra-Matrix.qmd
+        - 09TrendDetection.qmd
+        - 10Forecast.qmd
+        - 11Reconstruction.qmd
     - part: "The Frequency Domain"
       chapters:
-        - 11Filters.qmd
-        - 12Freq.qmd
-        - 12xAsideCrossSpectrum.qmd
-        - 13Wavelets.qmd
+        - 12Filters.qmd
+        - 13Freq.qmd
+        - 13xAsideCrossSpectrum.qmd
+        - 14Wavelets.qmd
+    - part: "Conclusion"
+      chapters:
+        - 15Conclusion.qmd
   appendices:
-    - 14PackagesUsed.qmd
-    - A1DataSources.qmd
+    - A1PackagesUsed.qmd
+    - A2DataSources.qmd
   repo-url: https://github.com/AndyBunn/timeSeriesBook
   repo-actions: [edit, issue]
 
