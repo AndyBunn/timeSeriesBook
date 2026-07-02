@@ -1,4 +1,6 @@
-# Why Time Series
+# Getting Started
+
+## Why Time Series
 
 Many environmental data are time series. Temperature records. Streamflow. Tree rings. CO~2~ measured at Mauna Loa. All of it indexed to time, all of it carrying a signature of the processes that generated it.
 
@@ -6,25 +8,17 @@ But it goes further than that. Even data sets that aren't obviously temporal, li
 
 It also matters for getting the statistics right. Temporal dependence, the fact that observations close together in time tend to be more similar than observations far apart, violates the independence assumption that underlies most standard statistical methods. Ignore it, and your standard errors are too small, your p-values too optimistic, your conclusions too confident. Time series analysis gives you the tools to account for that dependence rather than pretend it isn't there.
 
-And beyond the bookkeeping, temporal structure is information. A seasonal cycle tells you something about the drivers of a system. A long-term trend tells you something has changed. Lagged correlations between two series can reveal how one system influences another. The goal of this course is to help you extract that information, work with it carefully, and communicate what it means.
+And beyond the bookkeeping, temporal structure is information. A seasonal cycle tells you something about the drivers of a system. A long-term trend tells you something has changed. Lagged correlations between two series can reveal how one system influences another. The goal of this book is to help you extract that information, work with it carefully, and communicate what it means.
 
-## This Is Not a Textbook
+This is a hands-on book. You will write code, look at data, fit models, and interpret results. Each chapter builds on what came before. The math shows up when it needs to, but the emphasis throughout is on doing time series analysis and understanding what you're doing, not on deriving things for their own sake.
 
-These are the course notes and not a textbook. They are more like a field guide written by someone who has gotten lost in these woods before and wants to help you find your way through.
+## How This Book Is Laid Out
 
-The notes are hands-on by design. You will write code, look at data, fit models, and interpret results. Each section builds on what came before. The math shows up when it needs to, but the emphasis throughout is on doing time series analysis and understanding what you're doing, not on deriving things for their own sake.
-
-I'll point you to textbooks and papers along the way. Read them. They complement what we're doing here and will matter when you're working on your own data and I'm not around to ask.
-
-These notes are a living document. They change based on what works, what doesn't, and what you ask about in class. If something is wrong or unclear, tell me.
-
-## How These Notes Are Laid Out
-
-Most of the chapters follow a natural progression. Each one builds on the last, and working through them in order is the right call. But scattered through the notes you'll find *Asides*: short detours that dig into something that doesn't quite fit the main flow. An Aside might work through the math behind a method, explain how R handles something under the hood, or fill in background that makes the surrounding chapters make more sense.
+Most of the chapters follow a natural progression. Each one builds on the last, and working through them in order is the right call. But scattered through the book you'll find *Asides*: short detours that dig into something that doesn't quite fit the main flow. An Aside might work through the math behind a method, explain how R handles something under the hood, or fill in background that makes the surrounding chapters make more sense.
 
 You can skip the Asides and still follow the core material. But they're there because the questions they answer are the ones that actually come up when you're working through a chapter and start wondering why something works the way it does. If that's how your brain works, the *Asides* are for you.
 
-## What's in These Notes
+## What's in This Book
 
 The chapters fall into four parts, each with its own job.
 
@@ -69,30 +63,42 @@ Trade the clock for the cycle. Smooth a series to see its slow-moving pattern, t
   - *Aside: A Glimpse of Cross-Spectral Analysis*. Extends the periodogram to a pair of series: a correlation and a lag, computed separately for every frequency instead of once for the whole record.
 - **Wavelets**: A periodogram assumes a series's frequency content holds steady for the whole record. Wavelets keep time and frequency on the same plot, so you can ask what frequency and when at once.
 
+## What You Should Know Beforehand
+
+This isn't a book for absolute beginners, and a few things will go more smoothly if you've seen them before. None of it is a hard prerequisite, but here's a plain accounting of what I'm assuming.
+
+**R basics.** You should be comfortable enough in R to read a data file, poke at a data frame, write a function, and not panic when something throws an error. You don't need to be an expert. If you can follow along and look things up when you're stuck, you're ready.
+
+**Some statistics.** We lean on the standard introductory toolkit throughout: correlation, standard errors, p-values, and linear models. You don't need to have aced a theory course, but the ideas should feel familiar rather than brand new. If "fit a linear model and look at the residuals" means nothing to you, a stats class first will make this book a lot more rewarding.
+
+**Matrix algebra (gently).** It comes up mostly in the Asides, when I want to show what a method is actually doing under the hood. I keep it gentle and you do not need to bring any of it with you. If you've never multiplied two matrices, the main chapters will still work fine. The Asides are there if you want to look deeper, not a wall you have to climb.
+
+One more thing about the code. We store data as `tsibble` objects, tidy tables with a visible time index, and wrangle them with ordinary tidyverse verbs: `dplyr` for manipulation, `ggplot2` for plots, the pipe to chain it together. But a lot of the actual modeling machinery, `arima.sim`, `lm`, `spectrum`, still comes from base R, since that's where most of the classic time series tools live, and we build several of them from scratch before reaching for the canned version. If tidyverse syntax is new to you, don't let it slow you down. The place to start is tidyverse.org^[<https://www.tidyverse.org/>], and from there R for Data Science [@wickham2023r4ds] is the canonical free book.
+
 ## Go Do Great Things
 
-You are going to learn to see the world in time. That sounds dramatic, but I mean it practically: by the end of this course you will be able to look at a time series, describe its structure, fit a model, check your assumptions, and say something about what the data suggest.
+You are going to learn to see the world in time. That sounds dramatic, but I mean it practically: by the end of this book you will be able to look at a time series, describe its structure, fit a model, check your assumptions, and say something about what the data suggest.
 
 The people who do this work well are not necessarily the ones who find it easiest. They're the ones who run the code when it breaks, read the error messages, ask questions, and keep going.
 
 So: set up your project, download the data, and let's get to work.
 
-## Technical Setup
+## Setup
 
-This document was written in Markdown using [quarto](https://quarto.org) and built with **R version `r getRversion()`**. You should be reasonably up to date on your versions of R, RStudio, and relevant packages. You can update your packages by running:
+The book is built around R, so you'll need a working R installation. The code here was written and tested with `r R.version.string`. You should be reasonably up to date on your versions of R, RStudio, and relevant packages. If you're not sure, run:
 
 ``` r
 update.packages()
 ```
 
-Run that now. And anytime it occurs to you. It's always a good idea to be up to date with your packages.
+Do it now, and anytime it occurs to you. It's almost always the right thing to do.
 
 ### Project Structure
 
 To follow along with the examples, you'll want a working RStudio project.
 
 1.  **Create a new RStudio project**\
-    Go to **File → New Project → New Directory → New Project**. Give it a name (for example `timeseries-course`) and choose where to save it.
+    Go to **File → New Project → New Directory → New Project**. Give it a name (something like `timeseries-analysis`) and choose where to save it.
 
 2.  **Download the `data/` folder**\
     The datasets used in the examples are bundled into a single `data.zip`. Download it and unzip it inside your project directory.
@@ -103,36 +109,34 @@ To follow along with the examples, you'll want a working RStudio project.
     https://timeseries.andybunn.org/data.zip
     ```
 
-    Once it's unzipped your folder structure should look something like this:
+    Once it's unzipped, your folder structure should look something like this:
 
-```
-timeseries-course/
-├── data/
-│   ├── HansenSockeye.rds
-│   ├── jul65N.rds
-│   └── ...
-└── timeseries-course.Rproj
-```
+    ```
+    timeseries-analysis/
+    ├── data/
+    │   ├── kbli.csv
+    │   ├── nooksack.csv
+    │   └── ...
+    └── timeseries-analysis.Rproj
+    ```
 
-3.  **Refer to data files using relative paths**
+3.  **Use relative paths in your code**\
+    Use paths like `"data/kbli.csv"` rather than full file paths. This keeps the code portable. It will run on any machine without modification.
 
-In your code, use paths like `"data/HansenSockeye.rds"` rather than full file paths. This keeps the code portable and ensures it will run on different machines without modification. E.g.,
+    ```{r}
+    #| eval: false
+    kbli <- read_csv("data/kbli.csv")
+    ```
 
-```{r}
-sockeye <- readRDS("data/HansenSockeye.rds")
-```
+4.  **Save your `.R` or `.qmd` files in the project root**\
+    Keep your working files in the project's root directory. Quarto (`.qmd`) and R Markdown (`.Rmd`) are close cousins; the syntax is nearly identical and either works fine here. After working through the decomposition chapter, your structure might look like this:
 
-4.  **Save your work files in the project root**
-
-When you create Rmd or qmd files for assignments, save them in the project's root directory. Your folder structure might eventually look something like this:
-
-```
-timeseries-course/
-├── data/
-│   ├── HansenSockeye.rds
-│   ├── jul65N.rds
-│   └── ...
-├── decompositionHomework.Rmd
-├── forecastingHomework.Rmd
-└── timeseries-course.Rproj
-```
+    ```
+    timeseries-analysis/
+    ├── data/
+    │   ├── kbli.csv
+    │   ├── nooksack.csv
+    │   └── ...
+    ├── decompositionWork.qmd
+    └── timeseries-analysis.Rproj
+    ```

@@ -181,7 +181,7 @@ date: ""
 <div class="banner">
 
   <div class="left-col">
-    <div class="eyebrow">Course Notes &nbsp;·&nbsp; ESCI 506</div>
+    <div class="eyebrow">Open Access &nbsp;·&nbsp; Environmental Science</div>
     <div class="banner-title">Time <em>Series</em><br>Analysis</div>
     <div class="banner-subtitle">for Environmental Data</div>
     <div class="banner-tagline">An R-based Introduction</div>

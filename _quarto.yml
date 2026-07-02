@@ -5,8 +5,8 @@ project:
     - CNAME
 
 book:
-  title: "Time Series Analysis for Environmental Data: An R-based Introduction"
-  subtitle: "Course Notes"
+  title: "Time Series Analysis for Environmental Data"
+  subtitle: "An R-Based Introduction"
   author: "Andy Bunn"
   date: today
   description: "Time series notes and exercises"
@@ -16,6 +16,7 @@ book:
   chapters:
     - file: index.qmd
       text: "Cover"
+    - 00Preface.qmd
     - part: "Foundations"
       chapters:
         - 00Welcome.qmd

@@ -1,0 +1,24 @@
+# Preface
+
+This project started as lecture notes for a graduate course in time series analysis, ESCI 506, at Western Washington University. Over time it grew into something closer to a short book. That process wasn't really intentional: I'd fix an explanation that had confused students, add a section that answered a question that kept coming up in office hours, expand a toy example into something worth keeping. After a few colleagues started using the notes in their own classes, I felt I had something worth sharing more broadly.
+
+I am Andy Bunn. I am a professor of environmental sciences at Western Washington University in Bellingham, which sits in the northwest corner of the contiguous United States in a part of the world that is wet, but quite beautiful. My research is mostly about paleoclimate and carbon cycling using tree rings. I have been writing R code since about 2000, including `dplR`, a package for dendrochronology that is part of the [openDendro](https://opendendro.org) project. I am not a statistician. I am an environmental scientist and teacher who has spent a career working with data that has a time stamp attached.
+
+My own entry into this material came from Ed Cook, who took me under his wing when I was still a PhD student. Ed is, in my opinion, the greatest living dendrochronologist. He wrote ARSTAN [@cook1985], software that is still foundational to the field, co-edited *Methods of Dendrochronology* [@CookKairiukstis1990], a book so central to the field that everyone just calls it the Cook Book, and in December 2025 the American Geophysical Union gave him its Roger Revelle Medal for the North American Drought Atlas and the global drought atlases that followed it: tree-ring reconstructions of soil moisture reaching back two millennia, dated to the calendar year. What hooked me was watching Ed treat a stack of tree-ring widths for what it actually is, a time series, and bring dendrochronology into a quantitative, statistical realm. That's what turned me on to this material in the first place. This book has nothing to do with tree rings, but it exists because of what Ed showed me about reading structure in a record over time.
+
+The students this book grew out of are master's students in environmental sciences at WWU. Most of them do applied work in ecosystems, watersheds, climate, or toxicology. They've taken an introductory statistics class covering linear modeling but usually not much math beyond calculus. And nearly everything they'll ever measure comes with a date or a time stamp attached, which means they need to know what that costs them and what it buys them.
+
+The emphasis is on building intuition and getting things done in R, not on mathematical derivation. We simulate known patterns before turning to field data whenever we can, because the best way to trust a method is to watch it recover something you planted yourself. The running examples span climate, hydrology, ecology, and a few detours off that axis, but they share a habit: plot the data, ask what process could have produced it, and don't trust a number the software hands you until you understand where it came from.
+
+If you are an environmental scientist who works with data collected over time, which is to say nearly any environmental scientist, and want a practical, R-based way into the structure hiding in it, this book is for you. There is no shortage of time series textbooks, but most are written for economists forecasting quarterly earnings or engineers analyzing signals, not for someone trying to work out whether a river is trending or a species count is cyclic. This book tries to occupy the middle ground: rigorous enough to be clear about what the methods are doing, accessible enough that a first-year master's student can run the code and follow along.
+
+A few things this book is not. It is not a comprehensive treatment of stochastic processes or time series econometrics. It says almost nothing about state-space models, Kalman filtering, or the forecasting-competition end of machine learning, each of which is its own analytic world. And it is not a substitute for reading further, which is why every chapter ends with a Further Reading section.
+
+The book is free to read online and openly licensed. The text and figures are released under a [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 license](https://creativecommons.org/licenses/by-nc-sa/4.0/), and the code under the [MIT License](https://opensource.org/licenses/MIT). You are welcome to share it, teach from it, and adapt it for noncommercial use, as long as you keep it open and give credit.
+
+If you'd like to cite the book, it will have a DOI once it's connected to Zenodo (not yet minted, so treat the citation below as a placeholder). A citation will look something like:
+
+> Bunn, A. G. (2026). *Time Series Analysis for Environmental Data: An R-Based Introduction*. \[DOI TBD\]
+
+*Andy Bunn*\
+*Bellingham, Washington*
