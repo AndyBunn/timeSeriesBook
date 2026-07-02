@@ -469,3 +469,14 @@ date: ""
 
 </div>
 ```
+
+```{r include=FALSE}
+# Auto-generate the package bibliography (References appendix).
+# Keep this vector in sync with DESCRIPTION's Imports.
+knitr::write_bib(c(
+  .packages(), 'broom', 'cowplot', 'dplR', 'forecast',
+  'ggridges', 'gridExtra', 'hydroTSM', 'knitr', 'nlme',
+  'PNWColors', 'rmarkdown', 'slider', 'tidyverse', 'tseries',
+  'tsibble', 'waveslim', 'zoo'),
+  'packages.bib')
+```

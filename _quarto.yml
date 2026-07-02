@@ -47,9 +47,9 @@ book:
         - 12Freq.qmd
         - 12xAsideCrossSpectrum.qmd
         - 13Wavelets.qmd
-    - 14PackagesUsed.qmd
   appendices:
     - A1DataSources.qmd
+    - 14PackagesUsed.qmd
   repo-url: https://github.com/AndyBunn/timeSeriesBook
   repo-actions: [edit, issue]
 

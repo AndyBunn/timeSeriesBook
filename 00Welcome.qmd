@@ -136,12 +136,3 @@ timeseries-course/
 ├── forecastingHomework.Rmd
 └── timeseries-course.Rproj
 ```
-
-```{r include=FALSE}
-# automatically create a bib database for R packages
-knitr::write_bib(c(
-  .packages(), 'tidyverse', 'dplyr', 'forecast', 
-  'nlme', 'zoo', 'Hmisc', 'broom', 'gridExtra', 
-  'dplR','hydroTSM','cowplot','waveslim'), 
-  'packages.bib')
-```
