@@ -132,7 +132,7 @@ kbli_monthly_fresh <- full_grid |>
 write_csv(kbli_monthly_fresh, "data/kbli_monthly.csv")
 ```
 
-The `full_grid` join is the important step. Without it, a month with zero data just vanishes from the table instead of showing up as a calendar gap, an off-by-one error that's easy to miss because nothing throws a warning, and it shifts every later month one slot out of place the moment you convert the column to a `ts`. [A missing-data aside](02xAsideMissingStations.html) uses this exact gap as a worked example of filling one station's hole from a neighboring station, without altering the file above.
+The `full_grid` join is the important step. Without it, a month with zero data just vanishes from the table instead of showing up as a calendar gap, an off-by-one error that's easy to miss because nothing throws a warning, and it shifts every later month one slot out of place the moment you convert the column to a `ts`. [A missing-data aside](12xAsideMissingStations.html) uses this exact gap as a worked example of filling one station's hole from a neighboring station, without altering the file above.
 
 ### A Neighboring Station for Filling the Gap
 

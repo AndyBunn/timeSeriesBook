@@ -152,7 +152,7 @@ kbli_ts |>
   theme_minimal()
 ```
 
-The blue bands are gauge outages, not dry spells. The rain gauge went quiet for most of December 2012 into January 2013, and again from April through June of 2017. A missing value and a recorded zero look identical on a careless plot, and treating one as the other will bias anything you compute. So a series can be missing data two ways: a row that isn't there, and a value that is `NA`. The tsibble's index catches the first, a plain count catches the second, and a long station record usually has some of both. We will leave them alone for now and come back to handling missing data later.
+The blue bands are gauge outages, not dry spells. The rain gauge went quiet for most of December 2012 into January 2013, and again from April through June of 2017. A missing value and a recorded zero look identical on a careless plot, and treating one as the other will bias anything you compute. So a series can be missing data two ways: a row that isn't there, and a value that is `NA`. The tsibble's index catches the first, a plain count catches the second, and a long station record usually has some of both. We will leave them alone for now and come back to handling missing data later, in the [filters chapter](12Filters.html).
 
 ## Slicing Time: Months, Years, and Aggregation
 

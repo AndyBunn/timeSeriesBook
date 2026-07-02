@@ -9,7 +9,7 @@ set.seed(42)
 
 Before we start talking about autocorrelation, we need to talk about correlation
 and regression. Not because you haven't seen them before, but because the two concepts
-get conflated constantly by students -- but also by people who really should know
+get conflated constantly by students, but also by people who really should know
 better.
 
 The conflation has a tell. It looks like this: someone makes a scatter plot, right-clicks
@@ -22,9 +22,9 @@ that you may not actually mean.
 One more thing before we start. This aside is about linear association. Pearson 
 correlation measures the strength of a linear relationship between two variables. 
 Linear regression models that relationship with a line. If the underlying relationship 
-is curved, both will mislead you in their own ways -- correlation will understate the 
-association and the regression line will be a poor summary of the data. That is a real 
-limitation and worth knowing, but it is a topic for another day. Everything that follows 
+is curved, both will mislead you in their own ways. Correlation will understate the
+association and the regression line will be a poor summary of the data. That is a
+limitation and worth knowing, but it is a topic for another day. Everything that follows
 assumes linearity.
 
 ## Here is Some Data
@@ -143,10 +143,10 @@ one and it does not prove one. Two variables can be strongly related through a c
 cause, through confounding, or through coincidence, and a regression model will fit them
 all the same way.
 
-There is a real and ongoing debate about this in statistics. For decades the discipline
+There is an ongoing debate about this in statistics. For decades the discipline
 largely avoided causal language, treating everything as "association" and leaving causal
 inference to subject matter experts. Judea Pearl, among others, argued forcefully that
-this was a mistake -- that researchers need explicit tools for thinking about causality,
+this was a mistake, saying that researchers need explicit tools for thinking about causality,
 not just instructions to be careful. The counter-argument is that statistics summarizes
 data, and causal claims require assumptions about the world that go beyond what data alone
 can support. Both sides have a point.
@@ -228,9 +228,9 @@ about 1.2% of the variance in the response. Be careful with the word "significan
 
 Here is what to take away from this:
 
-- **Correlation** quantifies the strength of a linear association. It is symmetric and
+- Correlation quantifies the strength of a linear association. It is symmetric and
 scale-free.
-- **Regression** models the relationship between a dependent and an independent variable.
+- Regression models the relationship between a dependent and an independent variable.
 It is directional and has units.
 - The slope of a regression is not the correlation. It is the correlation scaled by the
 ratio of standard deviations.
@@ -239,3 +239,7 @@ ratio of standard deviations.
 correlation will be significant. Report the magnitude of $r$, not just the p-value.
 - Do not add a regression line to a scatter plot unless you have a reason to. Describing
 an association does not require one.
+
+## Where This Shows Up
+
+The next chapter puts a name to what happens when you compute $r$ or fit $y = \beta_0 + \beta_1 x$ on a series that is correlated with its own past: the standard errors and p-values from this aside assume independent observations, and time series data rarely gives you that. The distinction sharpens further in the regression chapter, where an autocorrelated $x$ can make an ordinary OLS slope's standard error actively lie to you, and choosing which variable to put on which side of the formula stops being a formality and starts being the whole argument.

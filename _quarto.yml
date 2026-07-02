@@ -21,9 +21,8 @@ book:
       chapters:
         - 01Welcome.qmd
         - 02MeasureOfTime.qmd
-        - 02xAsideMethods_and_generics.qmd
         - 02xAsideDatesAndTimes.qmd
-        - 02xAsideMissingStations.qmd
+        - 02xAsideMethods_and_generics.qmd
         - 03DecompTrends.qmd
     - part: "The Anatomy of Dependence"
       chapters:
@@ -45,6 +44,7 @@ book:
     - part: "The Frequency Domain"
       chapters:
         - 12Filters.qmd
+        - 12xAsideMissingStations.qmd
         - 13Freq.qmd
         - 13xAsideCrossSpectrum.qmd
         - 14Wavelets.qmd

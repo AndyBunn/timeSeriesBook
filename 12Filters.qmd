@@ -448,6 +448,8 @@ lines(zooRad[1:100], col = "grey", lwd = 1)
 
 That's the whole trick. `na.locf` (last observation carried forward) is worth a look too, though it's a poor choice for a curve that swings this much within a day. Whatever gap-filling method you reach for, it's still a filter, a rule for turning an `NA` into a number using its neighbors, no different in spirit from a moving average deciding what belongs in a smoothed value.
 
+All of that works because the gap is short enough that a series' own neighbors still know something about it. Stretch the gap to two years and that stops being true; there is no straight line or spline across two years that has any business standing in for two years of actual winters and summers. When the gap is that long, the [aside on filling a gap with a neighboring station](12xAsideMissingStations.html) shows the fix people actually reach for: borrow a correlated series from somewhere else instead.
+
 ## Wrapping Up
 
 A filter is a small, plain idea: average your neighbors one way or another. And it does an enormous amount of work in this book's toolkit, drawing a trend line to look at, aggregating to a coarser resolution, stripping a growth curve out of a tree ring, patching a hole in a radiation record. Every one of those is the same operation underneath, deciding how much weight each neighboring point gets.

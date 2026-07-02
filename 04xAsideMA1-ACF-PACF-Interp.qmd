@@ -12,10 +12,10 @@ $$
 
 Here, $\epsilon_t$ are white noise errors, and $\theta$ is the MA coefficient. Even though the model doesn't directly depend on past values of $y_t$, its structure introduces short-term correlation through the overlap of shock terms. We use the term "shock" to emphasize that each $\epsilon_t$ represents a new, unanticipated influence on the system — something that wasn’t predictable from past values and that directly moves the time series.
 
-This document explores why the **autocorrelation function (ACF)** and **partial autocorrelation function (PACF)** behave the way they do in MA(1) processes. We focus on two unintuitive and commonly misunderstood features:
+This aside explores why the autocorrelation function (ACF) and partial autocorrelation function (PACF) behave the way they do in MA(1) processes. We focus on two unintuitive and commonly misunderstood features:
 
-1. The PACF at **lag 1** tends to **underestimate** the true $\theta$.
-2. The PACF at **lag 2** is typically **negative**, despite the model only including a lag-1 term.
+1. The PACF at lag 1 tends to underestimate the true $\theta$.
+2. The PACF at lag 2 is typically negative, despite the model only including a lag-1 term.
 
 We use simulation to build intuition and illustrate these patterns.
 
@@ -135,7 +135,7 @@ ggplot(res, aes(x = Simulated_theta, y = PACF_lag2)) +
 
 The PACF at lag 2 is the partial correlation between $y_t$ and $y_{t-2}$, holding $y_{t-1}$ constant. In an MA(1), there is no direct influence of $y_{t-2}$ on $y_t$, but they do share overlapping shock terms: $y_{t-2}$ includes $\epsilon_{t-2}$, which can influence $y_{t-1}$, which in turn influences $y_t$ through $\epsilon_{t-1}$.
 
-So once the regression adjusts for $y_{t-1}$, the residual effect of $y_{t-2}$ is actually in the **opposite direction**, resulting in a negative coefficient. The strength of this negative partial correlation increases with $\theta$, leading to a nearly linear negative slope, as oour plot confirms.
+So once the regression adjusts for $y_{t-1}$, the residual effect of $y_{t-2}$ is actually in the **opposite direction**, resulting in a negative coefficient. The strength of this negative partial correlation increases with $\theta$, leading to a nearly linear negative slope, as our plot confirms.
 
 Theoretically, the PACF value at lag 2 in an MA(1) process has a known form:
 
@@ -143,16 +143,10 @@ $$
 \phi_{22} = \frac{-\theta^2}{1 + \theta^2}
 $$
 
-Here, $\phi_{22}$ refers to the partial autocorrelation at lag 2 — specifically, it is the coefficient on $y_{t-2}$ in a regression of $y_t$ on both $y_{t-1}$ and $y_{t-2}$. More generally, $\phi_{kk}$ denotes the PACF at lag $k$, and it captures the unique contribution of $y_{t-k}$ to predicting $y_t$, after controlling for all intermediate lags. This negative value at lag 2 reflects how the MA(1) structure produces a compensating reversal in direction once the influence of $y_{t-1}$ is accounted for.
-The notation $\phi_{22}$ refers to the **partial autocorrelation at lag 2** — that is, the coefficient on $y_{t-2}$ in a regression of $y_t$ on both $y_{t-1}$ and $y_{t-2}$. More generally, $\phi_{kk}$ denotes the PACF at lag $k$, and comes from the Durbin-Levinson algorithm used to estimate partial autocorrelations. It captures the unique contribution of $y_{t-k}$ to predicting $y_t$, after controlling for all intermediate lags $y_{t-1}, y_{t-2}, \ldots, y_{t-(k-1)}$.
+The notation $\phi_{22}$ refers to the partial autocorrelation at lag 2, the coefficient on $y_{t-2}$ in a regression of $y_t$ on both $y_{t-1}$ and $y_{t-2}$. More generally, $\phi_{kk}$ denotes the PACF at lag $k$, which is what the Durbin-Levinson recursion (see the [aside on PACF by hand](04xAsidePACFByHand.html)) is actually computing when it estimates partial autocorrelations: the unique contribution of $y_{t-k}$ to predicting $y_t$ after controlling for all the intermediate lags $y_{t-1}, y_{t-2}, \ldots, y_{t-(k-1)}$. This negative value at lag 2 reflects how the MA(1) structure produces a compensating reversal in direction once the influence of $y_{t-1}$ is accounted for.
 
-This matches the shape in our simulation — a negative curve that grows more negative with larger $\theta$.
+This matches the shape in our simulation, a negative curve that grows more negative with larger $\theta$.
 
-## Conclusion
+## Where This Shows Up
 
-This simulation-driven analysis shows:
-
-- **PACF lag 1 underestimates $\theta$** because it captures indirect correlation from shared noise, not a structural relationship.
-- **PACF lag 2 is consistently negative** due to the way overlapping shocks in an MA(1) structure reverse direction when accounting for intermediate lags.
-
-Recognizing these patterns helps interpret the ACF and PACF of moving average processes more accurately — and avoids common missteps when students treat PACF values as direct analogues of model parameters.
+This simulation-driven analysis shows two things: PACF lag 1 underestimates $\theta$ because it captures indirect correlation from shared noise, not a structural relationship, and PACF lag 2 is consistently negative because of how overlapping shocks in an MA(1) structure reverse direction once you've accounted for the intermediate lag. Both patterns are the reason the ARMA chapter can tell you, without deriving it there, that an MA process's PACF decays and oscillates instead of cutting off cleanly the way an AR process's does. Recognizing that shape helps you read an ACF/PACF pair correctly and avoids the common misstep of treating a PACF value as a direct stand-in for a model parameter.
