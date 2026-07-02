@@ -24,6 +24,10 @@ library(tsibble)
 library(forecast)
 library(gridExtra)
 library(tseries)
+library(PNWColors)
+
+sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+
 ```
 
 ## The Moving Average Model
@@ -335,9 +339,17 @@ You met the lynx and the snowshoe hare in ecology, in the standard story about p
 
 ```{r}
 #| label: arma-lynxhare
-#| eval: false
 LynxHare <- readRDS("data/LynxHare.rds")
-plot(LynxHare, main = "Pelts traded, in thousands")
+tibble(year = as.numeric(time(LynxHare)),
+       Hare = as.numeric(LynxHare[, "Hare"]),
+       Lynx = as.numeric(LynxHare[, "Lynx"])) |>
+  pivot_longer(c(Hare, Lynx)) |>
+  ggplot(aes(year, value, color = name)) +
+  geom_line() +
+  scale_color_manual(values = c(Hare = sfPal[1], Lynx = sfPal[5])) +
+  labs(x = "Year", y = "Pelts traded (thousands)", color = NULL) +
+  theme_minimal()
+
 ```
 
 The hare is the lynx's main food, and the two populations rise and fall together with a lag. Before you fit anything, write down how you expect that coupling to show up in the time-series properties of the lynx series. Would you expect an AR component, an MA component, or both, and why? Then look at the ACF and PACF of the lynx pelts and fit a grid of ARMA models, selecting one by BIC. Does the order you land on fit the predator-prey story you told yourself? Speculate, wildly and irresponsibly, about what the coefficients say about the population cycle.

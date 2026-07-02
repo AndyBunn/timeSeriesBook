@@ -48,10 +48,13 @@ book:
         - 12xAsideCrossSpectrum.qmd
         - 13Wavelets.qmd
   appendices:
-    - A1DataSources.qmd
     - 14PackagesUsed.qmd
+    - A1DataSources.qmd
   repo-url: https://github.com/AndyBunn/timeSeriesBook
   repo-actions: [edit, issue]
+
+language:
+  section-title-appendices: "Back Matter and Appendices"
 
 bibliography:
   - packages.bib
