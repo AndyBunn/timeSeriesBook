@@ -72,9 +72,8 @@ Go read [Allison Horst's piece on the autocorrelation function](https://allisonh
 #| label: auto-horst-jpg
 #| echo: false
 #| out-width: '100%'
+#| fig-cap: "Artwork by Allison Horst, CC-BY 4.0."
 knitr::include_graphics("assets/host_acf.jpg", error = FALSE)
-# XXX add caption that says "Artwork by Allison Horst"
-# NB this artwork is available for free, open use by CC-BY (Creative Commons Attribution 4.0 International License).
 ```
 
 ### The less fun version
