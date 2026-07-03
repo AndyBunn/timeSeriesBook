@@ -12,7 +12,7 @@ A forecast has two halves. The first half is the prediction: if a series leans o
 
 ## Packages
 
-We stay in the tsibble idiom. `forecast` gives us the AR fitting and prediction tools and a tidy autoplot, and we read example data from CSV as usual.
+We stay with tsibble. `forecast` gives us the AR fitting and prediction tools and a tidy autoplot, and we read example data from CSV as usual.
 
 ```{r}
 #| label: fc-packages

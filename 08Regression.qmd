@@ -14,7 +14,7 @@ Autocorrelated errors (residuals) break the independence assumption that the sta
 
 ## Packages
 
-We stay in the tsibble idiom and read example data from CSV. The new tool is `gls` from `nlme` [@R-nlme], which fits a linear model while letting the errors carry a correlation structure. We use `forecast` [@R-forecast] for `ggAcf`/`ggPacf`, `ggridges` for the simulation figure, and `PNWColors` for the book's palette.
+We stay in the tsibble framework and read example data from CSV. The new tool is `gls` from `nlme` [@R-nlme], which fits a linear model while letting the errors carry a correlation structure. We use `forecast` [@R-forecast] for `ggAcf`/`ggPacf`, `ggridges` for the simulation figure, and `PNWColors` for the book's palette.
 
 ```{r}
 #| label: reg-packages

@@ -2,7 +2,7 @@
 
 ## You've Picked Up a Lot of R
 
-By now you can wrangle data, fit models, make plots, write functions. But you might also be starting to wonder what's actually going on under the hood.
+You can wrangle data, fit models, make plots, write functions. But you might also be starting to wonder what's actually going on under the hood.
 
 For example, how does `summary()` know what to do when you give it the output from `lm`? Or why does `plot()` sometimes give you a histogram and other times a scatterplot?
 
@@ -14,7 +14,7 @@ It's nice when a function does the right thing depending on the kind of object y
 
 In R, many common functions like `summary()`, `plot()`, and `print()` are generic. They automatically call the version that matches the class of your object.
 
-Let's run a linear model and use that as an example.
+Let's run a linear model and use that as an example. We will look at miles per gallon and vehicle weight from the `mtcars` dataset.
 
 ```{r}
 fit <- lm(mpg ~ wt, data = mtcars)

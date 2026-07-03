@@ -10,11 +10,11 @@ set.seed(872)
 
 We ended the last chapter on a cliffhanger. An AR(1) process, $y_t = \phi y_{t-1} + \epsilon_t$, has a coefficient $\phi$ that we kept between -1 and 1, and every series we built came back to its mean sooner or later. The closer $\phi$ sat to 1, the longer the memory and the slower the return. So push it to the wall. What happens when $\phi = 1$?
 
-The series stops coming home. Each shock gets passed forward at full strength and never fades, the variance grows without bound, and the thing wanders off and never settles. That failure has a name, a unit root, and it breaks the one property most tools in the rest of this book assume: stationarity. This chapter is about what it means, the canonical way it fails, the difference between a trend you can subtract and a trend you have to difference away, and how to test whether your data have earned the assumption you are about to make of them.
+The series stops coming back to the mean. Each shock gets passed forward at full strength and never fades, the variance grows without bound, and the thing wanders off and never settles. That failure has a name, a unit root, and it breaks the one property most tools in the rest of this book assume: stationarity. This chapter is about what it means, the canonical way it fails, the difference between a trend you can subtract and a trend you have to difference away, and how to test whether your data have earned the assumption you are about to make of them.
 
 ## Packages
 
-We stay in the tsibble idiom from the earlier chapters. `forecast` gives us the ggplot-ready ACF we have been using, and `tseries` carries the two unit-root tests at the end of the chapter.
+We stay in the tsibble framework from the earlier chapters. `forecast` gives us the ggplot-ready ACF we have been using, and `tseries` carries the two unit-root tests at the end of the chapter.
 
 ```{r}
 #| label: stat-packages
@@ -29,11 +29,11 @@ library(tseries)
 
 A stationary series is one whose statistical character does not depend on when you look at it. Slide a window along the series, and the picture inside the window is the same wherever you put it: same average level, same amount of wiggle, same relationship between neighbors. Three constancies make that precise enough for our purposes.
 
-- The mean is constant. No trend, no drift, no slow climb. The series hovers around one level forever.
+- The mean is constant. There is no trend. The series hovers around one level forever.
 - The variance is constant. The spread of the data this decade is the spread next decade. The wiggles do not grow or shrink over time.
 - The autocovariance depends only on the lag, not on absolute time. How strongly $y_t$ relates to $y_{t-k}$ is a function of the gap $k$ alone. Lag-1 dependence is the same near the start of the record as it is near the end.
 
-That is all we need. There is a stricter version that talks about the full joint distribution being invariant, and there is a measure-theoretic machinery underneath it, but the three constancies above are the working definition for everything we will do. When people say a series is stationary, this is usually what they mean.
+That is all we need. There is a stricter version that talks about the full joint distribution being invariant, and there is a measure-theoretic machinery underneath it, but the three items above are the working definition for everything we will do. When people say a series is stationary, this is usually what they mean.
 
 Why fuss over it? Because the ACF and PACF you learned to read, the AR and MA coefficients you are about to fit, the standard errors a regression hands you, and the error bounds on a forecast are all derived under these constancies. A coefficient that describes how $y_t$ leans on $y_{t-1}$ only means something if that relationship is the same throughout the series. If the rules of the process drift as the series runs, a single set of fixed coefficients is describing an average of conditions that never actually held.
 
@@ -154,7 +154,7 @@ Now the idea this whole chapter is built to deliver, and the one that decides wh
 
 A deterministic trend is a fixed function of time with stationary noise riding on top. The series is genuinely tied to a line (or a curve); the level at time $t$ is set by the clock, and the fluctuations around it are well-behaved. A series like this is called trend-stationary, because once you remove the trend, what is left is stationary.
 
-A stochastic trend is the random walk we just met. There is no underlying line. The apparent trend is the accumulation of shocks, and a different set of shocks would have wandered somewhere else entirely. A series like this is called difference-stationary, because differencing it (taking $y_t - y_{t-1}$) is what makes it stationary.
+A stochastic trend is the random walk we just described. There is no underlying line. The apparent trend is the accumulation of shocks, and a different set of shocks would have wandered somewhere else entirely. A series like this is called difference-stationary, because differencing it (taking $y_t - y_{t-1}$) is what makes it stationary.
 
 Here are two series, one of each kind, built to rise at the same rate.
 
@@ -228,7 +228,7 @@ ggplot(tibble(t = 2:n, stoch_diff), aes(t, stoch_diff)) +
 
 Differencing cancels the accumulation. Since $y_t = \delta + y_{t-1} + \epsilon_t$, the difference $y_t - y_{t-1}$ is just $\delta + \epsilon_t$, white noise around the drift. The series is stationary and we can finally model it.
 
-The two repairs do not commute, and using the wrong one has a cost in both directions. Detrend a stochastic trend and, as we just saw, you have not removed the problem. Difference a deterministic trend and you overdifference: you inject a spurious moving-average wobble into a series that was already fine once detrended. The lesson is not to pick a favorite repair and apply it everywhere. The lesson is to figure out which kind of trend you have. That is what the tests in the next section are for, and it is the whole reason ARIMA keeps differencing separate from the AR and MA parts. The "I" in ARIMA is this decision.
+The two repairs do not commute, and using the wrong one has a cost in both directions. Detrend a stochastic trend and, as we just saw, you have not removed the problem. Difference a deterministic trend and you overdifference: you inject a spurious moving-average wobble into a series that was already fine once detrended. The lesson is not to pick a favorite repair and apply it everywhere. The lesson is to figure out which kind of trend you have. That is what the tests in the next section are for, and it is the whole reason ARIMA keeps differencing separate from the AR and MA parts. The "I" in ARIMA is this decision. More about that in the next chapter.
 
 ## Testing for a Unit Root: ADF and KPSS
 
@@ -325,7 +325,7 @@ kpss.test(LakeHuron_diff)
 
 The differenced series clears both tests. `LakeHuron_diff` is stationary, same as the planted walk once we differenced it.
 
-A test is a tool, not an oracle, and Lake Huron is a good place to see why. ADF is known to have low power: it struggles to tell a true unit root from a stationary series with a coefficient close to one, and Lake Huron is famously well-described as a stationary AR(2) with strong persistence. A lake also has a physical floor and ceiling; the water level cannot wander off to infinity the way a true random walk can, so a literal unit root is implausible on mechanistic grounds no matter what the test prints. So do not read the result as a verdict. Read it as a narrowed question: the data are persistent enough that ADF cannot rule out a unit root, and that persistence is the thing I have to handle either way. The p-value narrows the question. It does not answer it. Mechanism does.
+A test is a tool, not an oracle, and Lake Huron is a good place to see why. ADF is known to have low power: it struggles to tell a true unit root from a stationary series with a coefficient close to one, and Lake Huron is  well-described as a stationary AR(2) with strong persistence. A lake also has a physical floor and ceiling; the water level cannot wander off to infinity the way a true random walk can, so a literal unit root is implausible on mechanistic grounds no matter what the test prints. So do not read the result as a verdict. Read it as a narrowed question: the data are persistent enough that ADF cannot rule out a unit root, and that persistence is the thing I have to handle either way. The p-value narrows the question but can't answer it. Mechanism can.
 
 It is also worth watching the tests clear a series, so we do not leave thinking everything is a hidden random walk. Return to the stationary AR(1) from the start of the chapter, the calm top-left panel where the others all misbehaved. We called it stationary and moved on without testing it. Now we can hold it to the same standard.
 

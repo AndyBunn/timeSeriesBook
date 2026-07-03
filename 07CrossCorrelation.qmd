@@ -10,11 +10,11 @@ set.seed(872)
 
 Autocorrelation asked how a series relates to its own past. Cross-correlation asks the same question about two different series: how does $x$ at one time relate to $y$ at another? It is the bivariate version of the function we built in the autocorrelation chapter, and it earns its keep by finding the lag at which one series tracks another. That lag is the payoff. If river discharge peaks a few days after a storm, or grazers bloom a few weeks after the algae they eat, the cross-correlation will show it, and the offset is a clue to which series drives which. Knowing that $x$ leads $y$ also hands you something to forecast $y$ with that beats $y$'s own history alone, a thread we pick up later in this part.
 
-The same warning from before applies. Two series that happen to share a trend, or a season, or even just strong memory of their own, will produce a fat cross-correlation that means nothing. The function will hand you a number whether or not there is anything between the two series, so a good cross-correlation analysis involves stripping out the structure each series carries on its own and then asking what is left. We will end the chapter on exactly that move.
+The same warning from before applies. Two series that happen to share a trend, or a season, or even just strong memory of their own, will produce a large cross-correlation that means nothing. "If you smooth them, they will correlate," my grad school mentor Jeremy Littell used to say. The function will hand you a number whether or not there is anything between the two series, so a good cross-correlation analysis involves stripping out the structure each series carries on its own and then asking what is left. We will end the chapter on exactly that move.
 
 ## Packages
 
-We stay in the tsibble idiom and read example data from CSV. `forecast` gives us `Ccf`, we lean on base R's `ar` and `filter` for the prewhitening at the end, and `PNWColors` supplies the book's palette for the figures.
+We stay in the tsibble framework and read example data from CSV. `forecast` gives us `Ccf`, we lean on base R's `ar` and `filter` for the prewhitening at the end, and `PNWColors` supplies the book's palette for the figures.
 
 ```{r}
 #| label: ccf-packages
@@ -37,7 +37,7 @@ x <- c(3, 1, 4, 1, 5, 9)
 tibble(x, lag1 = dplyr::lag(x), lag2 = dplyr::lag(x, 2))
 ```
 
-Read across a row: `lag1` holds the value from one step back, `lag2` from two steps back. That is all a lag is. The only thing that trips people up is the bookkeeping of which direction counts as positive, and the cross-correlation function has its own convention for that. `Ccf(x, y)` reports the correlation between $x_{t+k}$ and $y_t$ for a range of lags $k$. A negative $k$ lines up an earlier $x$ with a later $y$, so a peak at negative lag means $x$ leads $y$. That is the case you want for forecasting: $x$ moves first, $y$ follows, and the values of $x$ you already have tell you something about the $y$ you have not seen yet. Keep that straight and the plots read themselves.
+Read across a row: `lag1` holds the value from one step back, `lag2` from two steps back. That is all a lag is. The only thing that trips people up is the bookkeeping of which direction counts as positive, and the cross-correlation function has its own convention for that. `Ccf(x, y)` reports the correlation between $x_{t+k}$ and $y_t$ for a range of lags $k$. A negative $k$ lines up an earlier $x$ with a later $y$, so a peak at negative lag means $x$ leads $y$. That is the case you want for forecasting: $x$ moves first, $y$ follows, and the values of $x$ you already have tell you something about the $y$ you have not seen yet. Keep that straight and the plots read themselves. My own dyslexia makes me think through these plots for a spell before I remember which way to read them, but that's my own issue.
 
 ## From ACF to CCF
 

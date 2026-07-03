@@ -8,7 +8,7 @@ set.seed(872)
 
 ## Big Idea
 
-The whole premise of this book is that the values in a time series lean on their neighbors. Autocorrelation is how we measure that lean. It is the correlation of a series with delayed copies of itself, and it turns out to be one of the most informative things you can compute about a temporal process, because the shape of the autocorrelation is a fingerprint of the mechanism that made the data. A series where each value depends strongly on the one before looks different from a series where the dependence stretches back several steps, and both look different from noise. This chapter builds the two tools that read that fingerprint, the autocorrelation function and its partial cousin, and ties them to the simplest model of temporal dependence there is: the autoregressive process, where today is a regression on its own past.
+The whole premise of this book is that the values in a time series depend on their neighbors. Autocorrelation is how we measure that dependence. It is the correlation of a series with delayed copies of itself, and it turns out to be one of the most informative things you can compute about a temporal process, because the shape of the autocorrelation is a fingerprint of the mechanism that made the data. A series where each value depends strongly on the one before looks different from a series where the dependence stretches back several steps, and both look different from noise. This chapter builds the two tools that read that fingerprint, the autocorrelation function and its partial cousin, and ties them to the simplest model of temporal dependence there is: the autoregressive process, where today is a regression on its own past.
 
 ## Packages
 
@@ -25,7 +25,7 @@ library(gridExtra)
 
 ## Autocorrelation and the AR(1) Process
 
-Autocorrelation means that values in a series are correlated with each other as a function of how far apart they are in time. Tree-ring widths are the example I reach for first, because the biology makes the dependence concrete. A wide ring in year $t$ is related to the ring in year $t-1$, and to $t-2$, because the tree carries resources forward. Stored sugars from a good year prime growth the next year; a network of fine roots built in one season is still there working the next. The width this year is partly a regression on the width last year. The simplest way to write that down is a first-order autoregressive process:
+Autocorrelation means that values in a series are correlated with each other as a function of how far apart they are in time. Tree-ring widths are the example I reach for first, because of my background and because the biology makes the dependence concrete. A wide ring in year $t$ is related to the ring in year $t-1$, and to $t-2$, because the tree carries resources forward. Stored sugars from a good year prime growth the next year; a network of fine roots built in one season is still there working the next. The width this year is partly a regression on the width last year. The simplest way to write that down is a first-order autoregressive process:
 
 $$ y_t = \phi y_{t-1} + \epsilon_t $$
 
@@ -34,7 +34,7 @@ Here $y$ is the series, $t$ indexes time, $\phi$ (pronounced "fie," or "fee" if 
 ::: {.callout-note}
 ## A note on the word "shock"
 
-Of those names for $\epsilon_t$, "shock" is the one to watch, because it is borrowed from econometrics and is not how most of us in environmental science talk. It means the disturbance just described: the new, unpredictable input that arrives at time $t$ and knocks the series off whatever its history implied. If the word feels foreign, translate it to one you already use. An ecologist calls a disturbance a fire, a flood, a windthrow, something that hits the system from outside. A physical scientist might say a perturbation or a forcing. Same idea. I use "shock" because it is the standard term in time-series writing, but you can read it as "the disturbance at time $t$" every time it appears.
+Of those names for $\epsilon_t$, "shock" is the one to watch, because it is borrowed from econometrics and is not how most folks in environmental work talk. It means the disturbance just described: the new, unpredictable input that arrives at time $t$ and knocks the series off whatever its history implied. If the word feels foreign, translate it to one you already use. An ecologist calls a disturbance a fire, a flood, a windthrow, something that hits the system from outside. A physical scientist might say a perturbation or a forcing. Same idea. I use "shock" because it is the standard term in time-series writing, but you can read it as "the disturbance at time $t$" every time it appears.
 :::
 
 The arithmetic is cleaner when the series has a mean of zero, so by convention we subtract the mean first, $y = Y - \bar Y$, and work with the centered series. We will stick to data centered at zero for now.
@@ -58,7 +58,7 @@ ggplot(tibble(t = 1:n, y), aes(t, y)) +
   theme_minimal()
 ```
 
-Look at how that was put together. We started with a vector of zeros and began building on the second value, because an AR(1) step needs the prior value and there is nothing before the first. We could have seeded `y[1]` with a random draw instead of a zero, but the zero washes out quickly. Run the loop and redraw the plot a half-dozen times to get a feel for the shape. Then compare it to a series with no memory at all, `plot(rnorm(n), type = "l")`. The autocorrelated series has a smoothness to it, a tendency to stay where it is for a while, that pure noise lacks.
+Look at how that was put together. We started with a vector of zeros and began building on the second value, because an AR(1) step needs the prior value and there is nothing before the first. We could have seeded `y[1]` with a random draw instead of a zero, but the zero washes out quickly. Run the loop and redraw the plot a half-dozen times to get a feel for the shape. Then compare it to a series with no memory at all (e.g., `plot(rnorm(n), type = "l")`). The autocorrelated series has a smoothness to it, a tendency to stay where it is for a while, that pure noise lacks.
 
 We planted a known $\phi = 0.7$ in that series. The first thing we will do with the tools below is see whether we can read it back out.
 
@@ -66,7 +66,7 @@ We planted a known $\phi = 0.7$ in that series. The first thing we will do with 
 
 ### The fun version
 
-Go read [Allison Horst's piece on the autocorrelation function](https://allisonhorst.com/time-series-acf). She is wonderful and I read everything she makes with a little envy.
+Go read [Allison Horst's piece on the autocorrelation function](https://allisonhorst.com/time-series-acf). She is wonderful and I read everything she makes with delight a little envy.
 
 ```{r}
 #| label: auto-horst-jpg
@@ -92,7 +92,7 @@ This is the same correlation you already know, applied to a series and a lagged 
 $$\rho(k) = \frac{\frac{1}{n-k}\sum_{t=k+1}^n (y_t - \bar{y})(y_{t-k} - \bar{y})}{
 \sqrt{\frac{1}{n}\sum_{t=1}^n (y_t - \bar{y})^2}}$$
 
-To see the whole autocorrelation structure at once, you compute $\rho$ at successive lags and plot it. That plot is called a correlogram, and the function `ggAcf` draws it. We use `ggAcf` from `forecast` rather than the base `acf`; they are nearly identical (see `?ggAcf` for the small differences).
+To see the whole autocorrelation structure at once, you compute $\rho$ at successive lags and plot it. That plot is called a correlogram, and the function `ggAcf` draws it. We use `ggAcf` from `forecast` rather than the base `stats::acf`; they are nearly identical (see `?ggAcf` for the small differences).
 
 ```{r}
 #| label: auto-acf
@@ -110,7 +110,7 @@ The dashed lines are a significance band. If the series were independent noise, 
 qnorm((1 + 0.95) / 2) / sqrt(n)
 ```
 
-A word of caution that is really the first conviction of this book in miniature. We just tested 25 lags. With a 95% band, you expect roughly one bar in twenty to poke past the line by chance even if the series is pure noise. So a single lag outside the band is no reason to fire off a paper to *Nature*. Read the plot against the mechanism. A strong lag-1 correlation in a biological or physical system that has obvious memory is meaningful; a lone barely-significant spike at lag 18 is probably nothing. Always ask whether what you see in the data makes sense for the process that made it.
+A word of caution that is really the first conviction of this book in miniature. We just tested 25 lags. With a 95% band, you expect roughly one bar in twenty to poke past the line by chance even if the series is pure noise. So a single lag outside the band is no reason to fire off a paper to *Nature*. Read the plot against the mechanism. A strong lag-1 correlation in a biological or physical system that has obvious memory is meaningful; a lone barely-significant spike at lag 8 is probably nothing. Always ask whether what you see in the data makes sense for the process that made it.
 
 You will often want the numbers, not just the picture. They live inside the object `ggAcf` returns; `str` is, as always, your friend for finding them.
 
@@ -126,7 +126,7 @@ Note the 1.0 at lag zero. Every series is perfectly correlated with itself at no
 
 Return to the puzzle from the ACF: why is there correlation at lags 2 and 3 when our model only reaches back one step? Because the dependence chains. If $y_t$ leans on $y_{t-1}$, and $y_{t-1}$ leans on $y_{t-2}$, then $y_t$ and $y_{t-2}$ are correlated secondhand, through the value between them. The lag-2 correlation in the ACF is partly that echo.
 
-The partial autocorrelation strips the echo out. The partial autocorrelation at lag $k$ is the correlation between $y_t$ and $y_{t-k}$ after the effect of the intervening lags has been removed, which is exactly what a regression coefficient does when it controls for the other predictors. The `ggPacf` function computes it.
+The partial autocorrelation strips the echo out. The partial autocorrelation at lag $k$ is the correlation between $y_t$ and $y_{t-k}$ after the effect of the intervening lags has been removed, which is exactly what a regression coefficient does when it controls for the other predictors. (Under the hood,  `ggPacf` calls `stats::acf` with the `type` argument set to "partial" function to compute and plot it.)
 
 ```{r}
 #| label: auto-pacf
@@ -171,12 +171,15 @@ Before we touch the autocorrelation, look at the series itself. The flow drops n
 ```{r}
 #| label: auto-nile-acf
 #| fig-height: 3
+#| Maybe revisit? post 1903 there is no AC and more of an ARIMA example?
 g1 <- ggAcf(Nile) + labs(title = "ACF") + theme_minimal()
 g2 <- ggPacf(Nile) + labs(title = "PACF") + theme_minimal()
 grid.arrange(g1, g2, ncol = 2)
 ```
 
 From the plot of the series, it is hard to say by eye whether high-flow years tend to follow high-flow years. The ACF and PACF settle it: there is a clear lag-1 correlation, the ACF tapers, and the PACF cuts off after lag 1. That is the AR(1) signature, so the flow record is reasonably described by $y_t = \phi_1 y_{t-1} + \epsilon_t$.
+
+(After we learn about ARIMA models, revisit this time series. There are some other wrinkles.)
 
 ### New Haven temperature
 
@@ -203,6 +206,8 @@ grid.arrange(g1, g2, ncol = 2)
 ```
 
 This one is a step up. The PACF shows a significant bar at lag 2 even after the lag-1 effect is accounted for, which points to an AR(2) process: $y_t = \phi_1 y_{t-1} + \phi_2 y_{t-2} + \epsilon_t$. We will estimate those coefficients in a moment.
+
+(After we learn about ARIMA models, revisit this time series. There are some other wrinkles.)
 
 ### Sunspots
 

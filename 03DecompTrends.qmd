@@ -8,11 +8,11 @@ set.seed(872)
 
 ## Big Idea
 
-A series like the Bellingham temperature from the last chapter is really three things added together. There is a slow movement, the part that climbs or falls over years and does not repeat. There is a season, the part that comes around like clockwork every twelve months. And there is the noise, the day-to-day or month-to-month jostle that is left once you account for the other two. Decomposition is the act of pulling those three pieces apart so you can look at each one on its own. We will build the pieces by hand first, with a moving average and some subtraction, and then let R do the same work in a single function call. The catch, and it is the thread that runs through the whole book, is that the function will hand you a trend and a season whether or not the data have one. So we will also feed it pure noise and watch it invent structure out of nothing. Knowing how to read that is the difference between describing your data and fooling yourself.
+A series like the Bellingham temperature from the last chapter is really three things added together. There is a slow movement, the part that climbs or falls over years and does not repeat. There is a season, the part that comes around every twelve months. And there is the noise, the day-to-day or month-to-month jostle that is left once you account for the other two. Decomposition is the act of pulling those three pieces apart so you can look at each one on its own. We will build the pieces by hand first, with a moving average and some subtraction, and then let R do the same work in a single function call. The catch, and it is a thread that runs through the whole book, is that the function will hand you a trend and a season whether or not the data have one. So we will also feed it pure noise and watch it invent structure out of nothing. Knowing how to read that is the difference between describing your data and fooling yourself.
 
 ## Packages
 
-We keep the tsibble idiom for storing and plotting data, but the decomposition machinery itself lives in base R. The `decompose` function and the `ts` class it works on are both built into R, so there is nothing extra to load for the analysis.
+We keep the tsibble framework for storing and plotting data, but the decomposition machinery itself lives in base R. The `decompose` function and the `ts` class it works on are both built into R, so there is nothing extra to load for the analysis.
 
 ```{r}
 #| label: decomp-packages
@@ -44,7 +44,7 @@ tt <- 1:n
 
 trend_true  <- 10 + 0.05 * tt               # a slow linear climb
 season_true <- 4 * sin(2 * pi * tt / 12)    # an annual cycle
-noise_true  <- rnorm(n, sd = 1)             # the jostle
+noise_true  <- rnorm(n, sd = 2)             # the jostle
 
 y <- trend_true + season_true + noise_true
 y <- ts(y, start = c(2000, 1), frequency = 12)
@@ -178,7 +178,7 @@ This is where you ask whether the model is any good. We look at the residuals th
 sqrt(mean(z_hat^2, na.rm = TRUE))            # RMSE
 ```
 
-We planted noise with a standard deviation of 1, and the residual comes back at about that. The decomposition recovered the noise about as well as it recovered the trend and the season. If we were comparing two ways of decomposing the same series, the one with the smaller RMSE would be doing a better job of accounting for the data.
+We planted noise with a standard deviation of two, and the residual comes back with that. The decomposition recovered the noise about as well as it recovered the trend and the season. If we were comparing two ways of decomposing the same series, the one with the smaller RMSE would be doing a better job of accounting for the data.
 
 Stack the four pieces together and you can see the whole model at once. Watch the vertical scales: the trend spans several units, the season a few, and the noise barely moves.
 
@@ -267,7 +267,9 @@ co2_decomp <- decompose(co2, type = "additive")
 ggplot(tidy_decomp(co2_decomp), aes(time, value)) +
   geom_line(na.rm = TRUE) +
   facet_wrap(~component, ncol = 1, scales = "free_y") +
-  labs(x = NULL, y = NULL, title = "decompose() on the Keeling curve") +
+  labs(x = NULL, y = NULL, 
+       title = "decompose() on the Keeling curve",
+       subtitle = "Units are ppm of carbon dioxide") +
   theme_minimal()
 ```
 
@@ -306,7 +308,7 @@ Both are trends, and both are reasonable, but they answer different questions. T
 
 ## A Warning: It Will Find a Trend in Nothing
 
-Here is the thread that runs through the whole book. A computer does what it is told. `decompose` will pull a trend and a season out of any series you hand it, including one that has neither. To prove it, I will make ten years of monthly numbers that are pure noise, with no trend and no season anywhere in them, and decompose that.
+Here is a thread that runs through the book. A computer does what it is told. `decompose` will pull a trend and a season out of any series you hand it, including one that has neither. To prove it, I will make ten years of monthly numbers that are pure noise, with no trend and no season anywhere in them, and decompose that.
 
 ```{r}
 #| label: decomp-noise-warning
@@ -380,7 +382,7 @@ A trend, a fanning variance, and a season are all ways a series can change its c
 
 We took a series apart into three pieces: a slow trend, a repeating season, and the noise left over. We did it by hand with a moving average and some subtraction, checked the recovery against a signal we planted ourselves, and then let `decompose` do the same work in one call. The most important thing we did was hand it pure noise and watch it return a trend and a season anyway. Decomposition is description, and description is only as trustworthy as your judgment about whether the pieces are there.
 
-There is one piece we waved off. The noise term $z_t$ we treated as structureless, the part left over once the interesting bits were removed. But is it actually structureless? In our planted series it was, because we built it from `rnorm`, where each value ignores the one before it. Measured residuals are rarely so well behaved. The leftover noise often remembers its recent past: a warm month tends to follow a warm month even after you take out the trend and the season. That memory is the subject of the next chapter, autocorrelation, and learning to measure it is where time series analysis starts to earn its name.
+There is one piece we kind of glossed over. The noise term $z_t$ we treated as structureless, the part left over once the interesting bits were removed. But is it actually structureless? In our planted series it was, because we built it from `rnorm`, where each value ignores the one before it. Measured residuals are rarely so well behaved. The leftover noise often remembers its recent past: a warm month tends to follow a warm month even after you take out the trend and the season. That memory is the subject of the next chapter, autocorrelation, and learning to measure it is where time series analysis starts to earn its name.
 
 ## Exercises
 

@@ -65,19 +65,19 @@ Trade the clock for the cycle. Smooth a series to see its slow-moving pattern, t
 
 ## What You Should Know Beforehand
 
-This isn't a book for absolute beginners, and a few things will go more smoothly if you've seen them before. None of it is a hard prerequisite, but here's a plain accounting of what I'm assuming.
+This isn't a book for absolute beginners, and a few things will go more smoothly if you've seen them before. None of it is a hard prerequisite, but here's what I'm assuming.
 
-**R basics.** You should be comfortable enough in R to read a data file, poke at a data frame, write a function, and not panic when something throws an error. You don't need to be an expert. If you can follow along and look things up when you're stuck, you're ready.
+**R basics.** You should be comfortable enough in R to read a data file, poke at a data frame, understand functions, and not panic when something throws an error. You don't need to be an expert. If you can follow along and look things up when you're stuck, you're ready.
 
 **Some statistics.** We lean on the standard introductory toolkit throughout: correlation, standard errors, p-values, and linear models. You don't need to have aced a theory course, but the ideas should feel familiar rather than brand new. If "fit a linear model and look at the residuals" means nothing to you, a stats class first will make this book a lot more rewarding.
 
-**Matrix algebra (gently).** It comes up mostly in the Asides, when I want to show what a method is actually doing under the hood. I keep it gentle and you do not need to bring any of it with you. If you've never multiplied two matrices, the main chapters will still work fine. The Asides are there if you want to look deeper, not a wall you have to climb.
+**Matrix algebra (gently).** It comes up mostly in the Asides, when I want to show what a method is actually doing under the hood. If you've never multiplied two matrices, the main chapters will still work fine. The Asides are there if you want to look deeper.
 
-One more thing about the code. We store data as `tsibble` objects, tidy tables with a visible time index, and wrangle them with ordinary tidyverse verbs: `dplyr` for manipulation, `ggplot2` for plots, the pipe to chain it together. But a lot of the actual modeling machinery, `arima.sim`, `lm`, `spectrum`, still comes from base R, since that's where most of the classic time series tools live, and we build several of them from scratch before reaching for the canned version. If tidyverse syntax is new to you, don't let it slow you down. The place to start is tidyverse.org^[<https://www.tidyverse.org/>], and from there R for Data Science [@wickham2023r4ds] is the canonical free book.
+One more thing about the code. We store data as `tsibble` objects, tidy tables with a visible time index, and wrangle them with ordinary tidyverse verbs: `dplyr` for manipulation, `ggplot2` for plots, the pipe to chain it together. But a lot of the actual modeling machinery, `arima.sim`, `lm`, `spectrum`,  comes from base R, since that's where most of the classic time series tools live, and we build several of them from scratch before reaching for the canned version. If tidyverse syntax is new to you, don't let it slow you down. The place to start is tidyverse.org^[<https://www.tidyverse.org/>], and from there R for Data Science [@wickham2023r4ds] is the canonical resource.
 
 ## Go Do Great Things
 
-You are going to learn to see the world in time. That sounds dramatic, but I mean it practically: by the end of this book you will be able to look at a time series, describe its structure, fit a model, check your assumptions, and say something about what the data suggest.
+You are going to learn to see the world in time. By the end of this book you will be able to look at a time series, describe its structure, fit a model, check your assumptions, and say something about what the data suggest.
 
 The people who do this work well are not necessarily the ones who find it easiest. They're the ones who run the code when it breaks, read the error messages, ask questions, and keep going.
 
@@ -128,7 +128,7 @@ To follow along with the examples, you'll want a working RStudio project.
     kbli <- read_csv("data/kbli.csv")
     ```
 
-4.  **Save your `.R` or `.qmd` files in the project root**\
+4.  **Save your files in the project root**\
     Keep your working files in the project's root directory. Quarto (`.qmd`) and R Markdown (`.Rmd`) are close cousins; the syntax is nearly identical and either works fine here. After working through the decomposition chapter, your structure might look like this:
 
     ```

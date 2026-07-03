@@ -1,12 +1,11 @@
 # Aside: How R Keeps Track of Dates and Times {- .aside-chapter}
 
-The intro chapter raised a question and then ducked it: how does the computer actually store a date? For most of the book the answer does not matter, because `read_csv` hands you a proper date column and a tsibble keeps it visible. But two kinds of data force you to look under the hood, and a lot of environmental work is one or the other. Data from a logger arrives stamped with a clock time, and clocks carry time zones and daylight saving. Output from a climate model arrives on a calendar that may not have leap days at all, or may give every month thirty days. Both will burn you quietly if you assume R's defaults match your data. This aside is the reference for when that happens.
+The intro chapter raised a question and then we moved on: how does the computer actually store a date? For most of the book the answer does not matter, because for the data I give you `read_csv` hands you a proper date column and a tsibble keeps it visible. But two kinds of data force you to look under the hood, and a lot of environmental work is one or the other. Data from a logger arrives stamped with a clock time, and clocks carry time zones and daylight saving. Output from a climate model arrives on a calendar that may not have leap days at all, or may give every month thirty days. Both will trip you up if you assume R's defaults match your data. This aside is the reference for when that happens.
 
 ```{r}
 #| label: dt-packages
 #| message: false
 library(tidyverse)
-library(lubridate)
 ```
 
 ## The `Date` Class: A Count of Days
@@ -54,11 +53,11 @@ Note the quirks that list exposes: the year is counted from 1900, and the month 
 ::: {.callout-note}
 ## `Date` and `POSIXct` use 1970 as an origin and `POSIXlt` uses 1900. Why?
 
-Neither date is astronomical. They are software conventions. The 1970 epoch comes from Unix, which was taking shape at Bell Labs at the turn of the 1970s, and its designers picked the start of that decade as a convenient recent origin to count from. R sits on the same C library and POSIX standard, so it inherited the choice. Nothing is special about the date itself except that a great deal of software agreed to start counting there.
+They are software conventions. The 1970 epoch comes from Unix, which was taking shape at Bell Labs at the turn of the 1970s, and its designers picked the start of that decade as a convenient recent origin to count from. R sits on the same C library and POSIX standard, so it inherited the choice. Nothing is special about the date itself except that a great deal of software agreed to start counting there.
 
 The 1900 in `POSIXlt` has the same heritage. `POSIXlt` is a near-copy of C's broken-out time structure, `struct tm`, which stores the year as a count from 1900. It was a small space saving back when bytes were scarce, since a year in the 1900s then fit in a single byte. The month counts from zero for the same lineage reason.
 
-So why do the two classes disagree at all? Because R is wrapping two separate C constructs that were never meant to match. `POSIXct` is C's `time_t`, a single count of seconds for fast arithmetic. `POSIXlt` is C's `struct tm`, the broken-out form built for reading off components. Different jobs, standardized at different times, each with its own origin. The names spell it out once you know the C: `ct` is calendar time, the seconds count, and `lt` is local time, the broken-out form C's `localtime()` hands back. None of this matters until it produces an off-by-one bug you cannot explain, and now you can.
+So why do the two classes disagree at all? Because R is wrapping two separate C constructs that were never meant to match. `POSIXct` is C's `time_t`, a single count of seconds for fast arithmetic. `POSIXlt` is C's `struct tm`, the broken-out form built for reading off components. Those are different jobs and  standardized at different times. The names spell it out once you know the C: `ct` is calendar time, the seconds count, and `lt` is local time, the broken-out form C's `localtime()` hands back. None of this matters until it produces an off-by-one bug you cannot explain, and now you can.
 
 Does any of this matter? Not for day-to-day use. But it is a good reminder that a choice made for coding convenience gets enshrined and long outlives its reason. The byte someone saved in the 1970s is still shaping the year field you read today. Worth keeping in mind the next time you reach for a convenient shortcut of your own.
 
@@ -77,7 +76,7 @@ ymd_hms("2024-03-09 14:30:00", tz = "UTC")
 
 When you read a CSV, `read_csv` quietly runs a parser like this for you, which is why the `DATE` column in our weather data came in already typed as a `Date`. It only needs help when the format is unusual or ambiguous.
 
-The one parsing horror worth warning you about is Excel. Like an awkward teenager, Excel is convinced that everything is a date. Type a gene name like SEPT2 and it swoons into the 2nd of September; geneticists eventually renamed a batch of genes just to stop it. When it does store a date on purpose, it uses a serial number counting days from its own origin, and that origin is not 1970. On Windows it counts from December 30, 1899. So a date pasted out of a spreadsheet can arrive as a bare integer, and you have to tell R the origin to recover it.
+The one parsing horror worth warning you about is Excel. Like an awkward teenager, Excel is convinced that everything is a date. Type a gene name like SEPT2 and it swoons into the 2nd of September; geneticists eventually renamed a batch of genes just to stop it. When it does store a date on purpose, it uses a serial number counting days from its own origin, and that origin is not 1970. On Windows it counts from December 30, 1899 (which is infuriating). So a date pasted out of a spreadsheet can arrive as a bare integer, and you have to tell R the origin to recover it.
 
 ```{r}
 #| label: dt-excel
@@ -88,9 +87,9 @@ If a column of dates comes out of Excel looking like five-digit numbers, this is
 
 ## Time Zones and Daylight Saving
 
-Here is where logger data bites. A `POSIXct` is a fixed instant, but how it prints depends on the time zone you view it through. The same instant shown in two zones is two different clock readings.
+Here is where logger data gets tricky. A `POSIXct` is a fixed instant, but how it prints depends on the time zone you view it through. The same instant shown in two zones is two different clock readings.
 
-There are two operations people constantly confuse, and `lubridate` names them clearly. `with_tz` keeps the instant fixed and changes the clock you read it on. `force_tz` keeps the clock reading fixed and changes which instant it refers to. One is a conversion; the other is a relabeling, and they give different answers.
+There are two operations people constantly confuse, and the `lubridate` functions name them clearly. `with_tz` keeps the instant fixed and changes the clock you read it on. `force_tz` keeps the clock reading fixed and changes which instant it refers to. One is a conversion; the other is a relabeling, and they give different answers.
 
 ```{r}
 #| label: dt-tz

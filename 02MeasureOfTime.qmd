@@ -32,7 +32,7 @@ We will write a series as $y_t$, the value $y$ observed at time $t$. For a regul
 
 ## Storing a Time Series: the tsibble
 
-We'll start with daily weather from the Bellingham airport. Weather data are straightforward. Everybody likes to think and talk about the weather after all. The file comes with the book; for where it comes from and how to refresh it, see the [data appendix](A2DataSources.html). For now we just read it.
+We'll start with daily weather from the Bellingham airport. Weather data are straightforward. Everybody likes to talk about the weather after all. The file comes with the book; for where it comes from and how to refresh it, see the [data appendix](A2DataSources.html). For now we just read it.
 
 ```{r}
 #| label: intro-read-kbli
@@ -104,7 +104,7 @@ kbli |>
   theme_minimal()
 ```
 
-Daily temperature is a little flatter and more lopsided than a normal curve, which makes sense once you remember that this is a mixture of cold winters and warm summers stacked on top of each other. There are formal tests of normality, and resampling tricks too, but here is the single most useful habit I can give you. Plot your data. Plot your data. Plot your data. Statistical significance is a bit like what Justice Potter Stewart said about a harder-to-define thing: you know it when you see it. Other views are worth a look as well, like the empirical distribution (`ecdf`) or a normal QQ plot (`qqnorm`), but the histogram is enough to make the point.
+Daily temperature is a little flatter and more lopsided than a normal curve, which makes sense once you remember that this is a mixture of cold winters and warm summers stacked on top of each other. There are formal tests of normality, and resampling tricks too, but here is the single most useful habit I can give you. **Plot your data. Plot your data. Plot your data.** Statistical significance is a bit like what Justice Potter Stewart said about a harder-to-define thing: you know it when you see it. Other views are worth a look as well, like the empirical distribution (`ecdf`) or a normal QQ plot (`qqnorm`), but the histogram is enough to make the point.
 
 
 ## How Complete is the Record?
@@ -189,7 +189,7 @@ annual <- kbli_ts |>
   filter(year(DATE) < 2026) |>
   index_by(Year = ~ year(.)) |>
   summarise(TEMP = mean(TEMP, na.rm = TRUE))
-annual
+head(annual)
 ```
 
 The `~ year(.)` is just shorthand for "apply `year` to the index," and the new index steps one year at a time, as the `[1Y]` in the header confirms. The same move with `yearmonth(.)` would give you monthly means instead. That dropped partial year is a small thing, but it is the kind of small thing that quietly corrupts an analysis if you don't catch it, which is reason enough to plot and inspect at every step.

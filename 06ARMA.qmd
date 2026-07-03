@@ -8,13 +8,13 @@ set.seed(872)
 
 ## Big Idea
 
-Last chapter we found dependence in the values of a series. Today's value was a regression on yesterday's, and we called that autoregression. That is one place dependence lives, but it is not the only one. There is a second place, and it is the one ordinary statistics assumes away: the noise. A regression hands you a residual at each step and asks you to treat those residuals as independent, one fresh unrelated draw after another. In a time series they often are not. A shock does not always land and vanish; it can linger, folded into the next few observations, so the disturbances carry structure of their own. The moving-average model is what you write down when they do. Put the two together and you have ARMA, which says a stationary series is built from two kinds of memory: memory in where the series has been, the AR part, and memory in the shocks that have lately hit it, the MA part. Most of the persistence in environmental data is some mix of the two.
+Last chapter we found dependence in the values of a series. Today's value was a regression on yesterday's, and we called that autoregression. That is one place dependence shows itself, but it is not the only one. There is a second place, and it is the one ordinary statistics assumes away: the noise. A regression hands you a residual at each step and asks you to treat those residuals as independent, one fresh unrelated draw after another. In a time series they often are not. A shock does not always land and vanish; it can linger, folded into the next few observations, so the disturbances carry structure of their own. The moving-average model is what you write down when they do. Put the two together and you have ARMA, which says a stationary series is built from two kinds of memory: memory in where the series has been, the AR part, and memory in the shocks that have lately hit it, the MA part. Most of the persistence in environmental data is some mix of the two.
 
-One condition rides along with all of this: ARMA describes a stationary series, the assumption we spent the last chapter earning rather than waving at.
+One condition rides along with all of this: ARMA describes a stationary series, the assumption we spent the last chapter earning rather than waving at. If the series isn't stationary we will address that with ARIMA. See below.
 
 ## Packages
 
-We stay in the tsibble idiom from the earlier chapters. `forecast` gives us the ggplot-ready ACF and PACF and the `Arima` fitting function, `gridExtra` lays a few plots out together, and `tseries` carries the ADF and KPSS tests we met last chapter.
+We stay in the tsibble framework from the earlier chapters. `forecast` gives us the ggplot-ready ACF and PACF and the `Arima` fitting function, `gridExtra` lays a few plots out together, and `tseries` carries the ADF and KPSS tests we met last chapter.
 
 ```{r}
 #| label: arma-packages
@@ -85,13 +85,13 @@ and the general form extends both sums:
 
 $$ y_t = \sum_{i=1}^p \phi_i y_{t-i} + \sum_{i=1}^q \theta_i \epsilon_{t-i} + \epsilon_t $$
 
-Let's simulate one. Last chapter I promised you `arima.sim`, the function that builds these series in a single line instead of a hand-written loop. This is the place to use it. We ask for an AR coefficient of 0.5 and an MA coefficient of 0.8.
+Let's simulate one. We've seen `arima.sim`, the function that builds these series in a single line instead of a hand-written loop. This is a good place to use it. We ask for an AR coefficient of 0.5 and an MA coefficient of 0.8. The syntax of `arima.sim` takes some getting used to. Read the help page carefully to parse it.
 
 ```{r}
 #| label: arma-arma11-sim
 #| fig-height: 4
 n <- 200
-y <- arima.sim(list(ar = 0.5, ma = 0.8), n = n)
+y <- arima.sim(model = list(ar = 0.5, ma = 0.8), n = n)
 
 p1 <- ggplot(tibble(t = 1:n, y = as.numeric(y)), aes(t, y)) +
   geom_line() + labs(x = "Time", y = expression(y[t])) + theme_minimal()
@@ -102,7 +102,7 @@ grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
 
 The ACF and PACF now carry features of both parents, which is exactly why mixed models are harder to read off a plot by eye than a pure AR or pure MA. That is fine. We are about to stop guessing the order from the plot and start selecting it with a criterion.
 
-The reason to bother with a model like this is never the model for its own sake. It is what the model tells you about the system that made the data. With an ARMA(1,1) you can picture a process with an *internal* dynamic that creates the AR part and an *external* one that creates the MA part. Say you are measuring the annual growth of a perennial plant. The plant needs a long, warm growing season in year $t$ to grow well, and it also leans on energy it stored last year, $t-1$, to start the new season. That stored-energy dependence is an internal autoregression. Now suppose the growing-degree-days that drive growth are themselves autocorrelated, because atmospheric patterns persist from one year to the next. That external persistence enters through the climate forcing rather than through the plant's biology, and it can show up as a moving-average term. Two different mechanisms, one combined signature.
+The reason to bother with a model like this is never the model for its own sake. It is what the model tells you about the system that made the data. With an ARMA(1,1) you can picture a process with an *internal* dynamic that creates the AR part and an *external* one that creates the MA part. Say you are measuring the annual growth of a perennial plant. The plant needs a long, warm growing season in year $t$ to grow well, and it also leans on energy it stored last year, $t-1$, to start the new season. That stored-energy dependence is an internal autoregression. Now suppose the growing-degree-days that drive growth are themselves autocorrelated, because atmospheric patterns persist from one year to the next. That external persistence enters through the climate forcing rather than through the plant's biology, and it can show up as a moving-average term. Those are two different mechanisms combined in a time series.
 
 As the orders climb, that kind of story gets harder to tell, which is a warning. A long series will happily fit a high-order model, but a good fit is not a reason to believe an AR(20) unless you can point to a mechanism that would produce twenty years of memory. Box said it best: all models are wrong, but some are useful.
 
@@ -177,13 +177,7 @@ p3 <- ggPacf(resid11) + labs(title = NULL) + theme_minimal()
 grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
 ```
 
-Clean. No bar pokes meaningfully past the band, so the model has soaked up the dependence and left noise behind. The `tsdiag` function packages the same idea, and adds the p-values from the Ljung-Box test, which checks groups of lags at once for leftover autocorrelation. Large p-values are the good outcome here: they say the residuals are indistinguishable from independence. It is an ugly plot, but a useful one.
-
-```{r}
-#| label: arma-tsdiag
-#| fig-height: 5
-tsdiag(arma11)
-```
+Clean. No bar pokes meaningfully past the band, so the model has soaked up the dependence and left noise behind.
 
 Now a word about a temptation. It is natural to want to overlay the model's fitted values on the observed series and admire how close they sit.
 
@@ -198,15 +192,15 @@ tibble(t = 1:n, observed = as.numeric(y), fitted = as.numeric(fitted(arma11))) |
   theme_minimal()
 ```
 
-The fit looks spectacular, and the fitted-versus-observed $R^2$ is about `r round(cor(as.numeric(y), as.numeric(fitted(arma11)))^2, 2)`. Do not be impressed. The one-step-ahead fitted value of an AR model is essentially $\phi$ times yesterday's value, so of course it tracks the series closely: yesterday's value is the best single clue to today's, and the plot is mostly showing you that today's number is near yesterday's. A high fitted-versus-observed $R^2$ is close to automatic for any autoregressive fit and tells you almost nothing about whether you picked the right model. The residual diagnostics above are the test that actually bites. This is the first conviction of the book in small: the software prints an impressive number whether or not you have learned anything.
+The fit looks spectacular, and the fitted-versus-observed $R^2$ is about `r round(cor(as.numeric(y), as.numeric(fitted(arma11)))^2, 2)`. Do not be impressed. The one-step-ahead fitted value of an AR model is essentially $\phi$ times yesterday's value, so of course it tracks the series closely: yesterday's value is the best single clue to today's, and the plot is mostly showing you that today's number is near yesterday's. A high fitted-versus-observed $R^2$ is close to automatic for any autoregressive fit and tells you almost nothing about whether you picked the right model. The residual diagnostics above are the test that actually helps This is the first conviction of the book in small: the software prints an impressive number whether or not you have learned anything.
 
 One more note before we leave the simulated data. BIC pointed at the ARMA(1,1), but look back at the table and you'll see a few neighbors are not far behind. There is often no single right model, only a least-wrong one, and reasonable people will read a BIC table differently. The tie-breakers are clean residuals and, above all, a mechanism you can defend. Simpler beats more complex when the fit is comparable.
 
 ## What About ARIMA?
 
-You have seen the acronym ARIMA, and it is worth knowing what the extra letter buys. The "I" stands for integrated, and it is the differencing step from the last chapter wearing a different hat. Everything we just did assumes the series is stationary, because the AR and MA coefficients only describe a fixed relationship if that relationship holds throughout the series. Fit a stationary model to a series whose mean is wandering off, and the coefficients are an average of conditions that never actually held. So when a series is not stationary, you difference it first, fit ARMA to what is left, and the whole procedure is called ARIMA(p,d,q): difference $d$ times, then fit an ARMA(p,q). That is all the "I" means. ARIMA is ARMA applied to differenced data.
+You have seen the acronym ARIMA now for ahwile, and it is worth knowing what the extra letter buys. The "I" stands for integrated, and it is the differencing step from the last chapter wearing a different hat. Everything we just did assumes the series is stationary, because the AR and MA coefficients only describe a fixed relationship if that relationship holds throughout the series. Fit a stationary model to a series whose mean is wandering off, and the coefficients are an average of conditions that never actually held. So when a series is not stationary, you difference it first, fit ARMA to what is left, and the whole procedure is called ARIMA(p,d,q): difference $d$ times, then fit an ARMA(p,q). That is all the "I" means. ARIMA is ARMA applied to differenced data.
 
-The decision about *whether* and *how* to difference is the one we built the stationarity chapter to answer, so I won't repeat it here. The short version: a deterministic trend gets detrended, a stochastic trend gets differenced, the two look alike on a plot, and you tell them apart with ADF and KPSS read against what you know about the mechanism. If any of that is hazy, go back to the [stationarity chapter](05Stationarity.html); it is the load-bearing part of this whole story.
+The decision about *whether* and *how* to difference is the one we built the stationarity chapter to answer, so I won't repeat it here. The short version: a deterministic trend gets detrended, a stochastic trend gets differenced, the two look alike on a plot, and you tell them apart with ADF and KPSS read against what you know about the mechanism. If any of that is hazy, go back to the [stationarity chapter](05Stationarity.html).
 
 I do want to make one point here that the stationarity chapter sets up but this is the place to feel it. Differencing is not free, and reaching for it by reflex is exactly the habit the last chapter was meant to break. Here is a series that looks like it is trending.
 
@@ -306,10 +300,10 @@ arma22 <- Arima(sst_diff, order = c(2, 0, 2))
 
 armaBIC <- BIC(arma00, arma10, arma20, arma01, arma02,
                arma11, arma21, arma12, arma22)
-armaBIC
+armaBIC |> arrange(BIC)
 ```
 
-The BIC favors the ARMA(0,1), with the ARMA(1,1) close behind. Unlike the planted series, there is no answer key here, so the choice is a judgment call. Look at the residuals of the ARMA(0,1) to see whether it has done its job.
+The BIC favors the ARMA(0,2), with the ARMA(1,1) close behind. Unlike the planted series, there is no answer key here, so the choice is a judgment call. Look at the residuals of the ARMA(0,2) to see whether it has done its job.
 
 ```{r}
 #| label: arma-sst-resid
@@ -323,7 +317,7 @@ p3 <- ggPacf(resid01) + labs(title = NULL) + theme_minimal()
 grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
 ```
 
-Those residuals are clean, so the ARMA(0,1) on the differenced series is a defensible model. So is the ARMA(1,1). With measured data you often end up holding two or three models that all fit about equally well, and no p-value settles it. What would settle it, or at least make the choice interesting, is knowing more about the physics and biology that drive sea surface temperature in this strait. Pattern is a clue. Process is the prize.
+Those residuals are clean, so the ARMA(0,2) on the differenced series is a defensible model. So is the ARMA(1,1). With measured data you often end up holding two or three models that all fit about equally well, and no p-value settles it. What would settle it, or at least make the choice interesting, is knowing more about the physics and biology that drive sea surface temperature in this strait. Pattern is a clue. Process is the prize.
 
 ## Wrapping Up
 
