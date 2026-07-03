@@ -54,25 +54,33 @@ x_shifted <- dplyr::lag(x, lag_true)        # x from three steps back
 y <- 0.8 * x_shifted + rnorm(n, sd = 0.5)
 ```
 
-Always look at what you built. Here are the first sixty points of both series, and if you stare at the peaks you can almost see $y$ echoing $x$ a few steps later.
+Always look at what you built. Here are the first thirty points of both series, and if you stare at the peaks you can (almost) see $y$ echoing $x$ a few steps later.
 
 ```{r}
 #| label: ccf-planted-data
 #| fig-height: 3
 tibble(time = 1:n, x, y) |>
-  filter(time <= 60) |>
+  filter(time <= 30) |>
   pivot_longer(c(x, y)) |>
   ggplot(aes(time, value, color = name)) +
   geom_line() +
+  geom_point(alpha=0.3,size=2) +
   scale_color_manual(values = c(x = sfPal[1], y = sfPal[5])) +
   labs(x = "Time", y = NULL, color = NULL) +
   theme_minimal()
 ```
 
-Line the two series up at the same time and there is almost nothing there. Line $y$ up against $x$ from three steps back and the relationship snaps into focus.
+Line the two series up at the same time and there is nothing there.
 
 ```{r}
 #| label: ccf-planted-cor
+cor(x,y,use="complete.obs")
+```
+
+Line $y$ up against $x$ from three steps back and the relationship snaps into focus.
+
+```{r}
+#| label: ccf-planted-cor-lag
 aligned <- tibble(x, y) |> drop_na()
 cor(aligned$x, aligned$y)                   # same-time correlation
 
@@ -128,13 +136,13 @@ ggCcf(planktonData$producers, planktonData$grazers, lag.max = 24) +
   theme_minimal()
 ```
 
-The strongest correlation is right at lag zero, the two series moving together within the month, which makes sense for organisms that respond to each other on a scale of weeks when you are only sampling monthly. But the plot is not symmetric. The bars just left of zero, where the producers lead, stand taller than the matching bars on the right, where they would trail. The algae running a month ahead of the grazers correlates better than the algae running a month behind, and that asymmetry is the food chain showing through. It is a softer signal than the planted spike, and that is the difference between a simulation and a lake. Plankton respond to each other faster than a monthly sample can resolve, so the lead gets squashed toward lag zero instead of standing off at a clean offset.
+The strongest correlation is right at lag zero, the two series moving together within the month, which makes sense for organisms that respond to each other on a scale of weeks when you are only sampling monthly. But the plot is not symmetric. The bars just left of zero, where the producers lead, stand taller than the matching bars on the right, where they would trail. The algae running a month ahead of the grazers correlates better than the algae running a month behind, and that asymmetry is the food chain showing through. It is a weaker signal than the planted spike, and that is the difference between a simulation and a lake. Plankton respond to each other faster than a monthly sample can resolve, so the lead gets squashed toward lag zero instead of standing off at a clean offset.
 
 And look at the rest of the plot. The correlation does not drop to nothing away from the peak; it rides a slow wave, positive for a stretch of lags and then sliding negative, because both series carry the same strong annual cycle and the cross-correlation picks up every overlap between the two seasons, not just the food-chain lead we care about. Reading a single lag off a plot like this is asking for trouble, which brings us to the part of the chapter that keeps you out of it.
 
 ## Spurious Cross-Correlation
 
-Here is the trap in its purest form. Take two random walks, each one nothing but a cumulative sum of independent noise, built so that they have absolutely nothing to do with each other.
+But there is a trap. Take two random walks, each one nothing but a cumulative sum of independent noise, built so that they have absolutely nothing to do with each other.
 
 ```{r}
 #| label: ccf-spurious-build
@@ -168,9 +176,9 @@ ggCcf(rw1, rw2, lag.max = 20) +
   theme_minimal()
 ```
 
-Bars towering over the dashed band at nearly every lag, all of it noise. Neither series knows the other exists. What fools the cross-correlation is that each series wanders slowly and smoothly, so any two long smooth wanders will drift in and out of step and look related over a stretch. This is the saboteur face of dependence again: the autocorrelation inside each series, the thing that makes it smooth, is exactly what manufactures the fake relationship between them.
+Bars towering over the dashed band at nearly every lag, all of it noise. Neither series knows the other exists. What fools the cross-correlation is that each series wanders slowly and smoothly, so any two long smooth wanders will drift in and out of step and look related over a stretch. This is the saboteur of dependence again: the autocorrelation inside each series, the thing that makes it smooth, is exactly what makes the fake relationship between them.
 
-The fix has a name, prewhitening, and the idea behind it is the spine of this whole book. Before you ask how two series relate, take the predictable structure out of each one and reduce it to white noise, so that what remains is only the part the series could not have produced on its own. For a random walk, the structure is the unit root, and the way to remove it is the way we removed it back in the stationarity chapter: difference it. Difference both series and the wandering is gone, leaving the independent shocks that drove each walk.
+The fix has a name, prewhitening. Before you ask how two series relate, take the predictable structure out of each one and reduce it to white noise, so that what remains is only the part the series could not have produced on its own. For a random walk, the structure is the unit root, and the way to remove it is the way we removed it back in the stationarity chapter: difference it. Difference both series and the wandering is gone, leaving the independent shocks that drove each walk.
 
 ```{r}
 #| label: ccf-spurious-pw
@@ -182,7 +190,7 @@ ggCcf(d1, d2, lag.max = 20) +
   theme_minimal()
 ```
 
-The forest of correlation collapses. Every bar is back inside the band, which is the correct answer: there was never anything between these two series, and once you stop letting their private wandering do the talking, the cross-correlation says so.
+The correlation collapses. Every bar is back inside the band, which is the correct answer: there was never anything between these two series, and once you stop letting their private wandering do the talking, the cross-correlation says so.
 
 Now turn the same tool on the producers and grazers, where we believe there is something but the annual cycle is burying it. The recipe for a series that is not a simple random walk is to fit it a model, take the residuals as the whitened version, and apply that same filter to the other series before comparing. Fit an autoregressive model to the producers, whiten the producers with its residuals, run the grazers through the producers' filter, and cross-correlate what is left.
 
@@ -206,13 +214,13 @@ ggCcf(as.numeric(prod_white[ok]), as.numeric(graz_filt[ok]), lag.max = 24) +
   theme_minimal()
 ```
 
-The order `ar` chose tells its own story: it reached back two years to model the producers, stacking up lags to rebuild the annual cycle the same blunt way the algorithm rebuilt the river's season in the forecasting chapter. With that cycle stripped out of both series, the slow wave is gone. What is left is small, near the dashed band, but it is not symmetric. The bars on the producer-leads side, at lag zero and one month back, clear the band; the bars on the trailing side do not. Prewhitening took away the season's gift of correlation at every lag and left only the part that runs one direction in time: the algae lead the grazers, never the reverse. That is the difference between the random walks and the plankton. When the relationship was fake, prewhitening erased it. When the relationship was there, prewhitening cleared away the seasonal clutter and left the direction standing. The lead of the algae over the grazers is faint, but it is the food chain, and the data earned it.
+The order `ar` chose reached back two years to model the producers, stacking up lags to rebuild the annual cycle the same blunt way the algorithm rebuilt the river's season in the forecasting chapter. With that cycle stripped out of both series, the slow wave is gone. What is left is small, near the dashed band, but it is not symmetric. The bars on the producer-leads side, at lag zero and one month back, clear the band; the bars on the trailing side do not. Prewhitening took away the season's gift of correlation at every lag and left only the part that runs one direction in time: the algae lead the grazers, never the reverse. That is the difference between the random walks and the plankton. When the relationship was fake, prewhitening erased it. When the relationship was there, prewhitening cleared away the seasonal clutter and left the direction standing. The lead of the algae over the grazers is faint, but it is the food chain.
 
 ## Wrapping Up
 
 Cross-correlation extends the autocorrelation function to two series and reports the lag at which one tracks the other. Read correctly, that lag is a clue to mechanism: which series moves first, and by how long. We planted a lead of three and recovered it, found the algae of Lake Washington running a step ahead of the grazers that eat them, and then spent the back half of the chapter on the reason you cannot take a raw cross-correlation at face value. Two series that each carry a trend, a cycle, or strong memory of their own will correlate with each other for reasons that have nothing to do with one influencing the other, and prewhitening, stripping each series down to white noise before comparing, is how you tell the difference between a relationship and a coincidence.
 
-That sets up the next chapter. Suppose the cross-correlation convinces you that $x$ leads $y$ and you want to act on it, to actually fit $y$ as a function of $x$ and read the slope. The moment you write that regression down you are back in the trap from the first chapters: the errors will be autocorrelated, ordinary least squares will believe them too much, and the standard error it reports will off. The regression chapter is about fitting a model between two series and trusting the answer, which means dealing with the dependence in the errors head on.
+That sets up the next chapter. Suppose the cross-correlation convinces you that $x$ leads $y$ and you want to act on it, to actually fit $y$ as a function of $x$ and read the slope. The moment you write that regression down you are back in the trap from the first chapters: the errors will be autocorrelated, ordinary least squares will believe them too much, and the standard error it reports will off. The regression chapter is about fitting a model between two series and trusting the answer, which means dealing with the dependence in the errors.
 
 ## Exercises
 

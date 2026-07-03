@@ -225,7 +225,15 @@ ggplot(noiseSpecDat, aes(freq, spec)) +
   theme_minimal()
 ```
 
-That's a random spectrum. Run that a few times. Change `n` and continue after being comfortable with what noise looks like in the frequency domain. 
+That's a random spectrum. Run that a few times. Change `n` and continue after being comfortable with what noise looks like in the frequency domain.
+
+:::: {.callout-note}
+## White and red noise, made literal
+
+Back in the autocorrelation chapter, an AR(1) with $\phi = 0.7$ earned the name red noise just by looking smoother and more given to wandering than plain `rnorm()`, white noise. The periodogram is where that eyeball call turns into a number. White noise's spectrum is flat, exactly the plot above: every frequency carries about the same variance, because there's no memory pulling the series toward slow change over fast. Red noise tilts that flatness toward the low end, more power at slow frequencies and less at fast ones, which is exactly what positive autocorrelation does to a series. Push $\phi$ all the way to one, the random walk from the stationarity chapter, and the tilt runs away entirely: power piles up as frequency goes to zero instead of leveling off. That extreme has its own name too, brown noise, a pun on Brownian motion rather than one more shade of red.
+
+The vocabulary earns its keep outside this book. Climate scientists routinely fit an AR(1) as the red-noise null hypothesis before trusting a periodogram peak: plenty of climate series are reddened by ordinary persistence alone, and a peak has to clear that reddened background, not a flat white one, before anyone calls it a cycle.
+::::
 
 Now, here's the demonstration. Draw 500 independent white-noise series, compute the periodogram of each, and look at just one frequency bin (0.1) across all 500 draws. White noise has a flat spectrum everywhere, so every one of those 500 numbers is estimating the same true value. Do it once with series of length 100 and again with series ten times longer.
 

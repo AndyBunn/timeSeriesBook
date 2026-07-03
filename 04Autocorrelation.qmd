@@ -60,6 +60,16 @@ ggplot(tibble(t = 1:n, y), aes(t, y)) +
 
 Look at how that was put together. We started with a vector of zeros and began building on the second value, because an AR(1) step needs the prior value and there is nothing before the first. We could have seeded `y[1]` with a random draw instead of a zero, but the zero washes out quickly. Run the loop and redraw the plot a half-dozen times to get a feel for the shape. Then compare it to a series with no memory at all (e.g., `plot(rnorm(n), type = "l")`). The autocorrelated series has a smoothness to it, a tendency to stay where it is for a while, that pure noise lacks.
 
+:::: {.callout-note}
+## The color of noise. 
+
+Why "white" noise and "red" noise? It comes from physics. When the error term (shock) is drawn from a normal distribution we call it "white noise." The name is borrowed from light, not statistics. White light carries every visible wavelength in roughly equal measure, no color dominates, and a white noise process spreads its variance around the same way, with no lean toward slow change or fast change. `rnorm(n)`, the shocks alone with no memory built in, is white noise.
+
+Give a series memory, the way $\phi = 0.7$ just did, and the spread stops being even. A value that still resembles the one before it tends to drift rather than jitter, so its variance leans toward slow change and away from fast. That lean toward the slow end is called red noise, same analogy: red sits at the low-frequency end of the visible spectrum, so a process whose variance favors low frequencies borrows its name. The smoother, wandering line you just built, next to the flat jitter of `rnorm(n)`, is red noise sitting beside white. The frequency chapter puts a number on that lean instead of an eyeball, but the color names are already earned by what you can see right here.
+
+Time series inherits a lot of lingo. We just have to deal with it.
+::::
+
 We planted a known $\phi = 0.7$ in that series. The first thing we will do with the tools below is see whether we can read it back out.
 
 ## The Autocorrelation Function
@@ -171,7 +181,6 @@ Before we touch the autocorrelation, look at the series itself. The flow drops n
 ```{r}
 #| label: auto-nile-acf
 #| fig-height: 3
-#| Maybe revisit? post 1903 there is no AC and more of an ARIMA example?
 g1 <- ggAcf(Nile) + labs(title = "ACF") + theme_minimal()
 g2 <- ggPacf(Nile) + labs(title = "PACF") + theme_minimal()
 grid.arrange(g1, g2, ncol = 2)
