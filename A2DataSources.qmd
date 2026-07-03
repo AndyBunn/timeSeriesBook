@@ -446,6 +446,37 @@ glimpse(blowfly)
 
 There is no live source to refresh here. This is one closed lab experiment run once in the 1950s, not a station still reporting; the digitized table traces back through @Nicholson1957 and a widely used retabulation by Brillinger, Guckenheimer, Guttorp, and Oster (1980).^[<http://ionides.github.io/531w16/final_project/blowfly4.csv>]
 
+## The Pacific Halibut Stock and Recruitment Data
+
+The forecasting chapter's backtesting example uses annual recruitment for Pacific Halibut (*Hippoglossus stenolepis*), the stock the International Pacific Halibut Commission has managed jointly for the US and Canada since 1923. The series comes packaged in `FSAdata` [@R-FSAdata], itself compiled from IPHC annual reports and a technical report by Myhre and colleagues; you only need the package to rebuild the file, so the book does not load it.
+
+### Reading It
+
+```{r}
+#| label: a1-read-halibut
+#| message: false
+halibut <- read_csv("data/halibut.csv")
+glimpse(halibut)
+```
+
+`year` runs 1929 to 1991. `ssb` is spawning stock biomass in tonnes, `rec` is recruits in thousands of fish, `land` is landings in millions of pounds, and `fmort` is fishing-related mortality. The book's forecast only uses `rec`, and only over 1935 to 1981, the span with no missing years; biomass and recruitment were not estimated for the record's earliest and most recent years, and the file keeps those gaps as honest `NA`s rather than papering over them.
+
+### Building It
+
+```{r}
+#| label: a1-halibut-build
+#| eval: false
+library(FSAdata)
+data(HalibutPAC)
+
+halibut_fresh <- HalibutPAC
+halibut_fresh$ssb <- round(halibut_fresh$ssb, 1)
+halibut_fresh$rec <- round(halibut_fresh$rec, 1)
+write_csv(halibut_fresh, "data/halibut.csv")
+```
+
+This is a closed historical record from a specific stock assessment vintage, not a feed that updates, so there is nothing to refresh against; the recipe is here so you can see exactly where the numbers came from.
+
 ## The Rest of the Data
 
 Every other dataset the book uses lives in the same `data/` folder, and you can download the whole bundle as a single `data.zip` from the book's website. Each dataset is credited where it first appears, with a pointer back here when there is a way to refresh it yourself. As more chapters move over to this style, their sources will be documented in this appendix too.

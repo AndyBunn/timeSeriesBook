@@ -232,91 +232,85 @@ The plot looks impressive (for a short time anyway). Whether it is any good is a
 
 So far we have admired forecasts without ever testing one. Every forecast in this chapter has run off the end of the data into territory where nothing can contradict it. That is the comfortable place to stop, and it is exactly where you fool yourself. The fix is to hold some data back. Split the series into a training piece and a testing piece, fit the model on the training piece only, forecast across the span you withheld, and compare the forecast to the values you were hiding. This is backtesting, and it is the same train-and-test discipline you would use on any model. The difference is that with a time series you cannot shuffle and split at random, because the order is the information. You withhold the tail.
 
-Let's do it on a river. The North Fork Nooksack drains Mount Baker and runs past Glacier, Washington, the same watershed as our Bellingham weather example. The daily discharge record goes back to 1938. We will aggregate it to monthly mean flow, which smooths the daily spikes and leaves a clean snowmelt cycle.
+Let's do it somewhere the stakes are not hypothetical. Every year the International Pacific Halibut Commission has to set a catch limit before it knows how many young fish actually survived to join the population, so it forecasts recruitment: the number of fish, in thousands, entering the fishery that year. Forecast too high and the quota erodes a stock that cannot support it; forecast too low and you leave a legal, sustainable harvest in the water. Fisheries agencies do exactly the kind of backtesting we are about to do, every season, because the alternative is finding out you were wrong after the boats have already gone out. It does not always work. When Newfoundland's northern cod stock collapsed in 1992, the assessments feeding the catch quotas had been reading the population as healthier than it was for years, and that fishery has never recovered. A good backtest will not save you from every possible failure. It is still better than not checking at all.
 
 ```{r}
-#| label: fc-nooksack-load
-nooksack <- read_csv("data/nooksack.csv", show_col_types = FALSE) |>
-  as_tsibble(index = DATE)
-
-nooksack_monthly <- nooksack |>
-  index_by(month = ~ yearmonth(.)) |>
-  summarise(flow = mean(FLOW, na.rm = TRUE))
+#| label: fc-halibut-load
+halibut <- read_csv("data/halibut.csv", show_col_types = FALSE) |>
+  filter(year >= 1935, year <= 1981)
 ```
 
 ```{r}
-#| label: fc-nooksack-plot
+#| label: fc-halibut-plot
 #| echo: false
 #| fig-height: 3
-nooksack_monthly |>
-  ggplot(aes(month, flow)) +
-  geom_line(linewidth = 0.3) +
-  labs(x = "Year", y = expression(Mean~flow~(m^3~s^-1)),
-       title = "North Fork Nooksack, monthly mean discharge") +
+halibut |>
+  ggplot(aes(year, rec)) +
+  geom_line() +
+  geom_point() +
+  labs(x = "Year", y = "Recruits (thousands)",
+       title = "Pacific Halibut recruitment, 1935-1981") +
   theme_minimal()
 ```
 
-The melt freshet every June dominates the picture, and the level is flat over the long haul: a river does not grow the way a city's electricity demand does. Our analysis functions want a `ts`, so we hand the monthly column over with a start year and a frequency of twelve, then withhold the last five years.
+This is the recruitment record for Pacific Halibut, the big flatfish fished from Oregon to the Bering Sea and managed jointly by the US and Canada. It is annual, not monthly, so there is no season here for an algorithm to reconstruct out of stacked lags, only whatever year-to-year persistence cohort survival leaves behind. We hand the recruits column over as a `ts` and withhold the last ten years.
 
 ```{r}
-#| label: fc-nooksack-split
-flow <- ts(nooksack_monthly$flow, start = c(1938, 1), frequency = 12)
+#| label: fc-halibut-split
+rec <- ts(halibut$rec, start = 1935, frequency = 1)
 
-h <- 60  # withhold five years
-flow_train <- head(flow, length(flow) - h)
-flow_test  <- tail(flow, h)
+h <- 10  # withhold the last decade
+rec_train <- head(rec, length(rec) - h)
+rec_test  <- tail(rec, h)
 ```
 
 Fit an AR model on the training span and forecast across the test span.
 
 ```{r}
-#| label: fc-nooksack-ar
-flow_ar <- ar(flow_train)
-flow_ar$order
-ar_fc <- predict(flow_ar, n.ahead = h)
+#| label: fc-halibut-ar
+rec_ar <- ar(rec_train)
+rec_ar$order
+ar_fc <- predict(rec_ar, n.ahead = h)
 ```
 
 ```{r}
-#| label: fc-nooksack-ar-plot
+#| label: fc-halibut-ar-plot
 #| echo: false
 #| fig-height: 3.5
-test_tb <- tibble(month = nooksack_monthly$month[(length(flow) - h + 1):length(flow)],
-                  flow = as.numeric(flow_test))
-ar_tb <- tibble(month = test_tb$month, yhat = as.numeric(ar_fc$pred))
+test_tb <- tibble(year = time(rec_test) |> as.numeric(),
+                  rec = as.numeric(rec_test))
+ar_tb <- tibble(year = test_tb$year, yhat = as.numeric(ar_fc$pred))
 ggplot() +
-  geom_line(data = test_tb, aes(month, flow)) +
-  geom_line(data = ar_tb, aes(month, yhat), color = "darkgreen") +
-  labs(x = "Year", y = expression(Mean~flow~(m^3~s^-1)),
-       title = "AR forecast (green) against the withheld five years (black)") +
+  geom_line(data = test_tb, aes(year, rec)) +
+  geom_line(data = ar_tb, aes(year, yhat), color = "darkgreen") +
+  labs(x = "Year", y = "Recruits (thousands)",
+       title = "AR forecast (green) against the withheld decade (black)") +
   theme_minimal()
 ```
 
-The forecast tracks the seasonal swing, which looks like a win. Put a number on it.
+`ar` picked an order of one: a single year of memory. That is a model you can defend. Whatever drove one year class to survive tends to carry a little into the next, ocean conditions do not reset every January, and there is no twelve-month cycle sitting there for the algorithm to fake with a stack of lags. Put a number on the forecast.
 
 ```{r}
-#| label: fc-nooksack-ar-skill
-ar_rmse <- sqrt(mean((ar_fc$pred - flow_test)^2))
-ar_cor  <- cor(ar_fc$pred, flow_test)
-c(order = flow_ar$order, rmse = ar_rmse, cor = ar_cor)
+#| label: fc-halibut-ar-skill
+ar_rmse <- sqrt(mean((ar_fc$pred - rec_test)^2))
+ar_cor  <- cor(ar_fc$pred, rec_test)
+c(order = rec_ar$order, rmse = ar_rmse, cor = ar_cor)
 ```
 
-A correlation around 0.68 with the held-out data, off a model the algorithm chose on its own. That feels like skill. But look at the order `ar` picked: twenty-four. Twenty-four months of memory on a river. There is no mechanism on Earth that gives the Nooksack a physical dependence on its flow two years ago; what the algorithm has done is reconstruct the annual cycle the dumb way, by stacking up enough lags to span twelve months and then twelve more. This is the blind algorithm from the callout, caught in the act. The order is indefensible even though the forecast is not bad.
-
-So is it any good? You cannot answer that from the forecast alone, and you cannot answer it from the correlation, because a number near 0.68 sounds high until you ask what an idiot could score. Here is the idiot. Forget dynamics entirely and predict each month by its long-run average in the training data: every June gets the mean June flow, every January the mean January flow. That is climatology, the seasonal cycle and nothing else.
+Now ask what an idiot could score. There is no season to hand a baseline for free here, so the fair baseline is simpler still: predict every withheld year with the training period's long-run average recruitment, full stop.
 
 ```{r}
-#| label: fc-nooksack-clim
-monthly_mean <- tapply(as.numeric(flow_train), cycle(flow_train), mean)
-clim_pred <- monthly_mean[cycle(flow_test)]
-clim_rmse <- sqrt(mean((clim_pred - flow_test)^2))
-c(ar_rmse = ar_rmse, clim_rmse = clim_rmse)
+#| label: fc-halibut-mean
+mean_pred <- rep(mean(rec_train), h)
+mean_rmse <- sqrt(mean((mean_pred - rec_test)^2))
+c(ar_rmse = ar_rmse, mean_rmse = mean_rmse)
 ```
 
-The AR(24), with its two dozen estimated coefficients, beats "what does the river usually do this month" by a rounding error. Almost all of the apparent skill was the season, and the season was free. This is the lesson the backtest exists to teach, and it is the first conviction again: an impressive-looking forecast and a high correlation can both be hiding the fact that a trivial baseline does nearly as well. The held-out comparison is what tells you whether your model is worth its complexity, and here it mostly was not. If a fitted AR cannot clear climatology, you have learned something worth knowing before you stake anything on the forecast.
+The AR(1) beats the flat average by a wide margin this time, not a rounding error. That is the opposite lesson from a seasonal river: there, almost all the apparent skill was a free season and the AR barely cleared the baseline. Here there is no free season to inflate the comparison, so the improvement the model shows is actual signal, persistence in how one year's recruitment leans on the last. It is a smaller, humbler forecast than the sunspot cycle, and it is exactly the kind of number a stock assessment leans on, an unglamorous edge over the flat average that still changes what catch limit looks defensible.
 
 ## Holt-Winters
 
-The AR model treated the seasonality as a nuisance to be reconstructed from raw lags. A model built to handle season and trend on purpose ought to do better, or at least do it with parameters that mean something. Holt-Winters forecasts by exponential smoothing, applied separately to the level, the trend, and the season, and the whole thing rests on one simple idea about weighted averages. Let's build up to it from scratch so we can see the logic.
+The AR model got its one lag of memory by fitting a coefficient the same way it would for any process, with nothing telling it that a recruitment series has a level that drifts and no season to speak of. A model built to handle level and trend on purpose, with parameters that mean something, ought to do at least as well. Holt-Winters forecasts by exponential smoothing, applied separately to the level, the trend, and (when there is one) the season, and the whole thing rests on one simple idea about weighted averages. Let's build up to it from scratch so we can see the logic.
 
 Suppose you have a short series and you want to predict the next value.
 
@@ -388,36 +382,38 @@ exp_smooth <- function(x, alpha = 0.5) {
 exp_smooth(y, alpha = 0.9)
 ```
 
-A large $\alpha$ trusts the most recent point and barely smooths; a small $\alpha$ leans on the accumulated history and smooths hard. That single dial is simple exponential smoothing. Holt-Winters runs three of these dials at once, one for the level ($\alpha$), one for the trend ($\beta$), and one for the season ($\gamma$), and adds them up into a forecast. The `HoltWinters` function finds the three coefficients by numerical optimization, minimizing the squared one-step errors. We do not have to set them by hand.
+A large $\alpha$ trusts the most recent point and barely smooths; a small $\alpha$ leans on the accumulated history and smooths hard. That single dial is simple exponential smoothing. Holt-Winters runs three of these dials at once, one for the level ($\alpha$), one for the trend ($\beta$), and one for the season ($\gamma$), and adds them up into a forecast. The `HoltWinters` function finds the coefficients by numerical optimization, minimizing the squared one-step errors. We do not have to set them by hand.
 
-Now put it on the river, fit on the same training span, and backtest against the same withheld five years.
+Now put it on the halibut recruits, fit on the same training span, and backtest against the same withheld decade. There is no season in an annual series, so we turn the third dial off (`gamma = FALSE`) and let Holt-Winters run as plain level-plus-trend smoothing, Holt's original method before Winters added the seasonal piece.
 
 ```{r}
 #| label: fc-hw-fit
-flow_hw <- HoltWinters(flow_train)
-hw_fc <- predict(flow_hw, n.ahead = h)
-hw_rmse <- sqrt(mean((hw_fc - flow_test)^2))
-c(ar_rmse = ar_rmse, hw_rmse = hw_rmse, clim_rmse = clim_rmse)
+rec_hw <- HoltWinters(rec_train, gamma = FALSE)
+hw_fc <- predict(rec_hw, n.ahead = h)
+hw_rmse <- sqrt(mean((hw_fc - rec_test)^2))
+c(ar_rmse = ar_rmse, hw_rmse = hw_rmse, mean_rmse = mean_rmse)
 ```
 
 ```{r}
 #| label: fc-hw-plot
 #| echo: false
 #| fig-height: 3.5
-hw_tb <- tibble(month = test_tb$month, yhat = as.numeric(hw_fc))
+hw_tb <- tibble(year = test_tb$year, yhat = as.numeric(hw_fc[, 1]))
 ggplot() +
-  geom_line(data = test_tb, aes(month, flow)) +
-  geom_line(data = hw_tb, aes(month, yhat), color = "darkblue") +
-  labs(x = "Year", y = expression(Mean~flow~(m^3~s^-1)),
+  geom_line(data = test_tb, aes(year, rec)) +
+  geom_line(data = hw_tb, aes(year, yhat), color = "darkblue") +
+  labs(x = "Year", y = "Recruits (thousands)",
        title = "Holt-Winters forecast (blue) against the withheld years") +
   theme_minimal()
 ```
 
-Holt-Winters edges out the AR model, and both edge out climatology, but none of it is a landslide. On held-out data the three of them land within a hair of one another. If the numbers will not separate the models, what does? Two things the backtest cannot see. One is parsimony: Holt-Winters reaches its forecast with a handful of interpretable parameters, where the AR(24) spent two dozen coefficients to say the same thing less clearly. The other is mechanism. The Holt-Winters seasonal component is the snowmelt signature written down as twelve numbers you can read, the freshet and the winter low, and that is a model you can connect to the physics of the watershed. Box's line holds: all models are wrong, and here several are about equally wrong, so you keep the one you can explain. Pattern is a clue. The process driving the river is the prize.
+Holt-Winters edges out the AR(1), and both clear the flat average by a wide margin, not the rounding error a free season would have handed them. On held-out data the two dynamic models land close to one another, both leaning on the same year-to-year persistence, just weighting the recent past a little differently. If the numbers will not separate them, what does? Parsimony, mostly: two smoothing coefficients against one AR term is not much of a contest, and neither one reaches for more machinery than a single lag of memory can justify. The takeaway is smaller than the machinery: a stock's recruitment carries some memory of the year before, not much, and a model that captures that little bit and nothing more is doing its job. Box's line holds: all models are wrong, and the useful one here is the plain one you can explain to the people setting next year's quota.
+
+Do not mistake this for what a stock assessment actually looks like. What we just ran is two lines of R against forty-seven numbers. An actual halibut assessment folds in age structure, multiple fleets and gear types, tagging studies, survey indices with their own error, and increasingly a state-space model that separates the process noise in the population from the observation noise in how it was sampled, and it gets reviewed by a room of skeptical scientists before a quota comes out the other end. Fisheries forecasting is some of the hardest applied time series work in environmental science, and a fair amount of it is done by ecologists and statisticians who are better at this than the median econometrics PhD forecasting quarterly sales. An AR(1) and a two-parameter smoother will not get you hired at IPHC. They will get you far enough to recognize what the harder machinery is doing and why, which is a fine place for an introductory chapter to stop.
 
 ## Wrapping Up
 
-We forecast a series by pushing its own dependence forward, and we watched the uncertainty grow as a geometric series that saturates at a ceiling set by $\phi$, the same coefficient that governs the ACF decay. We saw that the forecast has no preferred direction in time, which is the seed of reconstruction and the reason hindcasting is the same act as forecasting. And we made backtesting the centerpiece, because a forecast you have not checked against withheld data is a number the software printed, not a result. Holding out the tail of the Nooksack and racing two models against a climatology baseline showed how little the fancy machinery added once the season was accounted for, which is the kind of thing you only ever learn by checking.
+We forecast a series by pushing its own dependence forward, and we watched the uncertainty grow as a geometric series that saturates at a ceiling set by $\phi$, the same coefficient that governs the ACF decay. We saw that the forecast has no preferred direction in time, which is the seed of reconstruction and the reason hindcasting is the same act as forecasting. And we made backtesting the centerpiece, because a forecast you have not checked against withheld data is a number the software printed, not a result. Holding out the last decade of halibut recruitment and racing two models against a flat average showed a model beating the baseline because of persistence that was actually there, which is the kind of thing you only ever learn by checking, and the reason a fisheries agency runs this same discipline every season.
 
 That checking discipline is going to come back immediately. The split-sample idea, fit on part of the record and verify against the part you hid, is the engine of the reconstruction chapter next, which runs the same discipline backward instead of forward: calibrate on part of a long record, verify on the part held out, and only then trust the model to reach past the years anyone measured.
 
@@ -425,7 +421,7 @@ That checking discipline is going to come back immediately. The split-sample ide
 
 ### Beat the climatology
 
-Take the Bellingham weather record, `data/kbli.csv`, and build a monthly mean temperature series the way we built monthly flow: read it as a tsibble, derive `TAVG` as the mean of `TMAX` and `TMIN`, and aggregate to monthly means with `index_by` and `yearmonth`. Convert it to a `ts` with frequency twelve and withhold the last three years. Fit an AR model and a Holt-Winters model on the training span, forecast across the withheld years, and compute the RMSE of each against the held-out data. Then build the climatology baseline, predicting each month by its training-period average, and compute its RMSE too. Does either model clear the baseline by enough to justify itself? Write a sentence on what that tells you about how much of the predictability in monthly temperature is just the season.
+Take the Bellingham weather record, `data/kbli.csv`, and build a monthly mean temperature series: read it as a tsibble, derive `TAVG` as the mean of `TMAX` and `TMIN`, and aggregate to monthly means with `index_by` and `yearmonth`. Convert it to a `ts` with frequency twelve and withhold the last three years. Fit an AR model and a Holt-Winters model on the training span, forecast across the withheld years, and compute the RMSE of each against the held-out data. Then build the climatology baseline, predicting each month by its training-period average, and compute its RMSE too. Does either model clear the baseline by enough to justify itself? Write a sentence on what that tells you about how much of the predictability in monthly temperature is just the season.
 
 ### How far can you see?
 
