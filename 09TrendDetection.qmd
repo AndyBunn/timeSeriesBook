@@ -140,7 +140,9 @@ tibble(t, x) |>
 
 The OLS line tips up to chase the outlier. The Theil-Sen line stays with the bulk of the data. For environmental records, where the wild years are often the ones you most want to not overreact to, that robustness is the whole appeal.
 
-So why not just use GLS for everything? Because GLS only fixes one of this chapter's two problems. Correcting for autocorrelation, whether by inflating Mann-Kendall's variance or by giving OLS a corAR1 structure, is the same idea applied to two different statistics, and once that correction is made neither test has an edge over the other. What GLS does not fix is the outlier you just watched drag the OLS line: it is still a least-squares fit, so a single wild value pulls its slope the same way no matter how well the dependence in time is modeled. Theil-Sen does not move, because it is a median, not a mean. Reach for Mann-Kendall and Theil-Sen when you don't trust the trend to be a straight line, when the errors are skewed or outlier-prone, or when you just want a clean read on direction without committing to a parametric model. Stick with OLS or GLS when you need an actual model: a slope with a full uncertainty interval, more than one predictor, or a fitted line you plan to use later for forecasting or detrending. The two are not in competition. A common move is to run both: let the rank test confirm the direction and a slope that shrugs off outliers, and let OLS or GLS supply the rest of the inferential machinery.
+## So why not just use GLS for everything? 
+
+GLS only fixes one of this chapter's two problems. Correcting for autocorrelation, whether by inflating Mann-Kendall's variance or by giving OLS a corAR1 structure, is the same idea applied to two different statistics, and once that correction is made neither test has an edge over the other. What GLS does not fix is the outlier you just watched drag the OLS line: it is still a least-squares fit, so a single wild value pulls its slope the same way no matter how well the dependence in time is modeled. Theil-Sen does not move, because it is a median, not a mean. Use Mann-Kendall and Theil-Sen when you don't trust the trend to be a straight line, when the errors are skewed or outlier-prone, or when you just want a clean read on direction without committing to a parametric model. Stick with OLS or GLS when you need an actual model: a slope with a full uncertainty interval, more than one predictor, or a fitted line you plan to use later for forecasting or detrending. The two are not in competition. A common move is to run both: let the rank test confirm the direction and a slope that shrugs off outliers, and let OLS or GLS supply the rest of the inferential machinery.
 
 ## An Observed Series: the Nooksack in Winter
 
@@ -207,7 +209,7 @@ So, the same physical story leaves one signal you can stand behind and one you c
 
 ## The Same Trap
 
-There is a problem we have been stepping past. Mann-Kendall's $p$-value, like every $p$-value, rests on a null hypothesis, and that null assumes the observations are independent. River flow is not. Wet years cluster, drought persists, and a high-flow winter makes the next winter a little more likely to run high too. We have seen exactly what unmodeled autocorrelation does to a trend test. It should do it here too.
+There is a problem we have been stepping past. Mann-Kendall's $p$-value, like every $p$-value, rests on a null hypothesis, and that null assumes the observations are independent. We have seen exactly what unmodeled autocorrelation does to a trend test. It should do it here too.
 
 So let's check, the same way we did in the regression chapter. Generate a flat series with no trend at all, just AR(1) noise, run Mann-Kendall, and count how often it cries trend. Do that across a range of autocorrelation strengths.
 
@@ -223,13 +225,13 @@ mk_false_positive <- function(phi, n = 60, sims = 500) {
 
 set.seed(10)
 phis <- c(0, 0.3, 0.5, 0.7, 0.9)
-fp <- tibble(phi = phis, rate = map_dbl(phis, mk_false_positive))
-fp
+falsePositives <- tibble(phi = phis, rate = map_dbl(phis, mk_false_positive))
+falsePositives
 ```
 
 ```{r}
 #| label: trend-mc-plot
-ggplot(fp, aes(factor(phi), rate)) +
+ggplot(falsePositives, aes(factor(phi), rate)) +
   geom_col(fill = sfPal[5], width = 0.6) +
   geom_hline(yintercept = 0.05, linetype = "dashed") +
   scale_y_continuous(labels = scales::percent) +
@@ -240,7 +242,7 @@ ggplot(fp, aes(factor(phi), rate)) +
   theme_minimal()
 ```
 
-Same trap. When the series is white noise, Mann-Kendall behaves and cries trend about 5% of the time. As the autocorrelation climbs, so does the false-positive rate, until by $\phi = 0.9$ it is declaring a significant trend in roughly two of every three series that have no trend at all. The rank test is no more immune than the regression was. Both treat dependent observations as if they were independent, no matter what shape the trend takes.
+We've seen this before. When the series is white noise, Mann-Kendall behaves and cries trend about 5% of the time. As the autocorrelation climbs, so does the false-positive rate, until by $\phi = 0.9$ it is declaring a significant trend in roughly two of every three series that have no trend at all. The rank test is no more immune than the regression was. Both treat dependent observations as if they were independent, no matter what shape the trend takes.
 
 ## Counting the Effective Sample Size
 
@@ -264,7 +266,7 @@ mann_kendall_ess <- function(x) {
 }
 ```
 
-Does it close the trap? Run the same Monte Carlo, this time with the corrected test.
+Run the same Monte Carlo, this time with the corrected test.
 
 ```{r}
 #| label: trend-mc-corrected
@@ -274,7 +276,7 @@ mk_fp_corrected <- function(phi, n = 60, sims = 500) {
 
 set.seed(10)
 tibble(phi = phis,
-       naive = fp$rate,
+       naive = falsePositives$rate,
        corrected = map_dbl(phis, mk_fp_corrected))
 ```
 
@@ -293,9 +295,11 @@ A note on what we built. Inflating the variance with a single lag-one correlatio
 
 Mann-Kendall and Theil-Sen are the right tools when you distrust the straight line, and you often should. They ask only about direction and they laugh off outliers. But robustness to the shape of the trend and the shape of the noise is not robustness to dependence, and on a time series the dependence is always there. The rank test ran into the same autocorrelation problem the regression chapter did, and the fix is the same: autocorrelated observations are worth less than independent ones, so the uncertainty has to account for that. It doesn't matter whether you're reading a slope off a line or a sign off a pair of ranks. Check the dependence in your data before you trust the p-value.
 
+Everything in this chapter also assumes the change is gradual, a steady climb or slide from one end of the record to the other. Not every environmental change looks like that. A dam closes, a gauge moves, a policy flips, and a series jumps instead of drifting. [The next aside](09xAsideBreakpoints.html) builds a test for exactly that shape of change.
+
 That's the last question this part asks about whether an effect is there. What's left is whether a model predicts anything at all, and that's where we turn next.
 
-## Exercises
+## Exercises  
 
 ### Is winter warming faster than summer?
 

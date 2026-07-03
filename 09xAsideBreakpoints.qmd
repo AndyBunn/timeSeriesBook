@@ -1,0 +1,241 @@
+# Aside: Detecting a Breakpoint {- .aside-chapter}
+
+```{r}
+#| label: bp-setup
+#| echo: false
+#| message: false
+library(tidyverse)
+library(strucchange)
+library(PNWColors)
+set.seed(21)
+sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+```
+
+## Introduction
+
+Mann-Kendall and Theil-Sen, from the last chapter, both assume the same shape of change: a gradual, one-directional drift that runs the whole length of the record. That's a fair assumption for a warming climate or a shrinking snowpack. It's a bad assumption for a river below a new dam, a gauge that got moved, a lake after its sewage outflow was diverted, or a monitoring program that switched instruments halfway through. None of those series drift. They sit at one level, something happens, and they sit at a new level. If you hand a step change to Mann-Kendall it will usually find something (we'll watch it do exactly that below), but the number it reports describes a drift that never happened.
+
+What you actually want to ask is different: is there a single moment where the series stopped being one thing and became another, and if so, when? Eyeballing a plot and squinting at the year things look different is not that answer, it's a guess dressed up as an observation. This aside builds the tool that replaces the squint: find the split point that best separates a series into a before and an after, and test whether that split is worth believing at all.
+
+## Packages
+
+The idea here is simple enough to build from scratch, and we will, once. For anything past a single break, or for a proper test of whether a break is there at all, `strucchange` [@R-strucchange] does the work. It isn't used anywhere else in the book, so consider this its one appearance.
+
+```{r}
+#| label: bp-packages
+#| message: false
+library(strucchange)
+```
+
+## A Series That Steps Instead of Slides
+
+Plant a series with a single clean jump in it: forty-five points at a mean of 10, then thirty-five points at a mean of 15, both with the same noise.
+
+```{r}
+#| label: bp-planted
+set.seed(21)
+n <- 80
+step <- c(rnorm(45, mean = 10, sd = 2), rnorm(35, mean = 15, sd = 2))
+
+tibble(t = 1:n, x = step) |>
+  ggplot(aes(t, x)) +
+  geom_line(color = sfPal[1]) +
+  geom_vline(xintercept = 45.5, linetype = "dashed", color = sfPal[5]) +
+  labs(x = "Time", y = "Some variable", title = "A step, not a slope") +
+  theme_minimal()
+```
+
+Nothing drifts here. The series is flat, jumps once, and is flat again. Run last chapter's tools on it anyway.
+
+```{r}
+#| label: bp-mk-ts
+mann_kendall <- function(x) {
+  n <- length(x)
+  S <- 0
+  for (j in 2:n) {
+    for (i in 1:(j - 1)) {
+      S <- S + sign(x[j] - x[i])
+    }
+  }
+  ties <- table(x)
+  tie_term <- sum(ties * (ties - 1) * (2 * ties + 5))
+  varS <- (n * (n - 1) * (2 * n + 5) - tie_term) / 18
+  Z <- (S - sign(S)) / sqrt(varS)
+  tau <- S / (n * (n - 1) / 2)
+  p <- 2 * (1 - pnorm(abs(Z)))
+  tibble(S = S, varS = varS, Z = Z, tau = tau, p = p)
+}
+
+theil_sen <- function(x, t = seq_along(x)) {
+  n <- length(x)
+  slopes <- c()
+  for (j in 2:n) {
+    for (i in 1:(j - 1)) {
+      slopes <- c(slopes, (x[j] - x[i]) / (t[j] - t[i]))
+    }
+  }
+  median(slopes)
+}
+
+mk_step <- mann_kendall(step)
+ts_step <- theil_sen(step)
+c(tau = mk_step$tau, p = mk_step$p, theil_sen_per_unit = ts_step)
+```
+
+Mann-Kendall reports $\tau$ = `r round(mk_step$tau, 2)` with a $p$-value of `r format(mk_step$p, scientific = TRUE, digits = 2)`. Screaming significant, as it should be, later values really do sit above earlier ones. The Theil-Sen slope of `r round(ts_step, 2)` per unit time, multiplied out over `r n - 1` points, lands close to the actual jump of 5. But look at what that slope claims: a steady climb, a little bit every year, for eighty years. That's not what happened. Nothing moved for forty-five points, then five units of change arrived at once, then nothing moved again. The number is roughly the right size and describes the wrong process entirely. Wrong tool for this shape of change, even when it doesn't look wrong.
+
+## Finding the Break by Hand
+
+Here's the idea, and it is about as simple as Mann-Kendall's pairwise sum. Try every possible split point. At each one, take the mean of everything before it and the mean of everything after, and add up how far every point sits from its own segment's mean. That leftover variation, the residual sum of squares, is small when the split falls right where the series actually changes and large everywhere else. The split that minimizes it is your best guess at the breakpoint.
+
+```{r}
+#| label: bp-byhand
+rss_at_split <- function(x, k) {
+  before <- x[1:k]
+  after <- x[(k + 1):length(x)]
+  sum((before - mean(before))^2) + sum((after - mean(after))^2)
+}
+
+candidates <- 5:(n - 5)
+rss <- map_dbl(candidates, rss_at_split, x = step)
+best_split <- candidates[which.min(rss)]
+best_split
+```
+
+```{r}
+#| label: bp-byhand-plot
+tibble(split = candidates, rss = rss) |>
+  ggplot(aes(split, rss)) +
+  geom_line(color = sfPal[1]) +
+  geom_vline(xintercept = best_split, linetype = "dashed", color = sfPal[5]) +
+  labs(x = "Candidate split point", y = "Leftover variation (RSS)",
+       title = "Where the series is best explained by two means instead of one") +
+  theme_minimal()
+```
+
+The minimum lands at point `r best_split`, one point off the true break at 45, about as close as noisy data lets you get. Compare that RSS at the best split, `r round(min(rss), 1)`, against the RSS if you'd insisted on a single mean for the whole series, `r round(sum((step - mean(step))^2), 1)`. Cutting the series in two explains a lot more of it. That comparison, one mean's leftover variance against two means' leftover variance, is exactly what an F-test asks. This by-hand scan is a Chow test with extra steps.
+
+## A Formal Test: strucchange
+
+`strucchange::breakpoints()` runs the same search, more carefully. Instead of one split, it solves for the best partition at every number of breaks and lets BIC pick how many are actually worth keeping.
+
+```{r}
+#| label: bp-strucchange
+bp_step <- breakpoints(step ~ 1)
+bp_step$breakpoints
+```
+
+Same answer as the by-hand scan, point `r bp_step$breakpoints`, because for one break they are the same calculation. What the package adds is a formal test for whether that break should be trusted at all, using the same F-statistic under the hood.
+
+```{r}
+#| label: bp-sctest
+fs_step <- Fstats(step ~ 1)
+sctest(fs_step, type = "supF")
+```
+
+And a confidence interval on the date itself, not just a point guess.
+
+```{r}
+#| label: bp-confint
+confint(bp_step)
+```
+
+For the planted series that interval is tight, a couple of points either side of `r bp_step$breakpoints`, because the jump is large and the noise is modest. Field data is rarely this cooperative, and the interval is where you'll feel that. The dynamic-programming search behind all of this, extending cleanly from one break to several, is @BaiPerron2003; the testing-and-dating framing used here, existence first, date second, follows @Zeileis2003.
+
+## Same Trap, Different Shape
+
+Mann-Kendall's problem, from the last chapter, was autocorrelation: feed it a flat AR(1) series with no trend at all and it cries trend anyway, more often as $\phi$ climbs. Does a break test fall into the same trap? Run the same kind of check, an AR(1) series with no break in it, and see how often `sctest` declares one anyway.
+
+```{r}
+#| label: bp-mc
+ar1_series <- function(phi, n) {
+  if (phi == 0) rnorm(n) else as.numeric(arima.sim(list(ar = phi), n = n))
+}
+
+bp_false_positive <- function(phi, n = 60, sims = 200) {
+  mean(replicate(sims, {
+    fs <- Fstats(ar1_series(phi, n) ~ 1)
+    sctest(fs, type = "supF")$p.value < 0.05
+  }))
+}
+
+set.seed(10)
+phis <- c(0, 0.3, 0.5, 0.7, 0.9)
+bp_fp <- tibble(phi = phis, rate = map_dbl(phis, bp_false_positive))
+bp_fp
+```
+
+```{r}
+#| label: bp-mc-plot
+ggplot(bp_fp, aes(factor(phi), rate)) +
+  geom_col(fill = sfPal[5], width = 0.6) +
+  geom_hline(yintercept = 0.05, linetype = "dashed") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = expression("AR(1) coefficient " * (phi)),
+       y = "Breaks declared significant",
+       title = "A break test finds a break in break-free data too",
+       subtitle = "Share of 200 flat AR(1) series called significant at the 5% level") +
+  theme_minimal()
+```
+
+Same trap, different shape of test. At $\phi = 0$ the false-positive rate sits close to the nominal 5%. By $\phi = 0.9$ it's declaring a break in most series that never had one. A run of correlated years looks, to an F-test built for independent noise, exactly like the kind of level shift it was built to catch. There is a fix, the same family of fix as GLS in the regression chapter: replace the test's covariance estimate with one that accounts for the autocorrelation instead of assuming it away [@Zeileis2003]. Building that correctly is more than this aside has room for, so take the caution as the headline: a breakpoint test run on a dependent series is just as capable of finding a break that isn't there as Mann-Kendall was of finding a trend that wasn't.
+
+## An Observed Series: the Nooksack, Again
+
+The last chapter tested winter and summer flow on the North Fork Nooksack for a trend and found one in winter, none in summer. Same data, different question: does either season show a level shift instead of, or in addition to, a slope?
+
+```{r}
+#| label: bp-nooksack
+#| message: false
+nooksack <- read_csv("data/nooksack.csv") |>
+  mutate(year = year(DATE), month = month(DATE))
+
+full_years <- nooksack |> count(year) |> filter(n >= 350) |> pull(year)
+
+annual <- nooksack |>
+  filter(year %in% full_years) |>
+  group_by(year) |>
+  summarise(winter = mean(FLOW[month %in% c(12, 1, 2)]),
+            summer = mean(FLOW[month %in% 7:9]),
+            .groups = "drop")
+
+bp_winter <- breakpoints(winter ~ 1, data = annual)
+bp_summer <- breakpoints(summer ~ 1, data = annual)
+
+bp_winter$breakpoints
+bp_summer$breakpoints
+```
+
+Winter picks up a break; summer doesn't, `breakpoints()` prefers a flat single mean over any split. Look at where and how big the winter shift is.
+
+```{r}
+#| label: bp-nooksack-winter
+winter_break_year <- annual$year[bp_winter$breakpoints]
+winter_ci <- confint(bp_winter)
+ci_years <- annual$year[winter_ci$confint]
+before_mean <- mean(annual$winter[1:bp_winter$breakpoints])
+after_mean <- mean(annual$winter[(bp_winter$breakpoints + 1):nrow(annual)])
+
+c(break_year = winter_break_year, before = round(before_mean, 1), after = round(after_mean, 1))
+```
+
+```{r}
+#| label: bp-nooksack-plot
+ggplot(annual, aes(year, winter)) +
+  geom_line(color = sfPal[1]) +
+  geom_vline(xintercept = winter_break_year, linetype = "dashed", color = sfPal[5]) +
+  annotate("rect", xmin = ci_years[1], xmax = ci_years[2], ymin = -Inf, ymax = Inf,
+           fill = sfPal[5], alpha = 0.1) +
+  labs(x = "Water year", y = expression("Mean winter flow (m"^3*"/s)"),
+       title = "North Fork Nooksack, winter flow: best single break",
+       subtitle = "Shaded band is the 95% confidence interval on the break date") +
+  theme_minimal()
+```
+
+The best single split falls at `r winter_break_year`, with the mean rising from around `r round(before_mean, 1)` to `r round(after_mean, 1)` cubic meters per second. But look at the shaded band. The 95% confidence interval on that date runs from `r ci_years[1]` to `r ci_years[2]`, most of the record. This isn't a failure of the method, it's an accurate report of how little a level-shift model can pin down a slow rise. A break test wants a jump, and winter flow doesn't jump so much as lean upward unevenly, so the best single split is a compromise the data can't locate precisely.
+
+None of this contradicts the last chapter. Mann-Kendall found a monotonic rise in winter and nothing in summer. The break test agrees on which season moved, winter, and which one didn't, summer, using a completely different assumption about the shape of the change. Two tools built on different premises landing in the same place is a better reason to trust the winter signal than either test running alone. Where they'd disagree is on the story: a trend test says the river is drifting; a break test forces it into a before-and-after that the data only reluctantly supports. Report the direction and the seasonal contrast with confidence. Be a lot more careful about naming a specific year.
+
+## Where This Shows Up
+
+A detected break is a hypothesis about a date, not an explanation. Before you trust one, go find out what actually happened around that year, a gauge relocation, a dam, a change in land use, a new instrument. Sometimes there's a clean answer. Sometimes there isn't, and the plain move is to say the series shifted and you don't know why. Either way, a breakpoint test and a trend test are asking different questions about the same word, "change," and a series that fails one can still fail the other. Run both, and let the data tell you which shape it actually took.

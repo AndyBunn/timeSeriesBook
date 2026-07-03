@@ -8,6 +8,8 @@
 **/*.quarto_ipynb
 # knitr cache (chapter-level folders e.g. 02DecompTrends_cache/)
 *_cache/
+# stray support folders left in root by single-file "Render" (not "Render Book")
+/*_files/
 # intermediate files
 *.log
 *.aux

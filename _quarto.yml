@@ -39,6 +39,7 @@ book:
         - 08Regression.qmd
         - 08xAsideOLS-Algebra-Matrix.qmd
         - 09TrendDetection.qmd
+        - 09xAsideBreakpoints.qmd
         - 10Forecast.qmd
         - 11Reconstruction.qmd
     - part: "The Frequency Domain"

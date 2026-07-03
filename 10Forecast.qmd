@@ -8,7 +8,7 @@ set.seed(872)
 
 ## Big Idea
 
-A forecast has two halves. The first half is the prediction: if a series leans on its own past, you can push that dependence forward and see where it is likely to go next. We built that machinery back in the ARMA chapter. An AR or ARMA model is already a statement about how tomorrow relates to today, so turning it into a forecast is mostly bookkeeping. The second half is the part too many people skip, and it is the only part that decides whether the first half was worth anything: checking the forecast against values it did not get to see. Hold back the end of a series, predict it from the rest, and compare. You never trust a forecast you have not backtested, because the software will hand you one whether or not it means anything. This chapter does both halves: it makes the prediction, and then sees if we believe it.
+A forecast has two halves. The first half is the prediction: if a series leans on its own past, you can push that dependence forward and see where it is likely to go next. We built that skeleton back in the ARMA chapter. An AR or ARMA model is already a statement about how tomorrow relates to today, so turning it into a forecast is mostly bookkeeping. The second half is the part  many people skip, and it is the only part that decides whether the first half was worth anything: checking the forecast against values it did not get to see. Hold back the end of a series, predict it from the rest, and compare. You never trust a forecast you have not backtested, because the software will hand you a forecast whether or not it means anything. This chapter does both halves: it makes the prediction, and then sees if we believe it.
 
 ## Packages
 
@@ -76,7 +76,7 @@ $$
 
 The uncertainty grows with the horizon, but it levels off at a ceiling. For $\phi = 0.7$ and $\sigma^2 = 1$ the ceiling is $1 / (1 - 0.49) \approx 1.96$, a standard deviation of about 1.4. This is the same geometric decay you saw in the AR(1) autocorrelation function, just read from the other end. The ACF told you how fast the past stops mattering; the forecast variance tells you how fast the future stops being knowable, and they are governed by the same $\phi$.
 
-But there is a point hiding in the ceiling. As $k$ grows, $\hat{y}_{t+k} = \phi^k y_t$ decays toward zero, the mean of the process, while the interval fattens toward $\sigma / \sqrt{1 - \phi^2}$, the standard deviation of the process. Far enough out, the model stops telling you anything useful and just hands you back the unconditional distribution of the series. I like to think about it as the forecast forgets where it started.
+So, as $k$ grows, $\hat{y}_{t+k} = \phi^k y_t$ decays toward zero, the mean of the process, while the interval fattens toward $\sigma / \sqrt{1 - \phi^2}$, the standard deviation of the process. Far enough out, the model stops telling you anything useful and just hands you back the unconditional distribution of the series. I like to think about it as the forecast forgets where it started.
 
 Let's watch it happen. Simulate an AR(1), then chain the forecast forward from the last observed value and draw the interval as $\pm$ one forecast standard deviation.
 
@@ -120,7 +120,7 @@ ggplot() +
               fill = "darkgreen", alpha = 0.3) +
   geom_line(data = forecast_df, aes(time, yhat), color = "darkgreen") +
   labs(x = "Time", y = expression(y[t]),
-       title = "AR(1) forecast: the interval fattens to a ceiling") +
+       title = "AR(1) forecast") +
   theme_minimal()
 ```
 
@@ -161,7 +161,7 @@ ggplot() +
   theme_minimal()
 ```
 
-The orange forecast running off the left edge is a mirror of the green one running off the right. Projecting backward to estimate values you never measured is hindcasting, or reconstruction, and it is how a paleoclimatologist turns a tree-ring width into a temperature for a year with no thermometer in it. The point to carry forward is that prediction does not have a preferred direction. The model is a statement about how neighbors in time relate, and you can lean on it to fill a gap on either side. We will build a whole chapter on the backward case at the end of this part. The symmetry buys us something now: everything we are about to say about checking a forward forecast applies, unchanged, to checking a backward one.
+The orange forecast running off the left edge is a mirror of the green one running off the right. Projecting backward to estimate values you never measured is hindcasting, or reconstruction, and it is how a paleoclimatologist turns a tree-ring width into a temperature for a year with no thermometer in it (next chapter!). The point to carry forward is that prediction does not have a preferred direction. The model is a statement about how neighbors in time relate, and you can lean on it to fill a gap on either side. The symmetry buys us something now: everything we are about to say about checking a forward forecast applies, unchanged, to checking a backward one.
 
 ## A Forward Forecast: Sunspots
 
@@ -187,7 +187,7 @@ sunspot_ar$order
 ::: {.callout-warning}
 ## The blind algorithm
 
-`ar` and `auto.arima` are convenient and dangerous. They optimize an information criterion until a stopping rule trips, and that is all they do. An information criterion rewards fit and penalizes parameters, but the penalty is not harsh enough when the sample is large or the noise is structured, so the algorithm will reach for a complicated model that fits the idiosyncrasies of your particular series rather than the process behind it. By default `auto.arima` will consider AR and MA orders up to five, plenty of room to fit noise. In a short series that can be reckless. And because near-identical scores can come from very different models, two runs on two samples of the same process can hand you two different stories. The criterion measures fit, not predictive skill, and those are not the same thing. Use these functions, but read what they return with suspicion, and never let one pick a model you cannot defend on mechanism. The software prints an order either way. The backtest later in this chapter is how you catch it when it is being overly optimistic.
+`ar` and `auto.arima` are convenient and dangerous. They optimize an information criterion until a stopping rule trips, and that is all they do. An information criterion rewards fit and penalizes parameters, but the penalty is not harsh enough when the sample is large or the noise is structured, so the algorithm will reach for a complicated model that fits the idiosyncrasies of your particular series rather than the process behind it. By default `auto.arima` will consider AR and MA orders up to five, plenty of room to fit noise. In a short series that can be reckless. And because near-identical scores can come from very different models, two runs on two samples of the same process can hand you two different stories. The criterion measures fit, not predictive skill, and those are not the same thing. Use these functions, but read what they return with suspicion, and never let one pick a model you cannot defend on mechanism. The software prints an order either way. 
 :::
 
 Here `ar` landed on an AR(9), and for once the order is defensible. The sunspot cycle is solar physics, not an artifact, and nine years of memory on an eleven-year cycle is a model you can argue for. Most models have a `predict` method, so we forecast forward forty years and ask for the standard errors too.
@@ -226,7 +226,7 @@ The AR(9) keeps the cycle going for a couple of oscillations, the peaks shrinkin
 
 Now look harder at that band, because it is telling on itself. The error ribbon dips below zero in a dozen of those forty years, bottoming out around -19. A sunspot count cannot be negative. You cannot have fewer than no spots on the sun. The model does not know that. It was handed a column of numbers and a recipe for propagating Gaussian uncertainty, and nowhere in that recipe is the fact that the thing being counted has a floor at zero. The central forecast stays positive, but the interval wanders into territory that does not exist. This is the first conviction of the book in miniature: the software will print a number whether or not it makes physical sense, and it falls to you to catch it. The fix is not exotic. You would forecast on a scale that cannot go negative, modeling the square root or the log of the count and transforming back, so the interval respects the floor. The lesson underneath it is bigger than sunspots. A forecast is only as sensible as the constraints you build into it, and a generic AR model builds in none. It does not know it is counting sunspots, or measuring a river, or pricing a stock. It knows the numbers.
 
-The plot looks impressive anyway. Whether it is any good is a separate question, and the only way to answer it is to check.
+The plot looks impressive (for a short time anyway). Whether it is any good is a separate question, and the only way to answer it is to check.
 
 ## Backtesting
 
