@@ -176,7 +176,7 @@ as_tsibble(Nile) |>
   theme_minimal()
 ```
 
-Before we touch the autocorrelation, look at the series itself. The flow drops noticeably around the turn of the century, marked here in red. That is not noise. The Aswan Low Dam was completed in 1902, and the upstream control and diversion that came with it cut the measured flow at the gauge. It is a textbook example of an intervention, an actual change in the system that shows up as a step in the level rather than as part of the natural variability. A series can fail to be well-behaved for reasons that have nothing to do with its own internal dynamics, and an abrupt human change to the watershed is one of them. We will treat it as a known break and not let it distract us from the autocorrelation question.
+Before we touch the autocorrelation, look at the series itself. The flow drops noticeably around the turn of the century, marked here in red. That is not noise. The Aswan Low Dam was completed in 1902, and the upstream control and diversion that came with it cut the measured flow at the gauge. It is a textbook example of an intervention, an actual change in the system that shows up as a step in the level rather than as part of the natural variability. A series can fail to be well-behaved for reasons that have nothing to do with its own internal dynamics, and an abrupt human change to the watershed is one of them. We will treat it as a known break and not let it distract us from the autocorrelation question. [A later aside](09xAsideBreakpoints.html) comes back to this exact drop and asks whether the data alone, without the history, could have found it.
 
 ```{r}
 #| label: auto-nile-acf

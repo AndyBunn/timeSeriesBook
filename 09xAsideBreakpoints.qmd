@@ -180,62 +180,52 @@ ggplot(bp_fp, aes(factor(phi), rate)) +
 
 Same trap, different shape of test. At $\phi = 0$ the false-positive rate sits close to the nominal 5%. By $\phi = 0.9$ it's declaring a break in most series that never had one. A run of correlated years looks, to an F-test built for independent noise, exactly like the kind of level shift it was built to catch. There is a fix, the same family of fix as GLS in the regression chapter: replace the test's covariance estimate with one that accounts for the autocorrelation instead of assuming it away [@Zeileis2003]. Building that correctly is more than this aside has room for, so take the caution as the headline: a breakpoint test run on a dependent series is just as capable of finding a break that isn't there as Mann-Kendall was of finding a trend that wasn't.
 
-## An Observed Series: the Nooksack, Again
+## An Observed Series: the Nile, Again
 
-The last chapter tested winter and summer flow on the North Fork Nooksack for a trend and found one in winter, none in summer. Same data, different question: does either season show a level shift instead of, or in addition to, a slope?
-
-```{r}
-#| label: bp-nooksack
-#| message: false
-nooksack <- read_csv("data/nooksack.csv") |>
-  mutate(year = year(DATE), month = month(DATE))
-
-full_years <- nooksack |> count(year) |> filter(n >= 350) |> pull(year)
-
-annual <- nooksack |>
-  filter(year %in% full_years) |>
-  group_by(year) |>
-  summarise(winter = mean(FLOW[month %in% c(12, 1, 2)]),
-            summer = mean(FLOW[month %in% 7:9]),
-            .groups = "drop")
-
-bp_winter <- breakpoints(winter ~ 1, data = annual)
-bp_summer <- breakpoints(summer ~ 1, data = annual)
-
-bp_winter$breakpoints
-bp_summer$breakpoints
-```
-
-Winter picks up a break; summer doesn't, `breakpoints()` prefers a flat single mean over any split. Look at where and how big the winter shift is.
+The autocorrelation chapter introduced the Nile's annual flow at Aswan and pointed out a visible drop around the turn of the century, marked it as the Aswan Low Dam, under construction from 1898 and finished in 1902, and moved on, calling it a known break so it wouldn't distract from the autocorrelation question at hand. This is where we come back for it. Set the history aside for a moment: if all you had was the series, could you find that break on your own, and how sure could you be of the year?
 
 ```{r}
-#| label: bp-nooksack-winter
-winter_break_year <- annual$year[bp_winter$breakpoints]
-winter_ci <- confint(bp_winter)
-ci_years <- annual$year[winter_ci$confint]
-before_mean <- mean(annual$winter[1:bp_winter$breakpoints])
-after_mean <- mean(annual$winter[(bp_winter$breakpoints + 1):nrow(annual)])
-
-c(break_year = winter_break_year, before = round(before_mean, 1), after = round(after_mean, 1))
+#| label: bp-nile
+data(Nile)
+bp_nile <- breakpoints(Nile ~ 1)
+bp_nile$breakpoints
 ```
 
 ```{r}
-#| label: bp-nooksack-plot
-ggplot(annual, aes(year, winter)) +
+#| label: bp-nile-break
+nile_break_year <- time(Nile)[bp_nile$breakpoints]
+nile_ci <- confint(bp_nile)
+nile_ci_years <- time(Nile)[nile_ci$confint]
+nile_before <- mean(Nile[1:bp_nile$breakpoints])
+nile_after <- mean(Nile[(bp_nile$breakpoints + 1):length(Nile)])
+
+c(break_year = nile_break_year, before = round(nile_before, 1), after = round(nile_after, 1))
+```
+
+```{r}
+#| label: bp-nile-plot
+tibble(year = as.numeric(time(Nile)), flow = as.numeric(Nile)) |>
+  ggplot(aes(year, flow)) +
   geom_line(color = sfPal[1]) +
-  geom_vline(xintercept = winter_break_year, linetype = "dashed", color = sfPal[5]) +
-  annotate("rect", xmin = ci_years[1], xmax = ci_years[2], ymin = -Inf, ymax = Inf,
+  geom_vline(xintercept = nile_break_year, linetype = "dashed", color = sfPal[5]) +
+  annotate("rect", xmin = nile_ci_years[1], xmax = nile_ci_years[2], ymin = -Inf, ymax = Inf,
            fill = sfPal[5], alpha = 0.1) +
-  labs(x = "Water year", y = expression("Mean winter flow (m"^3*"/s)"),
-       title = "North Fork Nooksack, winter flow: best single break",
+  labs(x = "Year", y = expression(10^8~m^3),
+       title = "River Nile, annual flow: best single break",
        subtitle = "Shaded band is the 95% confidence interval on the break date") +
   theme_minimal()
 ```
 
-The best single split falls at `r winter_break_year`, with the mean rising from around `r round(before_mean, 1)` to `r round(after_mean, 1)` cubic meters per second. But look at the shaded band. The 95% confidence interval on that date runs from `r ci_years[1]` to `r ci_years[2]`, most of the record. This isn't a failure of the method, it's an accurate report of how little a level-shift model can pin down a slow rise. A break test wants a jump, and winter flow doesn't jump so much as lean upward unevenly, so the best single split is a compromise the data can't locate precisely.
+The break lands at `r nile_break_year`, the year the dam's construction began, and the mean drops from `r round(nile_before, 1)` to `r round(nile_after, 1)`, about `r round(nile_before - nile_after, 1)` (units of $10^8$ m$^3$) lower on average once the dam started holding water back. The 95% confidence interval, `r nile_ci_years[1]` to `r nile_ci_years[2]`, brackets almost exactly the span from the start of construction to its completion. And the existence test isn't shy about it either.
 
-None of this contradicts the last chapter. Mann-Kendall found a monotonic rise in winter and nothing in summer. The break test agrees on which season moved, winter, and which one didn't, summer, using a completely different assumption about the shape of the change. Two tools built on different premises landing in the same place is a better reason to trust the winter signal than either test running alone. Where they'd disagree is on the story: a trend test says the river is drifting; a break test forces it into a before-and-after that the data only reluctantly supports. Report the direction and the seasonal contrast with confidence. Be a lot more careful about naming a specific year.
+```{r}
+#| label: bp-nile-test
+fs_nile <- Fstats(Nile ~ 1)
+sctest(fs_nile, type = "supF")
+```
+
+That's what a break test looks like when the premise actually holds: one structural cause, one clean jump in the mean, and a date narrow enough to match the history books without having read them first. The planted step earlier in this aside was built to behave exactly this well. Most series aren't this obliging, which is worth remembering the next time a break test hands you a tight interval on something you can't independently check.
 
 ## Where This Shows Up
 
-A detected break is a hypothesis about a date, not an explanation. Before you trust one, go find out what actually happened around that year, a gauge relocation, a dam, a change in land use, a new instrument. Sometimes there's a clean answer. Sometimes there isn't, and the plain move is to say the series shifted and you don't know why. Either way, a breakpoint test and a trend test are asking different questions about the same word, "change," and a series that fails one can still fail the other. Run both, and let the data tell you which shape it actually took.
+The Nile had its answer waiting in the history books. Most series won't. A detected break is a hypothesis about a date, not an explanation, and before you trust one, go find out what actually happened around that year, a gauge relocation, a dam, a change in land use, a new instrument. Sometimes there's a clean answer. Sometimes there isn't, and the plain move is to say the series shifted and you don't know why. Either way, a breakpoint test and a trend test are asking different questions about the same word, "change," and a series that fails one can still fail the other. Run both, and let the data tell you which shape it actually took.
