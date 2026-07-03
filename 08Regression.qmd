@@ -24,6 +24,7 @@ library(nlme)
 library(forecast)
 library(ggridges)
 library(PNWColors)
+library(gridExtra)
 
 sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
 ```
@@ -86,6 +87,14 @@ This is important so read this a few times. The coefficient is not an illusion. 
 This is a question about inference. The OLS $p$-value answers one thing: if the errors were independent, how often would chance alone produce a slope this steep? Almost never, it says, which is the three in a billion. But the errors are not independent, so it is answering a question we did not ask. Under the process that actually made this series, a slope this steep is unremarkable. The movement is a feature of this one sample. The trend, as a property of the process, is not there, and the $p$-value is certain about the wrong one of the two. We will return to this gap between what a model fits and what it lets you conclude.
 
 And! This is not a fluke of one unlucky seed. Let's prove it the way I love proving these things: turn the loose claim into an experiment and run it thousands of times. For a range of AR(1) strengths, we generate a trend-free series, fit the line, and record whether the slope came back significant at the usual 5% level, our significance threshold $\alpha$, then repeat that a thousand times over. Replaying the same setup under a known baseline and tallying how often the method gets it wrong is a Monte Carlo simulation, and it is one of my favorite tools in the whole book. If the test were behaving, that significant-slope rate would sit near 5% no matter how much memory the errors carry.
+
+:::: {.callout-note}
+## Why is it called a Monte Carlo simulation?
+
+The name comes from a casino, by way of a sick day. Stanislaw Ulam, a mathematician on the Manhattan Project, was recovering from an illness in 1946 and passed the time playing solitaire. He wanted to know his odds of winning a given hand, found the combinatorics too tangled to work out on paper, and tried something simpler instead: deal out the cards a few hundred times and count how many hands won. Replace a hard probability question with a pile of random trials and a tally, that's the whole method, right there in a sickbed.
+
+Ulam saw that the same trick could crack a much harder problem he and John von Neumann were stuck on at Los Alamos, the diffusion of neutrons through fissile material. The work was classified and needed a code name, so Ulam's colleague Nicholas Metropolis proposed Monte Carlo, after the casino where Ulam's uncle liked to borrow money and gamble. The joke stuck, and now the name labels any method that answers a hard question by generating a large enough pile of random trials and counting up what happens.
+::::
 
 ```{r}
 #| label: reg-trend-mc
@@ -193,7 +202,7 @@ spurious_rate <- function(phi, n = 120, sims = 1000) {
 c(white_noise = spurious_rate(0), phi_0.85 = spurious_rate(0.85))
 ```
 
-When the two series are white noise, OLS is fooled the 5% of the time it is supposed to be. By $\phi = 0.85$ it is fooled more than 40% of the time. Two questions, one trap.
+When the two series are white noise, OLS is fooled the 5% of the time it is supposed to be. By $\phi = 0.85$ it is fooled more than 40% of the time. 
 
 ## Why Spurious Results Appear
 
@@ -203,7 +212,7 @@ There is a clean way to see. The bias in the OLS standard error is, to a good ap
 
 $$\text{SE bias} \;\propto\; \sum_k \rho_\epsilon(k)\,\rho_x(k)$$
 
-If the predictor has no time structure of its own, every $\rho_x(k)$ is zero, that sum collapses, and the OLS standard error is about right even when the errors are autocorrelated. There is nothing for the memory in the errors to align with. But the moment the predictor carries its own autocorrelation, both terms are positive, the sum grows, and the standard error shrinks below where it should be. And the predictor with the most autocorrelation imaginable is time itself: $1, 2, 3, \dots$ climbs as smoothly as a variable can. That is why fitting a trend is the worst case, and why it is the one to be most suspicious of. The spurious regression is the same rule a notch down the scale. The predictor there is not time, but an AR(1) series with strong memory of its own, so $\rho_x(k)$ stays large at the low lags, the products pile up, and the standard error shrinks. Time is the far end of that scale, and any predictor that carries memory sits somewhere along it.
+If the predictor has no time structure of its own, every $\rho_x(k)$ is zero, that sum collapses, and the OLS standard error is about right even when the errors are autocorrelated. There is nothing for the memory in the errors to align with. But the moment the predictor carries its own autocorrelation, both terms are positive, the sum grows, and the standard error shrinks below where it should be. And the predictor with the most autocorrelation imaginable is time itself: $1, 2, 3, \dots$ climbs as smoothly as a variable can. That is why fitting a trend is the worst case, and why it is the one to be most skeptical of. The spurious regression is the same rule a notch down the scale. The predictor there is not time, but an AR(1) series with strong memory of its own, so $\rho_x(k)$ stays large at the low lags, the products pile up, and the standard error shrinks. Time is the far end of that scale, and any predictor that carries memory sits somewhere along it.
 
 So the diagnosis is always the same. Fit your model, then look at the residuals the way we have looked at every series in this book. The ACF and PACF of the OLS residuals from our initial example tell the story immediately.
 
@@ -218,7 +227,7 @@ The slow decay is the AR(1) signature. The residuals are not independent, the in
 
 ## The Fix: Generalized Least Squares
 
-We have all been taught OLS. It estimates the unknown parameters of a linear model, the intercept ($\beta_0$) and slope ($\beta_1$) of $y = \beta_0 + \beta_1 x$, by finding the values that minimize the sum of squared errors. When the assumptions are met, errors that are independent, of equal variance, and normal, the OLS estimators are optimal, often called BLUE: Best Linear Unbiased Estimators. OLS has the nice property that it can be taught without matrix algebra and connects naturally to ideas like correlation that most of us meet first in intro stats.
+We have all been taught OLS. It estimates the unknown parameters of a linear model, the intercept ($\beta_0$) and slope ($\beta_1$) of $y = \beta_0 + \beta_1 x$, by finding the values that minimize the sum of squared errors. When the assumptions are met, errors that are independent, of equal variance, and normal, the OLS estimators are optimal, often called BLUE: Best Linear Unbiased Estimators. OLS has the nice property that it can be taught without matrix algebra and connects naturally to ideas like correlation.
 
 Here is the problem with autocorrelated errors, and it is the same one behind both. OLS treats every observation as carrying the same amount of independent information. But when the errors are autocorrelated, observations close together in time share information: they are not fully independent. A positive residual at one step tends to sit next to positive residuals at the steps around it, not because of anything $x$ is doing, but because of the memory in the series. OLS ignores this and effectively overcounts the information in the data. The practical consequence is that standard errors on the coefficients are underestimated when residuals are positively autocorrelated at short lags, which means t-statistics get inflated and p-values get too small. The coefficients themselves ($\hat\beta_0$, $\hat\beta_1$) may still be unbiased, but they are inefficiently estimated and any inference from the standard errors is suspect.
 
@@ -248,9 +257,9 @@ The coefficients table is the part you already know: an estimate, a standard err
 
 The header says "Generalized least squares fit by REML" where `lm` would say "Call," telling you the estimation method. Just under it `gls` prints AIC, BIC, and the log-likelihood by default, because a model fit by likelihood hands those to you for free. With `lm` you would call `AIC()` yourself.
 
-Two things from the `lm` summary are gone on purpose: there is no $R^2$ and no overall F-statistic. Both are built on splitting the total sum of squares into an explained part and a residual part, and that split only behaves once you assume iid errors. Weight the observations by a covariance structure and the tidy decomposition falls apart, so `nlme` declines to print a number that would mislead you. Use AIC to compare models instead.
+Two things from the `lm` summary are gone on purpose: there is no $R^2$ and no overall F-statistic. Both are built on splitting the total sum of squares into an explained part and a residual part, and that split only behaves once you assume ~iid errors. Weight the observations by a covariance structure and the tidy decomposition falls apart, so `nlme` declines to print a number that would mislead you. Use AIC to compare models instead.
 
-A few smaller shifts. The coefficient columns are spelled `Value`, `Std.Error`, `t-value`, and `p-value`. The residual five-number summary is labeled `Standardized residuals`, since these are normalized by the fitted covariance. And `gls` prints a `Correlation:` block that `lm` hides; watch out, because that block is the correlation among the coefficient estimates, not the autocorrelation of the residuals. Different thing. The block that does report the error structure is `Correlation Structure: AR(1)`, which gives the estimated `Phi`, the lag-one autocorrelation `gls` fit to the errors. Here it landed near 0.9, close to the 0.85 we built in.
+A few smaller shifts. The coefficient columns are spelled `Value`, `Std.Error`, `t-value`, and `p-value`. The residual summary is labeled `Standardized residuals`, since these are normalized by the fitted covariance. And `gls` prints a `Correlation:` block that `lm` hides; watch out, because that block is the correlation among the coefficient estimates, not the autocorrelation of the residuals. The block that does report the error structure is `Correlation Structure: AR(1)`, which gives the estimated `Phi`, the lag-one autocorrelation `gls` fit to the errors. Here it landed near 0.9, close to the 0.85 we built in.
 :::
 
 GLS does the same favor for the spurious relationship. We refit the two independent series, now telling `gls` the errors follow an AR(1) process.
@@ -299,7 +308,7 @@ ggAcf(residuals(ols_plant)) + labs(title = "ACF of OLS residuals") +
   theme_minimal()
 ```
 
-Before we hand this to `gls`, it is worth seeing what GLS does under the hood, because you already met the idea last chapter. Prewhitening. If we knew the AR(1) coefficient of the errors, we could transform both `y` and `x` to strip the memory out, then run an ordinary regression on the cleaned series. Estimate the coefficient from the OLS residuals, then subtract its lagged contribution from each variable.
+Before we hand this to `gls`, it is worth seeing what GLS does under the hood. Prewhitening. If we knew the AR(1) coefficient of the errors, we could transform both `y` and `x` to strip the memory out, then run an ordinary regression on the cleaned series. Estimate the coefficient from the OLS residuals, then subtract its lagged contribution from each variable.
 
 ```{r}
 #| label: reg-plant-byhand
@@ -386,11 +395,11 @@ sim |>
   theme(legend.position = "none")
 ```
 
-Read down the columns as the error memory strengthens from left to right. Both methods are centered on the truth, so neither is biased. But the GLS distributions are tighter, and the gap widens as $\phi$ grows and as the sample size shrinks. At $\phi = 0.9$ with only 50 points, the OLS estimate is all over the place while GLS stays comparatively concentrated on 0.5. That is the efficiency gain. Even in this friendly case, where the white-noise predictor keeps the OLS standard errors roughly right, you still get a better estimate by modeling the structure in the errors. And in the unfriendly case, the trend, modeling the structure was the difference between a true result and a false one. Either way the lesson is the same one the whole book keeps arriving at: the dependence is there whether you account for it or not, so account for it.
+Read down the columns as the error memory strengthens from left to right. Both methods are centered on the truth, so neither is biased. But the GLS distributions are tighter, and the gap widens as $\phi$ grows and as the sample size shrinks. At $\phi = 0.9$ with only 50 points, the OLS estimate is all over the place while GLS stays comparatively concentrated on 0.5. That is the efficiency gain. Even in this friendly case, where the white-noise predictor keeps the OLS standard errors roughly right, you still get a better estimate by modeling the structure in the errors. And in the unfriendly case, the trend, modeling the structure was the difference between a true result and a false one. Either way the lesson is the same one the whole book keeps arriving at: the dependence is there whether you account for it or not, so embrace it.
 
 ## An Observed Series: Colorado River Flow
 
-Simulations are where you check that a method does what it claims. Observed data is where you find out whether the problem shows up in the wild. A short and excellent [paper](http://onlinelibrary.wiley.com/doi/10.1002/2015GL067613/full) by Connie Woodhouse and colleagues [@Woodhouse2016] looks at how annual flow on the Colorado River responds to precipitation, soil moisture, and temperature. The river is the water supply for forty million people, so whether its flow is predictable from climate, and whether warming is bending that relationship, is not an academic question. I have put their data in `data/woodhouse.csv`.
+A short and excellent [paper](http://onlinelibrary.wiley.com/doi/10.1002/2015GL067613/full) by Connie Woodhouse and colleagues [@Woodhouse2016] looks at how annual flow on the Colorado River responds to precipitation, soil moisture, and temperature. The river is the water supply for forty million people, so whether its flow is predictable from climate, and whether warming is bending that relationship, is important. I have put their data in `data/woodhouse.csv`.
 
 ```{r}
 #| label: reg-flow-data
@@ -422,7 +431,7 @@ ggAcf(residuals(ols_flow)) + labs(title = "ACF of OLS residuals, flow on precipi
   theme_minimal()
 ```
 
-They are not. The lag-1 autocorrelation is around 0.4 and clears the significance band, so consecutive years' residuals are related. A wet year tends to follow a wet year, soil moisture and snowpack carry over, and whatever the precipitation predictor misses persists from one year to the next. The independence assumption is broken, and the OLS standard errors are suspect. Refit with an AR(1) error structure.
+They are not. The lag-1 autocorrelation is around 0.4 and clears the significance band, so consecutive years' residuals are related. A wet year tends to follow a wet year, soil moisture and snowpack carry over, and whatever the precipitation predictor misses persists from one year to the next. The independence assumption is broken, and the OLS standard errors are suspect. We will refit with an AR(1) error structure.
 
 ```{r}
 #| label: reg-flow-gls
@@ -431,21 +440,42 @@ gls_flow <- gls(LeesWYflow ~ OctAprP, data = flow,
 summary(gls_flow)
 ```
 
-The slope stays large and overwhelmingly significant, so the headline finding survives: precipitation is a strong driver of flow. Now think back to the rule from "Why Spurious Results Appear." The residuals here are strongly autocorrelated, but the predictor is not. Precipitation from one year to the next is close to independent, with a lag-1 autocorrelation near zero. That puts us in the efficiency regime, not the standard-error-deflation one, so the OLS standard error was not badly inflated to begin with, and GLS actually tightens it a little rather than widening it. Either way the effect is far too strong for the autocorrelation to change the verdict. The value of running the GLS fit is that you confirmed that, rather than assuming it. You looked at the residuals, saw the memory, and checked that it did not undermine the result.
+The slope stays large and overwhelmingly significant, so the headline finding survives: precipitation is a strong driver of flow. But the coefficient is different. Now think back to the rule from "Why Spurious Results Appear." The residuals here are strongly autocorrelated, but the predictor is not. Precipitation from one year to the next is close to independent, with a lag-1 autocorrelation near zero. That puts us in the efficiency regime, not the standard-error-deflation one, so the OLS standard error was not badly inflated to begin with, and GLS actually tightens it a little rather than widening it. Either way the effect is far too strong for the autocorrelation to change the verdict.
 
 ## When the Residuals Are Clean
 
 It would be easy to come away thinking every time-series regression needs GLS. It does not. The rule is to diagnose, not to assume. Here is a case that looks like it should be trouble and turns out fine. The `data/ny_air_quality.csv` file holds daily measurements of ground-level ozone in New York over a summer, along with the weather. Ozone is a photochemical pollutant: it cooks up on hot, sunny, stagnant days. So we expect temperature to predict it, and we expect the data to be autocorrelated, because weather comes in multi-day spells. Hot days cluster.
 
+Let's look at ozone and temperature before we make a model. First ozone.
+
 ```{r}
 #| label: reg-ozone
 #| message: false
 air <- read_csv("data/ny_air_quality.csv")
-ggplot(air, aes(Day, ozone)) +
+layout_mat <- matrix(c(1, 1, 2, 3), nrow = 2, byrow = TRUE)
+p1 <- ggplot(air, aes(Day, ozone)) +
   geom_line(color = sfPal[1]) +
   labs(x = "Day of summer", y = "Ozone (ppb)",
        title = "Daily ground-level ozone, New York, summer 1973") +
   theme_minimal()
+p2 <- ggAcf(air$ozone) + labs(title = NULL) + theme_minimal()
+p3 <- ggPacf(air$ozone) + labs(title = NULL) + theme_minimal()
+grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
+```
+
+Definitely some structure there. Now what about temperature?
+
+```{r}
+#| label: reg-temp
+#| message: false
+p1 <- ggplot(air, aes(Day, temperature)) +
+  geom_line(color = sfPal[1]) +
+  labs(x = "Day of summer", y = "Ozone (ppb)",
+       title = "Daily temperature, New York, summer 1973") +
+  theme_minimal()
+p2 <- ggAcf(air$temperature) + labs(title = NULL) + theme_minimal()
+p3 <- ggPacf(air$temperature) + labs(title = NULL) + theme_minimal()
+grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
 ```
 
 Now let's make a model.
@@ -468,7 +498,7 @@ Nothing. The residual autocorrelation is negligible and stays inside the band. H
 
 ## Wrapping Up
 
-Time-series regression is the saboteur from the opening chapters in its most practical form. The slope estimate usually survives autocorrelated errors, but the uncertainty around it does not, and the damage is worst exactly where it matters most: testing for a trend against time, where the predictor's own structure aligns with the memory in the errors and OLS will conjure a significant trend out of a series that only wanders because of its own memory. The discipline is the same one the book has asked for throughout. Fit the model, then look at the residuals. If they are clean, as with the ozone, OLS is doing its job and you leave it alone. If they carry memory, as with the flow and the false trend, GLS lets you specify that structure and get a trustworthy answer back.
+Time-series regression is the boogieman we worried about from the opening chapters. The slope estimate usually survives autocorrelated errors, but the uncertainty around it does not, and the damage can be worst when testing for a trend against time, where the predictor's own structure aligns with the memory in the errors and OLS will conjure a significant trend out of a series that only wanders because of its own memory. The discipline is the same one the book has asked for throughout. Fit the model, then look at the residuals. If they are clean, as with the ozone, OLS is doing its job and you leave it alone. If they carry memory, as with the flow and the false trend, GLS lets you specify that structure and get a trustworthy answer back.
 
 There is a non-parametric version of this same story, and it is the next chapter. When people test environmental series for a trend they often reach for the Mann-Kendall test and the Theil-Sen slope precisely because those methods avoid the straight-line assumption. But Mann-Kendall assumes independence too, and on autocorrelated data it over-rejects in exactly the way OLS just did, printing trends that are not there. The fix is the same idea we used here, a careful count of how many independent observations you actually have.
 
