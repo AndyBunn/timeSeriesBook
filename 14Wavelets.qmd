@@ -63,7 +63,7 @@ ggplot(switchSpecDat, aes(freq, spec)) +
   theme_minimal()
 ```
 
-Both periods show up, cleanly, right where they should. As far as identifying *what's* in the signal, the periodogram did its job. But look at the plot again: there's no time axis on it anywhere. It cannot tell you that period 10 ran first and period 30 ran second, or that they never overlapped, or where the handoff happened, because none of that information is in a periodogram's design. It reports how much of the whole record's variance belongs to each frequency, full stop. Feed it a series whose rhythm changes and it will still answer confidently, just not the question you actually wanted asked.
+Both periods show up, cleanly, right where they should. As far as identifying what's in the signal, the periodogram did its job. But look at the plot again: there's no time axis on it anywhere. It cannot tell you that period 10 ran first and period 30 ran second, or that they never overlapped, or where the handoff happened, because none of that information is in a periodogram's design. It reports how much of the whole record's variance belongs to each frequency, full stop. Feed it a series whose rhythm changes and it will still answer confidently, just not the question you actually wanted asked.
 
 ## Seeing the Switch: A Continuous Wavelet Transform
 
@@ -76,7 +76,7 @@ switchCwt <- morlet(y1 = switchDat$signal, x1 = switchDat$tm, p2 = 8, dj = 0.1, 
 wavelet.plot(switchCwt, reverse.y = TRUE, crn.lab = "Signal", crn.col = "grey50")
 ```
 
-Now the switch is right there in the picture: a band of power around period 10 that holds from the start and fades out near $t=200$, and a second band around period 30 that starts almost exactly where the first one stops. Nothing about *what* frequencies are present changed from the periodogram's answer. What changed is that this plot also answers *when*.
+Now the switch is right there in the picture: a band of power around period 10 that holds from the start and fades out near $t=200$, and a second band around period 30 that starts almost exactly where the first one stops. Nothing about what frequencies are present changed from the periodogram's answer. What changed is that this plot also answers when.
 
 The hatched regions at the edges and at long periods are the cone of influence: past that line, the wavelet's window runs off the end of the record, and the estimate there is built on less evidence than it looks like it is. That's the same edge problem the filters chapter found with loess, drawn explicitly onto the plot instead of left for you to notice on your own.
 
@@ -94,39 +94,43 @@ switchScales <- trunc(log(n) / log(2)) - 1
 switchDwt <- mra(switchDat$signal, wf = "la8", J = switchScales, method = "modwt", boundary = "periodic")
 ```
 
-The stacked plot below is the same style this chapter reuses for the tree-ring chronology later on, so it's worth building as a small helper now.
+The stacked plot below is the same style this chapter reuses for the tree-ring chronology later on, so it's worth building as a small helper now, one with a `scale` switch built in since that turns out to matter.
 
 ```{r}
 #| label: wave-mra-helper
-plot_mra <- function(dwtOut, x, xlab, unit, title) {
+plot_mra <- function(dwtOut, x, xlab, unit, title, scale = TRUE) {
   nLevels <- length(dwtOut)
-  dwtScaled <- scale(as.data.frame(dwtOut))
-  levelLabels <- colnames(dwtScaled)
+  levelNames <- names(dwtOut)
   scaleLabels <- c(paste0(2^(1:(nLevels - 1)), " ", unit),
                     paste0("> ", 2^(nLevels - 1), " ", unit))
+  labelDat <- tibble(level = factor(levelNames, levels = levelNames),
+                      label = paste0(levelNames, " (", scaleLabels, ")"))
 
-  par(mar = c(3, 2, 2, 2), mgp = c(1.25, 0.25, 0), tcl = 0.5, xaxs = "i", yaxs = "i")
-  plot(x, rep(1, length(x)), type = "n", axes = FALSE, ylab = "", xlab = "",
-       ylim = c(-3, 5 * nLevels))
-  title(main = title, line = 0.75)
-  axis(side = 1)
-  mtext(xlab, side = 1, line = 1.25)
+  dwtDat <- as_tibble(dwtOut) |>
+    mutate(x = x) |>
+    pivot_longer(-x, names_to = "level", values_to = "value") |>
+    mutate(level = factor(level, levels = levelNames))
 
-  offset <- 0
-  for (i in nLevels:1) {
-    lines(x, dwtScaled[, i] + offset)
-    abline(h = offset, lty = "dashed")
-    mtext(levelLabels[i], side = 2, at = offset, line = 0)
-    mtext(scaleLabels[i], side = 4, at = offset, line = 0)
-    offset <- offset + 5
+  if (scale) {
+    dwtDat <- dwtDat |> mutate(value = as.numeric(scale(value)), .by = level)
   }
-  box()
+
+  ggplot(dwtDat, aes(x, value)) +
+    geom_line(color = sfPal[1]) +
+    geom_label(data = labelDat, aes(x = -Inf, y = Inf, label = label),
+               inherit.aes = FALSE, hjust = 0, vjust = 1, size = 3.2, color = "grey30",
+               label.size = 0, label.padding = unit(0.15, "lines"), fill = alpha("white", 0.75)) +
+    facet_wrap(~level, ncol = 1, scales = if (scale) "fixed" else "free_y") +
+    labs(x = xlab, y = NULL, title = title) +
+    theme_minimal() +
+    theme(strip.text = element_blank(), strip.background = element_blank(),
+          panel.spacing.y = unit(0.15, "lines"))
 }
 ```
 
 ```{r}
 #| label: wave-switch-dwt-plot
-#| fig-height: 7
+#| fig-height: 5
 plot_mra(switchDwt, switchDat$tm, "Time", "pts", "Multiresolution decomposition of the switching demo")
 ```
 
@@ -141,6 +145,16 @@ tibble(level = names(switchDwt),
 ```
 
 `D3`, the detail level tuned closest to a period-10 cycle, carries far more variance in the first half than the second. `D4`, tuned closer to period 30, does the opposite. Same conclusion as the heat map above, reached by a completely different route: split the series into timescales, and the timescales themselves tell you where the switch happened.
+
+The `scale` argument in `plot_mra()` isn't decorative. Turn it off and see what changes.
+
+```{r}
+#| label: wave-switch-dwt-unscaled
+#| fig-height: 5
+plot_mra(switchDwt, switchDat$tm, "Time", "pts", "Same decomposition, unscaled", scale = FALSE)
+```
+
+Nothing goes flat here. Each panel still gets its own y-axis, so `D1`'s wiggle is just as visible as it was above even though it's tiny next to `S7`'s. What changed is that the panels no longer share a scale. `D1`'s axis covers a much narrower range than `S7`'s, because the finest detail actually varies less than the smooth trend does, measured in the switching demo's own units. That's useful if the amplitude of a single level, in its own units, is what you care about. It's useless for comparing levels against each other, since a tall wiggle in one panel and a tall wiggle in another can mean two very different sizes once you check the axis labels. The scaled version above throws those units away on purpose: every level gets forced onto the same footing, so `D3` growing while `D4` shrinks (or the other way around) shows up directly as a difference in wiggle height, no axis-checking required. Pick whichever question you're actually asking: relative variance across levels wants scaling, a level's amplitude in its own units doesn't.
 
 ## An Observed Series: A Tree-Ring Chronology
 
@@ -183,7 +197,7 @@ dwtOut <- mra(chronVal, wf = "la8", J = nScales, method = "modwt", boundary = "p
 
 ```{r}
 #| label: wave-dwt-plot
-#| fig-height: 8
+#| fig-height: 5.5
 plot_mra(dwtOut, chronYrs, "Years", "yrs", "Multiresolution decomposition of the chronology")
 ```
 

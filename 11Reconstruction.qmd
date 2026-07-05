@@ -8,7 +8,7 @@ set.seed(872)
 
 ## Big Idea
 
-Every chapter in this part has fit a model and read something off it. We found the lag at which one series leads another, estimated a slope, tested a trend, and forecast a series forward. Underneath all of it sits one question we have circled again and again: is the model any good? A model can fit the data it was built from beautifully and still be worthless on anything else, because fitting and predicting are different acts. The only way to tell them apart is to hold some data back, build the model without it, and see whether the model can predict what it was never shown. That is out-of-sample validation.
+Every chapter in this section of the book has fit a model and done something with it. We found the lag at which one series leads another, estimated a slope, tested a trend, and forecast a series forward. We know all models are wrong, right? But we've been asking is the model useful?  A model can fit the data it was built from beautifully and still be useless on anything else, because fitting and predicting are different acts. The only way to tell them apart is to hold some data back, build the model without it, and see whether the model can predict what it was never shown. That is out-of-sample validation.
 
 This chapter makes that idea concrete by reconstructing the flow of the Colorado River back more than a thousand years from tree rings. We have a short instrumental record of flow and a long proxy that tracks it, we calibrate the relationship where the two overlap, we verify it on years the calibration never saw, and only then do we trust it to reach back before the gauges existed. The tree rings are the worked example. The transferable skill is the validation: the same split-sample check that tells a paleoclimatologist whether a reconstruction is sound is what tells you whether a load forecast or a calibration curve or any predictive model will hold up.
 
@@ -31,9 +31,9 @@ sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
 
 ## A Short Record and a Long Proxy
 
-The data are the Meko reconstruction of water-year flow for the Colorado River at Lees Ferry [@Meko2007]. Dave Meko built it with Connie Woodhouse, the same Woodhouse behind the precipitation-and-flow model we leaned on in the regression chapter [@Woodhouse2016]; the two of them have been reconstructing Colorado River flow together for decades, and @Woodhouse2006 is their fuller writeup of the calibration-and-verification method this chapter walks through. They are both legends in the field. 
+The data are the Meko reconstruction of water-year flow for the Colorado River at Lees Ferry [@Meko2007]. Dave Meko built it with Connie Woodhouse, the same Woodhouse behind the precipitation-and-flow model we leaned on in the regression chapter [@Woodhouse2016]; the two of them have been reconstructing Colorado River flow together for decades, and @Woodhouse2006 is their fuller writeup of the calibration-and-verification method this chapter walks through. They are both legends in the paleo world. 
 
-There are two measured columns. `ObsMAF` is the observed flow in millions of acre-feet, which exists only for the instrumental period, 1906 to 2004. `Proxy` is a tree-ring index, expressed as a z-score, that runs all the way back to the year 762. Trees in the upper basin lay down wide rings in wet years and narrow ones in dry years, so the ring record is a stand-in for moisture that reaches back twelve centuries before anyone gauged the river.
+There are two columns. `ObsMAF` is the observed flow in millions of acre-feet, which exists only for the instrumental period, 1906 to 2004.  Millions of acre-feet is on s list of worst units ever but it's what managers use. `Proxy` is a tree-ring index, expressed as a z-score, that runs all the way back to the year 762. Trees in the upper basin lay down wide rings in wet years and narrow ones in dry years, so the ring record is a stand-in for moisture that reaches back twelve centuries before anyone gauged the river. I get a little dreamy thinking about it.
 
 ```{r}
 #| label: recon-data
@@ -66,19 +66,28 @@ And here are the same data over the instrumental period.
 
 ```{r}
 #| label: recon-data-plot-zoom
-#| fig-height: 4
+#| fig-height: 4.5
 
 p_proxy <- ggplot(instrumental, aes(Year, Proxy)) +
   geom_line(color = sfPal[1], linewidth = 0.3) +
+  geom_point(color = sfPal[1], alpha = 0.35) +
   labs(y = "Tree-ring index (z)", x = NULL) +
   theme_minimal()
 
 p_flow <- ggplot(instrumental, aes(Year, ObsMAF)) +
-  geom_line(color = sfPal[5]) +
+  geom_line(color = sfPal[5],linewidth = 0.3) +
+  geom_point(color = sfPal[5], alpha = 0.35) +
   labs(y = "Flow (MAF)", x = "Year") +
   theme_minimal()
 
-cowplot::plot_grid(p_proxy, p_flow, ncol = 1, align = "v")
+p_scatter <- ggplot(instrumental, aes(Proxy, ObsMAF)) +
+  geom_point(color = sfPal[3], alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = sfPal[3], linewidth = 0.7) +
+  labs(x = "Tree-ring index (z)", y = "Flow (MAF)") +
+  theme_minimal()
+
+p_series <- cowplot::plot_grid(p_proxy, p_flow, ncol = 1, align = "v")
+cowplot::plot_grid(p_series, p_scatter, ncol = 2, rel_widths = c(1.3, 1))
 ```
 
 This is a stunning match between tree growth and river flow. And before we go any further let's look at the autocorrelation in these data over the instrumental record.
@@ -139,7 +148,7 @@ The estimated AR(1) parameter comes back near zero, and the slope and its standa
 
 Now we need a way to score the prediction. The natural question is whether the model does better than the dumbest defensible guess you could make, which is to ignore the proxy entirely and predict every year as the average flow. Two statistics from the paleoclimate literature put a number on exactly that, and both are simple enough to write by hand.
 
-The reduction of error, RE, compares the model's squared errors against what you would get by guessing the *calibration* period mean for every verification year. Tree-ring scientists built RE for exactly this job: calibrate a proxy against a short instrumental record, then ask whether it earns its keep on years it never saw. Fritts and colleagues worked the statistic into standard dendroclimatology practice through the 1970s and 1980s, and it has been a fixture of reconstruction papers ever since [@CookKairiukstis1990]. The coefficient of efficiency, CE, does the same but against the *verification* period mean, which is a stiffer test because that mean is the best flat number you could have used for the years being predicted. CE, unlike RE, did not grow up in dendrochronology at all: it is the Nash-Sutcliffe efficiency, imported wholesale from hydrology, where it has graded rainfall-runoff models since 1970 [@NashSutcliffe1970]. Different fields landed on the same arithmetic because they were asking the same question, how much better is the model than guessing a constant, on data the model never trained on.
+The reduction of error, RE, compares the model's squared errors against what you would get by guessing the *calibration* period mean for every verification year. The idea is to calibrate a proxy against a short instrumental record, then ask whether it earns its keep on years it never saw. Fritts and colleagues worked the statistic into standard dendroclimatology practice through the 1970s and 1980s, and it has been a fixture of reconstruction papers ever since [@CookKairiukstis1990]. The coefficient of efficiency, CE, does the same but against the *verification* period mean, which is a stiffer test because that mean is the best flat number you could have used for the years being predicted. CE did not grow up in dendrochronology at all: it is the Nash-Sutcliffe efficiency, imported wholesale from hydrology, where it has graded rainfall-runoff models since 1970 [@NashSutcliffe1970]. Different fields landed on the same arithmetic because they were asking the same question, how much better is the model than guessing a constant, on data the model never trained on.
 
 ```{r}
 #| label: recon-skill
@@ -180,7 +189,7 @@ for (i in 1:nSim) {
 c(null_RE_max = max(null_RE), null_CE_max = max(null_CE))
 ```
 
-`phi_proxy` is the lag-1 autocorrelation of the tree-ring index itself, about `r round(phi_proxy, 2)`, so every simulated proxy carries the same persistence as the one we actually have without carrying any information about flow. Two thousand of them, and none come close. The best a meaningless, equally persistent proxy could manage was an RE of `r round(max(null_RE), 2)` and a CE of `r round(max(null_CE), 2)`, nowhere near the `r round(obs_skill["RE"], 2)` and `r round(obs_skill["CE"], 2)` this proxy actually earned. So yes, these numbers are good, and now that conclusion comes from a Monte Carlo test instead of a rule of thumb. It is also worth noticing why the rule of thumb held up here: this proxy's persistence is mild. Run the same check on a more autocorrelated proxy and the safe threshold creeps up well past zero, which is exactly the point @MaciasFauria2012 make. Zero is not a law of nature, just a threshold that needs checking like anything else in this book.
+`phi_proxy` is the lag-1 autocorrelation of the tree-ring index itself, about `r round(phi_proxy, 2)`, so every simulated proxy carries the same persistence as the one we actually have without carrying any information about flow. Two thousand of them, and none come close. The best a meaningless, equally persistent proxy could manage was an RE of `r round(max(null_RE), 2)` and a CE of `r round(max(null_CE), 2)`, nowhere near the `r round(obs_skill["RE"], 2)` and `r round(obs_skill["CE"], 2)` this proxy actually earned. So yes, these numbers are good, and now that conclusion comes from a Monte Carlo test. It is also worth noticing why the rule of thumb held up here: this proxy's persistence is mild. Run the same check on a more autocorrelated proxy and the safe threshold creeps up well past zero, which is exactly the point @MaciasFauria2012 make. Zero is not a law of nature, just a threshold that needs checking like anything else in this book.
 
 There is nothing special about calibrating on the early half and verifying on the late half, so we should check it the other way too. Swapping the roles is standard practice, and a reconstruction you can trust should pass in both directions.
 
@@ -266,22 +275,22 @@ kpss.test(coRiverFlow$recon)
 
 ADF rejects the unit root, KPSS does not reject stationarity, and a line fit through all twelve hundred years comes back flat, even restricted to the centuries before any gauge existed. By every test in this book, the reconstruction is stationary, sensu stricto: no drift, no unit root, no trend across a thousand years.
 
-None of that shrinks what comes next. Slide a 99-year window across the full twelve centuries and ask how often it would have landed wetter than the one the gauges actually recorded.
+None of that shrinks what comes next. Slide a 100-year window across the full twelve centuries and ask how often it would have landed wetter than the one the gauges actually recorded.
 
 ```{r}
 #| label: recon-window-pct
-roll99 <- slide_dbl(coRiverFlow$recon, mean, .before = 98, .complete = TRUE)
-roll99 <- roll99[!is.na(roll99)]
-round(100 * mean(roll99 > inst_mean), 1)
+roll100 <- slide_dbl(coRiverFlow$recon, mean, .before = 99, .complete = TRUE)
+roll100 <- roll100[!is.na(roll100)]
+round(100 * mean(roll100 > inst_mean), 1)
 ```
 
-Only `r round(100 * mean(roll99 > inst_mean), 1)`% of the windows do. The instrumental record sits near the `r round(100 * mean(roll99 < inst_mean), 1)`th percentile of everything the river has done since 762. A stationary process with this much natural variability can still hand you a deeply misleading 99-year sample, and that is what it did. Water law, reservoir design, and drought planning across the American West were built on that one stretch, mean and variance both, as if it were the river's settled character. Twelve centuries of tree rings say the stretch was generous, not settled.
+Only `r round(100 * mean(roll100 > inst_mean), 1)`% of the windows do. The instrumental record sits near the `r round(100 * mean(roll100 < inst_mean), 1)`th percentile of everything the river has done since 762. A stationary process with this much natural variability can still hand you a deeply misleading 99-year sample, and that is what it did. Water law, reservoir design, and drought planning across the American West were built on that one stretch, mean and variance both, as if it were the river's settled character. Twelve centuries of tree rings say the stretch was generous, not settled.
 
-This is where the spine of the book comes to rest. Once you can see a thousand years of a river, you can see exactly how unrepresentative the slice anyone has ever gauged turns out to be, no unit root required.
+Once you can see a thousand years of a river, you can see exactly how unrepresentative the slice anyone has ever gauged turns out to be.
 
 So where does that leave Milly's actual claim? This record ends in 2004 and has nothing to say about the river since. What it does establish is that a river behaving exactly the way it always had was never the tame, well-behaved system anyone planning around the gauge record assumed. Whether the Colorado has since started to drift the way Milly's paper warns about is a separate question, and one this record cannot answer, because the proxy stops right where a warming signal would have to show up. @Woodhouse2016 picks up close to where this reconstruction leaves off and finds rising temperature already amplifying drought beyond what precipitation alone predicts, which is the kind of evidence that could eventually tip a river from stationary to not. Maybe stationarity was not dead in 2004, when this record ends. Maybe it is dying now.
 
-And notice what licenses any of this: the verification, not the tree rings on their own and not a confident-looking line through a scatterplot. The reason we can hold a record that sits at the 96th percentile of ninety-nine-year draws up against twelve centuries, or set the medieval megadrought next to the Dust Bowl, and take any of it seriously, is that the model behind it cleared an out-of-sample test, twice. Out-of-sample skill is the line between using the past to bound what is possible and merely fitting a curve and believing your own story. Earn it, and a thousand years of river is yours to reason with. Skip it, and you have a number the software was happy to print.
+And notice what licenses any of this: the verification, not the tree rings on their own and not a confident-looking line through a scatterplot. The reason we can hold a record that sits at the 96th percentile of 100-year draws up against twelve centuries, or set the medieval megadrought next to the Dust Bowl, and take any of it seriously, is that the model behind it cleared an out-of-sample test, twice. Out-of-sample skill is the line between using the past to bound what is possible and merely fitting a curve and believing your own story. Earn it, and a thousand years of river is yours to reason with. Skip it, and you have a number the software was happy to print.
 
 ## Wrapping Up
 
@@ -304,4 +313,3 @@ The chapter dwelt on droughts, but the reconstruction holds wet anomalies too. U
 - @CookKairiukstis1990 is the standard reference for RE and the rest of the dendroclimatology calibration-verification toolkit.
 - @NashSutcliffe1970 is where CE comes from, under its original name, decades before tree-ring scientists borrowed it.
 - @MaciasFauria2012 makes the case in detail that RE and CE need a Monte Carlo significance test, not a zero threshold, once a proxy carries meaningful persistence.
-- @Milly2008 is the *Science* paper this section's title comes from. Chapter four's Further Reading has the fuller citation; here it is the foil, the forward-looking, warming-driven claim that this chapter's backward-looking reconstruction is careful not to claim for itself.

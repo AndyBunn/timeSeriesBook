@@ -8,11 +8,11 @@ set.seed(872)
 
 ## Big Idea
 
-Every chapter so far has treated a time series as a sequence of dependent observations: what predicts tomorrow, how far the memory reaches, whether a trend can be trusted. This chapter asks something more visual. If you could turn a dial that traded away noise for pattern, where would you set it? A filter is that dial. It's a set of weights slid along the series that produce a smoother version of it, one that keeps the slow-moving part and drops the jittery part (or, less often, the other way around).
+Every chapter so far has treated a time series as a sequence of dependent observations. This chapter mostly asks something more visual. If you could turn a dial that traded away noise for pattern, where would you set it? A filter is that dial. It's a set of weights slid along the series that produce a smoother version of it, one that keeps the slow-moving part and drops the jittery part (or, less often, the other way around).
 
 Everyone who works with time series smooths something eventually, if only to draw a trend line through a scatter of points, and there are a lot of ways to do it that all produce a curve that looks equally trustworthy. The trouble is that a smoother has to decide, at every point, how much of the wiggle is signal and how much is noise, and it has the least evidence to make that decision at the two ends of the record, exactly where you're most tempted to ask "so is it still going up?" We'll build a signal with the truth planted on purpose, so that for once we can catch a filter misbehaving at the edges instead of just suspecting it.
 
-Beyond the visual aid, filters solve practical problems: collapsing fine-grained data to a coarser resolution, pulling a slow trend out of a series so a faster signal is easier to see, and filling the gaps that inherited data always seem to have. This chapter is also the last stop in the time domain. The next one asks the same question sideways, not what the pattern looks like over time, but what frequencies it's built from.
+Beyond the visual aid, filters solve practical problems: collapsing fine-grained data to a coarser resolution, pulling a slow trend out of a series so a faster signal is easier to see, and filling the gaps that inherited data always seem to have. This chapter also opens the book's frequency-domain section, which might seem odd, since nothing below looks like frequency yet. Every filter in this chapter is choosing which frequencies survive and which get thrown out. We just don't have the words for it. Those words, and the reason a filter can fail badly at exactly the frequency you care about, are what the next chapter is for.
 
 ## Packages
 
@@ -72,7 +72,7 @@ pTree +
 
 ### Hanning
 
-The Hanning filter is a cousin of the moving average. It also emphasizes the low-frequency wiggle, but it tapers its weights toward the ends of the window instead of treating every point the same, which is why the curve loses more of the jaggedness than a plain moving average of the same width. Look at the code (type `hanning` at the console) and you'll see it's still just a weighted average, only not a flat one. It belongs to a family of window functions, weights that taper to zero outside some interval you choose, and it's a nice first step toward thinking in the frequency domain, which is where this book is headed next. It's implemented in `dplR` as `hanning()`.
+The Hanning filter is a cousin of the moving average. It also emphasizes the low-frequency wiggle, but it tapers its weights toward the ends of the window instead of treating every point the same, which is why the curve loses more of the jaggedness than a plain moving average of the same width. Look at the code (type `hanning` at the console) and you'll see it's still just a weighted average, only not a flat one. It belongs to a family of window functions, weights that taper to zero outside some interval you choose, and it's a nice first step toward thinking in the frequency domain, the same domain the next chapter finally puts into words. It's implemented in `dplR` as `hanning()`.
 
 ```{r}
 #| label: filt-hanning
@@ -130,9 +130,9 @@ Unlike the moving average and Hanning filters, loess (and the smoothing spline) 
 
 ## Which Smooth Recovers the Truth?
 
-Every comparison so far has been a little unfair to you: I showed four smoothers and let you eyeball which curve looked nicest, but there was no way to check any of them against an actual answer, because nobody knows the true, noise-free growth signal of a 463-year-old tree. Let's fix that by building a series where we do know the truth, the same trick this book has used since the decomposition chapter: plant a signal, bury it in noise, and see who finds it.
+Every comparison so far has been a little unfair: I showed four smoothers and let you eyeball which curve looked nicest, but there was no way to check any of them against an actual answer, because nobody knows the noise-free growth signal of a 463-year-old tree-ring chronology. Let's fix that the same way this book has since the decomposition chapter: plant a signal, bury it in noise, and see who finds it. Here's the concrete question: across the same four smoother families and the same three widths (20, 50, 100) we just tried on real tree rings, which one lands closest to the truth once it's buried in noise?
 
-We'll build 500 points of autocorrelated noise (an ARMA(2,0,1) process, so it isn't just white noise) and add two sine waves on top, one with a period of 100 and one with a period of 200. The two sine waves together are the truth. The ARMA noise is what a smoother has to see past.
+We'll build 500 points of autocorrelated noise (an ARIMA(2,0,1) process, so it isn't just white noise) and add two sine waves on top, one with a period of 100 and one with a period of 200. The two sine waves together are the truth, the answer key. The AR and MA noise is what a smoother has to see past to find it.
 
 ```{r}
 #| label: filt-planted
@@ -144,13 +144,15 @@ truth <- 0.3 * sin(2 * pi / 100 * x) + 0.5 * sin(2 * pi / 200 * x)
 
 planted <- tibble(x = x, y = as.numeric(noise) + truth, truth = truth)
 
-ggplot(planted, aes(x, y)) +
-  geom_line(color = "grey50") +
-  labs(x = "Time", y = "Value", title = "A signal with a known low-frequency truth") +
+ggplot(planted, aes(x)) +
+  geom_line(aes(y = y), color = "grey60") +
+  geom_line(aes(y = truth), color = sfPal[5], linewidth = 1) +
+  labs(x = "Time", y = "Value", title = "A signal with a known low-frequency truth",
+       subtitle = "Grey is the noisy series; the colored line is the truth buried inside it") +
   theme_minimal()
 ```
 
-Somewhere in that squiggle are two clean cycles. Let's ask all four smoothers, at the same three widths used above, to find them.
+That colored line is the truth every smoother below is chasing. None of them get to see it, only the grey squiggle it's buried in. Let's ask all four smoothers, at the same three widths used above, to find their way back to it.
 
 ```{r}
 #| label: filt-planted-smooth
@@ -185,7 +187,34 @@ recovery
 
 A 50-point moving average and a 100-point loess come out on top (RMSE around 0.17), with the 100-point Hanning filter, the 50-point Hanning filter, and the loosest spline (`spar = 0.6`) close behind. Every 20-point smoother trails the pack, too short a window to see past the noise, and the tightest spline (`spar = 0.2`) is the worst of the twelve, barely smoothing at all.
 
-Notice the moving average at 100 points does worse than the one at 50, not better, even though it's the wider window. That's the filter erasing exactly the cycle we planted, not noise.
+Four of those twelve are worth actually looking at rather than reading off a table: the moving average's best case and its oddest failure, and loess at its best and its worst.
+
+```{r}
+#| label: filt-planted-recovery-plot
+showcase <- planted |>
+  select(x, truth, ma50, ma100, lo100, ss0.2) |>
+  pivot_longer(cols = -c(x, truth), names_to = "method", values_to = "fit") |>
+  mutate(method = factor(
+    recode(method,
+           ma50  = "Moving average, W = 50 (best MA)",
+           ma100 = "Moving average, W = 100 (erased)",
+           lo100 = "Loess, span = 100 (best loess)",
+           ss0.2 = "Spline, spar = 0.2 (worst)"),
+    levels = c("Moving average, W = 50 (best MA)", "Moving average, W = 100 (erased)",
+               "Loess, span = 100 (best loess)", "Spline, spar = 0.2 (worst)")))
+
+ggplot(showcase, aes(x, fit)) +
+  geom_line(aes(x, truth), data = planted, inherit.aes = FALSE, color = "grey60") +
+  geom_line(color = sfPal[5], linewidth = 0.8) +
+  facet_wrap(~method, ncol = 2) +
+  labs(x = "Time", y = "Value",
+       title = "Four smooths against the truth they were chasing",
+       subtitle = "Grey is the planted truth, color is what each smoother recovered") +
+  theme_minimal()
+
+```
+
+Notice the moving average at 100 points (top right) does worse than the one at 50 (top left), not better, even though it's the wider window: the colored line goes nearly flat, missing the cycle almost entirely. That's the filter erasing exactly the cycle we planted, not noise. Loess doesn't share the problem. Its 100-point version (bottom left) tracks the truth about as well as anything in this chapter, while the tightest spline (bottom right, `spar = 0.2`) barely smooths at all, following the noise almost as faithfully as it follows the truth.
 
 A moving average of width $W$ is a box of equal weights, and a box that wide is blind to a cycle whose period is also $W$: the positive and negative halves of that cycle average to zero inside the window, every time the window slides. Watch it happen to a lone 100-period sine wave.
 
@@ -205,6 +234,8 @@ ggplot(pure100, aes(x)) +
 ```
 
 The flat line isn't a rounding error, it's exactly zero: a box filter has a blind spot at every frequency whose period divides evenly into its width, and a 100-point average sits right on top of our 100-year cycle. A wider window isn't automatically a safer choice. Here it was actively the wrong one, because "smooth it more" happened to erase the thing we were trying to see.
+
+That blind spot has a name and a formula, a frequency response, and the next chapter derives it. The same idea explains why a 100-point Hanning filter, built from the same window width, dodges the trap a moving average falls straight into.
 
 Now for the end-member problem. Loess and the smoothing spline gave a fitted value at every point, including the very first and the very last, while the moving average and Hanning filter simply declined (`NA` for the first and last `W/2` points of a width-`W` window). That refusal is doing you a favor. Run the fit 300 times, once per random draw of the ARMA noise, and compare the very first fitted point to one in the middle of the record.
 
@@ -320,7 +351,7 @@ core1 <- tibble(yr = as.numeric(time(co021)), mm = co021$`641114`) |>
 n_core <- nrow(core1)
 
 ggplot(core1, aes(yr, mm)) +
-  geom_line() +
+  geom_line(color = "grey60") +
   labs(x = "Year", y = "Ring width (mm)",
        subtitle = "Sample 641114, Schulman Old Tree No. 1, Mesa Verde") +
   theme_minimal()
@@ -372,7 +403,7 @@ core1 |>
   rename(`Ring width (mm)` = mm, `Ring-width index` = rwi) |>
   pivot_longer(cols = -yr, names_to = "series", values_to = "value") |>
   ggplot(aes(yr, value)) +
-  geom_line() +
+  geom_line(color="grey60") +
   labs(x = "Year", y = NULL,
        subtitle = "Sample 641114, Schulman Old Tree No. 1, Mesa Verde") +
   facet_wrap(~series, ncol = 1, scales = "free_y") +
@@ -394,11 +425,11 @@ summary(tmp$tmp)
 summary(rad$rad)
 
 pTmp <- ggplot(tmp, aes(DateTime, tmp)) +
-  geom_line() +
+  geom_line(color="grey60") +
   labs(x = "Date", y = expression(degree * C), subtitle = "Air temperature") +
   theme_minimal()
 pRad <- ggplot(rad, aes(DateTime, rad)) +
-  geom_line() +
+  geom_line(color="grey60") +
   labs(x = "Date", y = expression(W ~ m^-2), subtitle = "Radiation") +
   theme_minimal()
 gridExtra::grid.arrange(pTmp, pRad)
@@ -456,7 +487,7 @@ A filter is a small, plain idea: average your neighbors one way or another. And 
 
 The catch, worth carrying forward, is that a filter is most confident exactly where it has the most neighbors to lean on, the middle of the record, and least confident at the two ends, usually the part you care about most. We could measure that only because we planted the truth ourselves; on an actual dataset you won't get to check your smoother's homework, so treat the last few points of any smoothed curve as a rough sketch, not a number.
 
-All of this has stayed in the time domain, looking at how a filter reshapes the wiggle in a plot. The next chapter changes the question: instead of asking what a series looks like over time, it asks what frequencies the series is built from, and it gives you a much sharper tool for finding them than eyeballing three window widths.
+Everything in this chapter looked like time-domain work, a filter reshaping the wiggle in a plot. But the moving average's blind spot already gave the game away: a filter is always making a frequency-domain decision whether it says so or not. The next chapter names that decision properly. Instead of asking what a series looks like over time, it asks what frequencies the series is built from, and it gives you a much sharper tool for finding them than eyeballing three window widths.
 
 ## Exercises
 

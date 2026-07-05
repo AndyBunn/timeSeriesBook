@@ -8,7 +8,7 @@ set.seed(872)
 
 ## Introduction
 
-The cross-correlation chapter asked which of two series leads the other, and answered in time: producers a step ahead of grazers, a lead so faint it barely cleared lag zero. The spectral analysis chapter was asking a different question about a single series: not when (time domain), but how often (frequency domain). Put the two questions together and there's a natural one left over that this book won't fully answer: does the lead between two series depend on which cycle you're looking at? A slow multi-year wobble and a sharp seasonal spike could easily lead and lag by different amounts, and a single cross-correlation lag can't tell them apart. That's cross-spectral analysis. It deserves a fuller treatment than there's room for here, but it's worth knowing it exists.
+The cross-correlation chapter asked which of two series leads the other, and answered in time: producers a step ahead of grazers. The spectral analysis chapter was asking a different question about a single series: not when (time domain), but how often (frequency domain). Put the two questions together and there's a natural one left over: does the lead between two series depend on which cycle you're looking at? A slow multi-year wobble and a sharp seasonal spike could easily lead and lag by different amounts, and a single cross-correlation lag can't tell them apart. That's cross-spectral analysis. It deserves a fuller treatment than there's room for here, but it's worth knowing it exists.
 
 ```{r}
 #| label: xspec-packages
@@ -48,7 +48,7 @@ tibble(year = as.numeric(time(LynxHare)),
   theme_minimal()
 ```
 
-The two populations rise and fall together, boom and bust, with the lynx a beat behind the hare, exactly the coupling the predator-prey story predicts. Cross-spectral analysis can put a number on that beat.
+The two populations rise and fall together, boom and bust, with the lynx usually a beat behind the hare, exactly the coupling the classic predator-prey story predicts. Cross-spectral analysis can put a number on that beat.
 
 ```{r}
 #| label: xspec-pgram

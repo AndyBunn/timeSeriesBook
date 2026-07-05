@@ -8,13 +8,15 @@ set.seed(872)
 
 ## Big Idea
 
-Every chapter up to now has kept the same question in view: given what a series has done, what does that say about what it does next? That's a time-domain question, the right one for autocorrelation, ARMA, forecasting, and filtering. This chapter throws out the clock. Instead of asking when something happens, we ask how often it happens, and the payoff is a different picture of the same data: variance broken out by frequency instead of laid along a timeline.
+Every plot in this book, up to now, has put time on the x-axis, measurements marching left to right in the order they happened. That's such a natural choice it barely feels like one. Here's the swap this chapter makes: take the exact same data and put frequency on the x-axis instead, not when something happens, but how often. Same numbers, same variance, filed by repetition instead of by date.
 
-It takes a minute to get used to. A squiggly line and a spike at some particular frequency don't look like the same object, but they carry the same information, just organized differently, the way a chord and a list of its individual notes describe the same sound. Once you can move between the two views, some questions that are nearly impossible to answer by eyeballing a time-domain plot become almost trivial. Is there an eleven-year cycle buried in three centuries of sunspot counts? Is there a signature of the Earth's own orbit hiding in five million years of sunlight? The sunspot cycle shows up later in this chapter; the orbital one is waiting for you in the exercises. In both cases nobody could point to the cycle in the raw time-domain plot. The frequency domain finds it anyway.
+Every chapter up to now has also kept a time-domain question in view: given what a series has done, what does that say about what it does next, or what it used to do? That's the right question for autocorrelation, ARMA, forecasting, and reconstruction. Filtering, the last chapter, already gave you a preview of where this is headed: a moving average that erased a planted cycle rather than finding it. That was frequency behavior without the vocabulary to say so. This chapter supplies the vocabulary.
+
+It takes a minute to get used to. A time-domain plot and a frequency-domain plot of the same series don't look anything alike, but they carry the same information, organized differently, the way a chord and a list of its individual notes describe the same sound. Once you can move between the two views, some questions that are nearly impossible to answer by eyeballing a time-domain plot become almost trivial. Is there an eleven-year cycle buried in three centuries of sunspot counts? Is there a signature of the Earth's own orbit hiding in five million years of sunlight? The sunspot cycle shows up later in this chapter; the orbital one is waiting for you in the exercises. In both cases nobody could point to the cycle in the raw time-domain plot. The frequency domain finds it anyway.
 
 ## Packages
 
-We'll build every periodogram in this chapter with base R's own `spectrum()` function, so nothing about a Fourier transform happens out of view. `tidyverse` does the wrangling and plotting, `PNWColors` supplies the figure colors, and `cowplot` stacks a time-domain plot on top of its frequency-domain twin. The wavelet material that used to close this chapter now has a chapter of its own right after this one, which loads `waveslim` and `dplR` on its own.
+We'll use base R's own `spectrum()` function here, so nothing about a Fourier transform happens out of view. `tidyverse` does the wrangling and plotting, `PNWColors` supplies the figure colors, and `cowplot` stacks a time-domain plot on top of its frequency-domain twin. 
 
 ```{r}
 #| label: freq-packages
@@ -67,6 +69,16 @@ plot_grid(pTime, pFreq, ncol = 1)
 ```
 
 The two plots carry exactly the same information, just through a different lens.^[In theory the time and frequency domains are mathematically equivalent, and you can reconstruct one from the other with a full Fourier transform. In practice, smoothing, truncation, or sampling limits can obscure some details in one domain that the other shows plainly.] The time-domain plot shows the signal as it changes; the frequency-domain plot shows how much of the signal's variance sits at each frequency. You can see strong peaks around 0.02 (a 50-unit cycle) and 0.005 (a 200-unit cycle), exactly the two sine waves this signal was built from. That's spectral analysis working as advertised: it reveals periodicity that's actually there even when the time-domain plot just looks like noise.
+
+:::: {.callout-note}
+## Period and frequency say the same thing twice
+
+Frequency is cycles per unit time. Period is time per cycle. They're reciprocal: $f = 1/p$ and $p = 1/f$. A cycle that repeats every 50 years has a frequency of $1/50 = 0.02$ cycles per year. Turn either number over and you get the other back.
+
+This chapter uses both, on purpose. `spectrum()` reports frequency, so that's the native axis for every periodogram below. But a tree-ring or sunspot record is easier to picture in years per cycle than cycles per year, so expect a period to get called out whenever it makes a number easier, and a couple of plots later in the chapter carry a period axis for exactly that reason.
+
+One more wrinkle. `frequency` already has a job earlier in this book: it's the number a `ts` object stores to say how many observations there are per unit time, 12 for a monthly series, 1 for annual (see the Measure of Time chapter). That's a sampling frequency, not the spectral frequency the rest of this chapter is about, though the two aren't strangers. The sampling frequency sets a hard ceiling on how far the spectral frequency axis can reach, the Nyquist limit, and you'll watch that ceiling move later in this chapter when the sunspot record gets resampled from annual to monthly.
+::::
 
 Let's do that again but more explicitly.
   
@@ -185,7 +197,7 @@ The four tallest peaks in that plot land right on the four dashed lines, periods
 
 ## What the Periodogram Actually Computes
 
-Every plot in this chapter has put something called spectral density on the y-axis, and up to now that's been a bit of a black box: a number `spectrum()` hands back that happens to spike in the right places. It's worth opening the box once I think.
+Every plot in this chapter has put something called spectral density on the y-axis, and up to now that's been a bit of a black box: a number `spectrum()` hands back that happens to spike in the right places. It's worth unpacking.
 
 For a series $x_1, \dots, x_n$, the discrete Fourier transform (DFT) at frequency $f$ is
 
@@ -284,7 +296,7 @@ tibble(estimator = c("raw", "span = 5", "span = 21", "spec.ar()"),
               cv(replicate(500, arOrdinate()))))
 ```
 
-Widening the smoothing span from 5 to 21 roughly halves the coefficient of variation again, the usual averaging-more-neighbors payoff, at the cost of blurring together frequencies that used to be distinguishable. The other fix is `spectrum(x, method = "ar")`, which sidesteps the whole averaging trade-off by fitting an AR model to the series (the same `ar()` the forecasting chapter used) and reporting that model's own theoretical spectrum instead of the raw Fourier transform. Borrowing a smooth parametric shape from an AR fit turns out to be an even more efficient way to estimate a spectrum than averaging neighboring frequencies, provided the AR model is a reasonable description of the series. Every periodogram in this chapter so far has used `span = 5` for exactly this reason: not to make the plots prettier, but because an unsmoothed periodogram is close to un-trustworthy on its own.
+Widening the smoothing span from 5 to 21 roughly halves the coefficient of variation again, the usual averaging-more-neighbors payoff, at the cost of blurring together frequencies that used to be distinguishable. The other fix is `spectrum(x, method = "ar")`, which sidesteps the whole averaging trade-off by fitting an AR model to the series (the same `ar()` the forecasting chapter used) and reporting that model's own theoretical spectrum instead of the raw Fourier transform. Borrowing a smooth parametric shape from an AR fit turns out to be an even more efficient way to estimate a spectrum than averaging neighboring frequencies, provided the AR model is a reasonable description of the series. Every periodogram in this chapter so far has used `span = 5` for exactly this reason: not to make the plots prettier, but because an unsmoothed periodogram is close to untrustworthy on its own.
 
 ## Filters Have a Frequency Too
 
@@ -323,7 +335,7 @@ At the dashed line, the moving average's response is `r formatC(Hbox(1/100), for
 
 ## An Observed Series: Ocean Tides
 
-Simulated series are a good place to learn the mechanics, but let's point the same tool at data nobody built, starting with a periodic driver you don't need a telescope to see: the tide outside almost anyone's window on a coastline. `data/cherry_point_tides.csv` holds hourly water level for all of 2023 at Cherry Point, a NOAA tide gauge just north of Bellingham.
+Simulated series are a good place to learn the mechanics, but let's point the same tool at data nobody built, starting with a periodic driver: the tide. `data/cherry_point_tides.csv` holds hourly water level for all of 2023 at Cherry Point, a NOAA tide gauge just north of Bellingham.
 
 ```{r}
 #| label: freq-tides-plot
@@ -343,24 +355,38 @@ Two highs and two lows a day, but not identical highs or identical lows: some da
 ```{r}
 #| label: freq-tides-spec
 tideSpec <- spectrum(tides$water_level_m, span = 5, plot = FALSE)
-tideSpecDat <- tibble(freq = tideSpec$freq, spec = tideSpec$spec)
+tideSpecDat <- tibble(freq = tideSpec$freq, spec = tideSpec$spec) |>
+  filter(freq < 0.12)
 
-tidalConstituents <- tibble(name = c("K1 (diurnal)", "O1 (diurnal)",
-                                       "M2 (semidiurnal)", "S2 (semidiurnal)"),
-                              period_hr = c(23.9345, 25.8193, 12.4206, 12.0)) |>
-  mutate(freq = 1 / period_hr)
+tidalConstituents <- tibble(
+  label     = c("K1", "O1", "M2", "S2"),
+  name      = c("K1 (diurnal)", "O1 (diurnal)", "M2 (semidiurnal)", "S2 (semidiurnal)"),
+  period_hr = c(23.9345, 25.8193, 12.4206, 12.0)
+) |>
+  mutate(freq    = 1 / period_hr,
+         label_y = max(tideSpecDat$spec) * c(1.15, 0.55, 1.15, 0.55),
+         label_h = c(-0.3, 1.3, 1.3, -0.3))
 
-ggplot(tideSpecDat |> filter(freq < 0.12), aes(freq, spec)) +
+periodBreaksHr <- c(8, 12, 16, 24, 48)
+
+ggplot(tideSpecDat, aes(freq, spec)) +
   geom_line(color = "grey40") +
-  geom_vline(data = tidalConstituents, aes(xintercept = freq, color = name),
+  geom_vline(data = tidalConstituents, aes(xintercept = freq, color = label),
              linetype = "dashed", linewidth = 0.7) +
-  scale_color_manual(values = setNames(sfPal[c(1, 2, 4, 5)], tidalConstituents$name)) +
-  labs(x = "Frequency (cycles / hour)", y = "Spectral density", color = NULL,
-       title = "Named tidal constituents recovered from a year of hourly data") +
+  geom_text(data = tidalConstituents, aes(x = freq, y = label_y, label = label, color = label, hjust = label_h),
+            fontface = "bold", show.legend = FALSE) +
+  scale_color_manual(values = setNames(sfPal[c(1, 2, 4, 5)], tidalConstituents$label), guide = "none") +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.18))) +
+  scale_x_continuous(name = "Frequency (cycles / hour)",
+                      sec.axis = sec_axis(~., breaks = 1 / periodBreaksHr, labels = periodBreaksHr,
+                                           name = "Period (hr / cycle)")) +
+  labs(y = "Spectral density",
+       title = "Named tidal constituents recovered from a year of hourly data",
+       subtitle = "K1/O1 are diurnal (daily); M2/S2 are semidiurnal (twice daily)") +
   theme_minimal()
 ```
 
-Four peaks, four names, each one a named gravitational term with a period nobody had to estimate: `K1` and `O1` come from the moon and sun's daily pull as the Earth spins under them, `M2` and `S2` from the same pull acting roughly twice a day. Puget Sound and the rest of the Salish Sea sit in what oceanographers call a mixed, mainly semidiurnal regime [@PughWoodworth2014]: the semidiurnal `M2`/`S2` pair sets the basic twice-a-day rhythm, but the diurnal `K1`/`O1` pair is strong enough here to throw the two highs and two lows out of balance every day rather than fading into a footnote, which is exactly the notch-and-stall pattern in the two-week plot above. Four cycles nobody had to plant, recovered from a single year of hourly readings, each one traceable to a specific piece of orbital mechanics.
+Four peaks, four names, each one a named gravitational term with a period nobody had to estimate: `K1` and `O1` come from the moon and sun's daily pull as the Earth spins under them, `M2` and `S2` from the same pull acting roughly twice a day. Puget Sound and the rest of the Salish Sea sit in what oceanographers call a mixed, mainly semidiurnal regime [@PughWoodworth2014]: the semidiurnal `M2`/`S2` pair sets the basic twice-a-day rhythm, but the diurnal `K1`/`O1` pair is strong enough here to throw the two highs and two lows out of balance every day rather than fading into a footnote, which is exactly the notch-and-stall pattern in the two-week plot above. Four cycles nobody had to plant, recovered from a single year of hourly readings, each one traceable to a specific piece of orbital mechanics. Very cool.
 
 ## An Observed Series: Sunspots
 
@@ -435,6 +461,8 @@ ggplot(sunspotMonthlyDat, aes(freq, spec)) +
 
 The x-axis now reaches out to `r round(max(sunspotMonthlyDat$freq), 1)` cycles per year instead of stopping at 0.5. That's the Nyquist limit at work: the highest frequency a periodogram can resolve is always half the sampling rate, and twelve samples a year instead of one pushes the ceiling from 0.5 to 6. The eleven-year cycle is still the tallest thing in the plot (`r round(1 / sunspotMonthlyDat$freq[which.max(sunspotMonthlyDat$spec)], 1)` years, same story as the annual version), just squeezed into a sliver near zero on an axis that now stretches six times further. The extra room on that axis is empty for sunspot counts, since there's no meaningful monthly-scale cycle in how many spots the sun has, but the same Nyquist logic is exactly what would let a faster-sampled instrument (daily solar irradiance, say) pick up faster solar phenomena that yearly or monthly counts were never going to resolve either way.
 
+One frequency deserves a special mention: zero. A straight-line trend running the length of an entire record, what climatologists sometimes call secular change, never completes so much as one full cycle, so it isn't really a cycle at all. The periodogram still has to put it somewhere, though, and it lands in the very lowest frequency bins available, right up against zero. A strong enough trend can dump so much variance into that first sliver of the axis that every other peak gets rescaled into invisibility beside it. That's exactly why `spectrum()` removes a linear trend by default before computing anything (the small residual gap in the Parseval check a few pages back came from that same default): left in place, a lingering trend behaves like the biggest, slowest cycle in the record, one nobody intended to plant. The exercises let you turn that default off and see for yourself.
+
 ## Wrapping Up
 
 The frequency domain answers a question the time domain can't: not when does something happen, but how often, and how much of the total variance belongs to each timescale. We built that idea from scratch with four sine waves whose periods we already knew, buried them in noise, and watched `spectrum()` hand every one of them back. Then we pointed the same tool at data nobody built: a year of hourly tide readings that resolved into four named lunar and solar constituents, and three centuries of sunspot counts that gave up an eleven-year cycle with a slower one hiding underneath it. Both were sitting there the whole time, waiting for the right axis to become visible. The exercises push the same tool out to the biggest timescale in the book: five million years of the Earth's own orbit, and the ice ages it paces.
@@ -469,5 +497,3 @@ Here's the payoff to chew on once you have the spectrum in front of you. The las
 - @PughWoodworth2014 is the standard reference on tidal harmonic analysis, well past what this chapter needed but the place to go if four constituents wasn't enough.
 - @BergerLoutre1991 is the original orbital solution behind `jul65N.csv`, computed well before satellite-era climate science and still a standard reference in paleoclimatology.
 - @Peristykh2003 documents the Gleissberg cycle using cosmogenic-isotope records reaching back roughly 12,000 years, far past what the annual sunspot count alone can show.
-- [Wavelets](14Wavelets.html) picks up where this chapter's Wrapping Up leaves off: what to do when a series's frequency content changes over time.
-- [A Glimpse of Cross-Spectral Analysis](13xAsideCrossSpectrum.html) is a short detour for a question this chapter never asks about two series at once: does the lead one has over the other depend on which cycle you're looking at?
