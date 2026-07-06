@@ -19,6 +19,9 @@ We keep the tsibble framework for storing and plotting data, but the decompositi
 #| message: false
 library(tidyverse)
 library(tsibble)
+library(PNWColors)
+
+sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
 ```
 
 ## An Additive Model
@@ -107,6 +110,7 @@ tibble(t = tt, planted = trend_true, recovered = as.numeric(m_hat)) |>
   pivot_longer(c(planted, recovered), names_to = "series", values_to = "value") |>
   ggplot(aes(t, value, color = series)) +
   geom_line(na.rm = TRUE) +
+  scale_color_manual(values = c(planted = sfPal[1], recovered = sfPal[5])) +
   labs(x = "Month", y = "Trend", color = NULL,
        title = "Recovered trend vs. the truth") +
   theme_minimal()
@@ -147,6 +151,7 @@ tibble(month = 1:12,
   geom_line() +
   geom_point() +
   scale_x_continuous(breaks = 1:12) +
+  scale_color_manual(values = c(planted = sfPal[1], recovered = sfPal[5])) +
   labs(x = "Month", y = "Seasonal effect", color = NULL,
        title = "Recovered season vs. the truth") +
   theme_minimal()
@@ -291,7 +296,7 @@ The slope says carbon dioxide rose about `r round(coef(co2_lm)[2], 2)` ppm per y
 #| label: decomp-co2-lm-plot
 #| fig-height: 3
 plot(co2, ylab = expression(CO[2]~(ppm)))
-abline(co2_lm, col = "firebrick")
+abline(co2_lm, col = sfPal[5])
 ```
 
 The line fits, in the sense that it passes through the middle of the climb. But a line is committed to a single rate forever. Now put the same line against the trend from the decomposition.
@@ -301,7 +306,7 @@ The line fits, in the sense that it passes through the middle of the climb. But 
 #| fig-height: 3
 plot(co2_decomp$trend, ylab = expression(CO[2]~(ppm)),
      main = "Decomposition trend (black) vs. linear fit (red)")
-abline(co2_lm, col = "firebrick")
+abline(co2_lm, col = sfPal[5])
 ```
 
 Both are trends, and both are reasonable, but they answer different questions. The straight line gives you one number, an average rate, and assumes the rate never changed. The moving-average trend makes no such promise. It follows the data, and you can see it steepening: the curve pulls above the straight line at both ends and dips below it in the middle, because the rise actually accelerated over these decades. The regression slope is a summary. The decomposition trend is a description. Which one you want depends on whether you care about a single headline rate or the shape of the climb.
@@ -324,7 +329,7 @@ ggplot(tidy_decomp(junk_decomp), aes(time, value)) +
 
 There is no trend in `junk`. There is no season in `junk`. It is `rnorm`, full stop. But `decompose` was happy to report a wandering trend and a tidy twelve-month season anyway. The one tell is the vertical scale. Look at the magnitude on the trend and seasonal panels and compare it to the noise: there is very little there, and what little there is, is the moving average chewing on randomness. If you did not know better, you could stare at that seasonal panel and start telling yourself a story about why these data peak in March.
 
-This is the planted-signal exercise run in reverse. Earlier we planted actual structure and recovered it, and the recovery meant something because we knew it was there. Here we planted nothing, and the function still returned a full decomposition. The output looks the same in both cases. The software prints a trend and a season either way. Whether they are worth anything is a question the software cannot answer, and you have to. Plotting the components and watching their scale, knowing something about the process that generated the data, and being suspicious of structure you cannot explain are the habits that keep you from fooling yourself.
+This is the planted-signal exercise run in reverse. Earlier we planted actual structure and recovered it, and the recovery meant something because we knew it was there. Here we planted nothing, and the function still returned a full decomposition. The output looks the same in both cases. R prints a trend and a season either way. Whether they are worth anything is a question software cannot answer, and you have to. Plotting the components and watching their scale, knowing something about the process that generated the data, and being suspicious of structure you cannot explain are the habits that keep you from fooling yourself.
 
 ## The Multiplicative Model
 

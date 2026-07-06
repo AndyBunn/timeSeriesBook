@@ -8,7 +8,7 @@ set.seed(872)
 
 ## Big Idea
 
-A forecast has two halves. The first half is the prediction: if a series leans on its own past, you can push that dependence forward and see where it is likely to go next. We built that skeleton back in the ARMA chapter. An AR or ARMA model is already a statement about how tomorrow relates to today, so turning it into a forecast is mostly bookkeeping. The second half is the part  many people skip, and it is the only part that decides whether the first half was worth anything: checking the forecast against values it did not get to see. Hold back the end of a series, predict it from the rest, and compare. You never trust a forecast you have not backtested, because the software will hand you a forecast whether or not it means anything. This chapter does both halves: it makes the prediction, and then sees if we believe it.
+A forecast has two halves. The first half is the prediction: if a series leans on its own past, you can push that dependence forward and see where it is likely to go next. We built that skeleton back in the ARMA chapter. An AR or ARMA model is already a statement about how tomorrow relates to today, so turning it into a forecast is mostly bookkeeping. The second half is the part  many people skip, and it is the only part that decides whether the first half was worth anything: checking the forecast against values it did not get to see. Hold back the end of a series, predict it from the rest, and compare. You never trust a forecast you have not backtested, because R will hand you a forecast whether or not it means anything. This chapter does both halves: it makes the prediction, and then sees if we believe it.
 
 ## Packages
 
@@ -20,6 +20,9 @@ We stay with tsibble. `forecast` gives us the AR fitting and prediction tools an
 library(tidyverse)
 library(tsibble)
 library(forecast)
+library(PNWColors)
+
+sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
 ```
 
 ## Forecasting an AR(1) by Hand
@@ -117,14 +120,14 @@ ggplot() +
   geom_line(data = observed_df, aes(time, y)) +
   geom_ribbon(data = forecast_df,
               aes(time, ymin = yhat - sd, ymax = yhat + sd),
-              fill = "darkgreen", alpha = 0.3) +
-  geom_line(data = forecast_df, aes(time, yhat), color = "darkgreen") +
+              fill = sfPal[1], alpha = 0.3) +
+  geom_line(data = forecast_df, aes(time, yhat), color = sfPal[1]) +
   labs(x = "Time", y = expression(y[t]),
        title = "AR(1) forecast") +
   theme_minimal()
 ```
 
-The green forecast slides toward the mean and the band around it widens, fast at first and then hardly at all, flattening against the dotted lines that mark $\pm$ the ceiling standard deviation. By ten or fifteen steps out the forecast has essentially given up and is reporting the long-run mean give or take the long-run spread. That is the shape of a forecast from a short-memory process: useful for a few steps, then asymptotically useless, and the math tells you exactly where the cutoff is.
+The teal forecast slides toward the mean and the band around it widens, fast at first and then hardly at all, flattening against the dotted lines that mark $\pm$ the ceiling standard deviation. By ten or fifteen steps out the forecast has essentially given up and is reporting the long-run mean give or take the long-run spread. That is the shape of a forecast from a short-memory process: useful for a few steps, then asymptotically useless, and the math tells you exactly where the cutoff is.
 
 ## The Forecast Runs Both Ways
 
@@ -150,18 +153,18 @@ ggplot() +
   geom_line(data = observed_df, aes(time, y)) +
   geom_ribbon(data = forecast_df,
               aes(time, ymin = yhat - sd, ymax = yhat + sd),
-              fill = "darkgreen", alpha = 0.3) +
-  geom_line(data = forecast_df, aes(time, yhat), color = "darkgreen") +
+              fill = sfPal[1], alpha = 0.3) +
+  geom_line(data = forecast_df, aes(time, yhat), color = sfPal[1]) +
   geom_ribbon(data = backward_df,
               aes(time, ymin = yhat - sd, ymax = yhat + sd),
-              fill = "darkorange", alpha = 0.3) +
-  geom_line(data = backward_df, aes(time, yhat), color = "darkorange") +
+              fill = sfPal[5], alpha = 0.3) +
+  geom_line(data = backward_df, aes(time, yhat), color = sfPal[5]) +
   labs(x = "Time", y = expression(y[t]),
        title = "Same model, projected both directions") +
   theme_minimal()
 ```
 
-The orange forecast running off the left edge is a mirror of the green one running off the right. Projecting backward to estimate values you never measured is hindcasting, or reconstruction, and it is how a paleoclimatologist turns a tree-ring width into a temperature for a year with no thermometer in it (next chapter!). The point to carry forward is that prediction does not have a preferred direction. The model is a statement about how neighbors in time relate, and you can lean on it to fill a gap on either side. The symmetry buys us something now: everything we are about to say about checking a forward forecast applies, unchanged, to checking a backward one.
+The red forecast running off the left edge is a mirror of the teal one running off the right. Projecting backward to estimate values you never measured is hindcasting, or reconstruction, and it is how a paleoclimatologist turns a tree-ring width into a temperature for a year with no thermometer in it (next chapter!). The point to carry forward is that prediction does not have a preferred direction. The model is a statement about how neighbors in time relate, and you can lean on it to fill a gap on either side. The symmetry buys us something now: everything we are about to say about checking a forward forecast applies, unchanged, to checking a backward one.
 
 ## A Forward Forecast: Sunspots
 
@@ -187,7 +190,7 @@ sunspot_ar$order
 ::: {.callout-warning}
 ## The blind algorithm
 
-`ar` and `auto.arima` are convenient and dangerous. They optimize an information criterion until a stopping rule trips, and that is all they do. An information criterion rewards fit and penalizes parameters, but the penalty is not harsh enough when the sample is large or the noise is structured, so the algorithm will reach for a complicated model that fits the idiosyncrasies of your particular series rather than the process behind it. By default `auto.arima` will consider AR and MA orders up to five, plenty of room to fit noise. In a short series that can be reckless. And because near-identical scores can come from very different models, two runs on two samples of the same process can hand you two different stories. The criterion measures fit, not predictive skill, and those are not the same thing. Use these functions, but read what they return with suspicion, and never let one pick a model you cannot defend on mechanism. The software prints an order either way. 
+`ar` and `auto.arima` are convenient and dangerous. They optimize an information criterion until a stopping rule trips, and that is all they do. An information criterion rewards fit and penalizes parameters, but the penalty is not harsh enough when the sample is large or the noise is structured, so the algorithm will reach for a complicated model that fits the idiosyncrasies of your particular series rather than the process behind it. By default `auto.arima` will consider AR and MA orders up to five, plenty of room to fit noise. In a short series that can be reckless. And because near-identical scores can come from very different models, two runs on two samples of the same process can hand you two different stories. The criterion measures fit, not predictive skill, and those are not the same thing. Use these functions, but read what they return with suspicion, and never let one pick a model you cannot defend on mechanism. R prints an order either way. 
 :::
 
 Here `ar` landed on an AR(9), and for once the order is defensible. The sunspot cycle is solar physics, not an artifact, and nine years of memory on an eleven-year cycle is a model you can argue for. Most models have a `predict` method, so we forecast forward forty years and ask for the standard errors too.
@@ -215,8 +218,8 @@ observed_tb <- tibble(
 ggplot() +
   geom_line(data = observed_tb, aes(year, y)) +
   geom_ribbon(data = forecast_tb, aes(year, ymin = lower, ymax = upper),
-              fill = "darkgreen", alpha = 0.4) +
-  geom_line(data = forecast_tb, aes(year, yhat), color = "darkgreen") +
+              fill = sfPal[1], alpha = 0.4) +
+  geom_line(data = forecast_tb, aes(year, yhat), color = sfPal[1]) +
   labs(x = "Year", y = "Sunspots (n)") +
   coord_cartesian(xlim = c(1950, 2030)) +
   theme_minimal()
@@ -224,7 +227,7 @@ ggplot() +
 
 The AR(9) keeps the cycle going for a couple of oscillations, the peaks shrinking and the troughs filling as the forecast loses confidence, and the error band swelling around it. This is the AR(1) story from before, now with a longer memory: the forecast decays toward the mean and the interval fattens toward the ceiling, only the decay is slower and the path more interesting because the cycle takes a while to wash out. A few cycles ahead, the model has forgotten the phase and is reporting the average sunspot number with a wide band.
 
-Now look harder at that band, because it is telling on itself. The error ribbon dips below zero in a dozen of those forty years, bottoming out around -19. A sunspot count cannot be negative. You cannot have fewer than no spots on the sun. The model does not know that. It was handed a column of numbers and a recipe for propagating Gaussian uncertainty, and nowhere in that recipe is the fact that the thing being counted has a floor at zero. The central forecast stays positive, but the interval wanders into territory that does not exist. This is the first conviction of the book in miniature: the software will print a number whether or not it makes physical sense, and it falls to you to catch it. The fix is not exotic. You would forecast on a scale that cannot go negative, modeling the square root or the log of the count and transforming back, so the interval respects the floor. The lesson underneath it is bigger than sunspots. A forecast is only as sensible as the constraints you build into it, and a generic AR model builds in none. It does not know it is counting sunspots, or counting fish, or pricing a stock. It knows the numbers.
+Now look harder at that band, because it is telling on itself. The error ribbon dips below zero in a dozen of those forty years, bottoming out around -19. A sunspot count cannot be negative. You cannot have fewer than no spots on the sun. The model does not know that. It was handed a column of numbers and a recipe for propagating Gaussian uncertainty, and nowhere in that recipe is the fact that the thing being counted has a floor at zero. The central forecast stays positive, but the interval wanders into territory that does not exist. This is the first conviction of the book in miniature: R will print a number whether or not it makes physical sense, and it falls to you to catch it. The fix is not exotic. You would forecast on a scale that cannot go negative, modeling the square root or the log of the count and transforming back, so the interval respects the floor. The lesson underneath it is bigger than sunspots. A forecast is only as sensible as the constraints you build into it, and a generic AR model builds in none. It does not know it is counting sunspots, or counting fish, or pricing a stock. It knows the numbers.
 
 The plot looks impressive (for a short time anyway). Whether it is any good is a separate question, and the only way to answer it is to check.
 
@@ -282,9 +285,9 @@ test_tb <- tibble(year = time(rec_test) |> as.numeric(),
 ar_tb <- tibble(year = test_tb$year, yhat = as.numeric(ar_fc$pred))
 ggplot() +
   geom_line(data = test_tb, aes(year, rec)) +
-  geom_line(data = ar_tb, aes(year, yhat), color = "darkgreen") +
+  geom_line(data = ar_tb, aes(year, yhat), color = sfPal[1]) +
   labs(x = "Year", y = "Recruits (thousands)",
-       title = "AR forecast (green) against the withheld decade (black)") +
+       title = "AR forecast (teal) against the withheld decade (black)") +
   theme_minimal()
 ```
 
@@ -401,9 +404,9 @@ c(ar_rmse = ar_rmse, hw_rmse = hw_rmse, mean_rmse = mean_rmse)
 hw_tb <- tibble(year = test_tb$year, yhat = as.numeric(hw_fc[, 1]))
 ggplot() +
   geom_line(data = test_tb, aes(year, rec)) +
-  geom_line(data = hw_tb, aes(year, yhat), color = "darkblue") +
+  geom_line(data = hw_tb, aes(year, yhat), color = sfPal[5]) +
   labs(x = "Year", y = "Recruits (thousands)",
-       title = "Holt-Winters forecast (blue) against the withheld years") +
+       title = "Holt-Winters forecast (red) against the withheld years") +
   theme_minimal()
 ```
 
@@ -413,7 +416,7 @@ Do not mistake this for what a stock assessment actually looks like. What we jus
 
 ## Wrapping Up
 
-We forecast a series by pushing its own dependence forward, and we watched the uncertainty grow as a geometric series that saturates at a ceiling set by $\phi$, the same coefficient that governs the ACF decay. We saw that the forecast has no preferred direction in time, which is the seed of reconstruction and the reason hindcasting is the same act as forecasting. And we made backtesting the centerpiece, because a forecast you have not checked against withheld data is a number the software printed, not a result. Holding out the last decade of halibut recruitment and racing two models against a flat average showed a model beating the baseline because of persistence that was actually there, which is the kind of thing you only ever learn by checking, and the reason a fisheries agency runs this same discipline every season.
+We forecast a series by pushing its own dependence forward, and we watched the uncertainty grow as a geometric series that saturates at a ceiling set by $\phi$, the same coefficient that governs the ACF decay. We saw that the forecast has no preferred direction in time, which is the seed of reconstruction and the reason hindcasting is the same act as forecasting. And we made backtesting the centerpiece, because a forecast you have not checked against withheld data is a number R printed, not a result. Holding out the last decade of halibut recruitment and racing two models against a flat average showed a model beating the baseline because of persistence that was actually there, which is the kind of thing you only ever learn by checking, and the reason a fisheries agency runs this same discipline every season.
 
 The split-sample idea, fit on part of the record and verify against the part you hid, is the engine of the reconstruction chapter next, which runs the same discipline backward instead of forward: calibrate on part of a long record, verify on the part held out, and only then trust the model to reach past the years anyone measured.
 

@@ -23,6 +23,9 @@ library(tidyverse)
 library(tsibble)
 library(forecast)
 library(tseries)
+library(PNWColors)
+
+sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
 ```
 
 ## What Stationarity Means
@@ -129,7 +132,7 @@ walks <- replicate(reps, cumsum(rnorm(n)))   # n x reps matrix
 
 tibble(t = 1:n, empirical = apply(walks, 1, var)) |>
   ggplot(aes(t)) +
-  geom_line(aes(y = empirical), color = "steelblue") +
+  geom_line(aes(y = empirical), color = sfPal[1]) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
   labs(x = "Time", y = "Variance across realizations",
        title = "Random-walk variance grows with time") +
@@ -152,7 +155,7 @@ The ACF starts near one and comes down slowly, almost a straight ramp, staying s
 
 Now the idea this whole chapter is built to deliver, and the one that decides whether you reach for an ARMA model or an ARIMA model. There are two completely different things people call a trend, they can look identical on a plot, and they need opposite repairs.
 
-A deterministic trend is a fixed function of time with stationary noise riding on top. The series is genuinely tied to a line (or a curve); the level at time $t$ is set by the clock, and the fluctuations around it are well-behaved. A series like this is called trend-stationary, because once you remove the trend, what is left is stationary.
+A deterministic trend is a fixed function of time with stationary noise riding on top. The series is tied to a line (or a curve); the level at time $t$ is set by the clock, and the fluctuations around it are well-behaved. A series like this is called trend-stationary, because once you remove the trend, what is left is stationary.
 
 A stochastic trend is the random walk we just described. There is no underlying line. The apparent trend is the accumulation of shocks, and a different set of shocks would have wandered somewhere else entirely. A series like this is called difference-stationary, because differencing it (taking $y_t - y_{t-1}$) is what makes it stationary.
 

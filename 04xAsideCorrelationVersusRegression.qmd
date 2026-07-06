@@ -2,7 +2,10 @@
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse)
+library(PNWColors)
 set.seed(42)
+
+sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
 ```
 
 ## Why This Matters
@@ -78,9 +81,9 @@ slope_rearranged <- 1 / b
 ggplot(data.frame(x, y), aes(x = x, y = y)) +
   geom_point(alpha = 0.5) +
   geom_abline(intercept = coef(fit_yx)[1], slope = coef(fit_yx)[2],
-              color = "steelblue", linewidth = 1, aes(linetype = "lm(y ~ x)")) +
+              color = sfPal[1], linewidth = 1, aes(linetype = "lm(y ~ x)")) +
   geom_abline(intercept = intercept_rearranged, slope = slope_rearranged,
-              color = "firebrick", linewidth = 1, aes(linetype = "lm(x ~ y) rearranged")) +
+              color = sfPal[5], linewidth = 1, aes(linetype = "lm(x ~ y) rearranged")) +
   scale_linetype_manual(name = "Model",
                         values = c("lm(y ~ x)" = "solid",
                                    "lm(x ~ y) rearranged" = "dashed"),
@@ -90,7 +93,7 @@ ggplot(data.frame(x, y), aes(x = x, y = y)) +
   theme_minimal()
 ```
 
-They are not the same line. They will only be the same line when $|r| = 1$, meaning the data fall perfectly on a line with no scatter at all. In real data, that never happens.
+They are not the same line. They will only be the same line when $|r| = 1$, meaning the data fall perfectly on a line with no scatter at all. In practice, that never happens.
 
 So which line is "the" line? That depends on what question you are asking. If you are modeling $y$ as a function of $x$, use `lm(y ~ x)`. If you are modeling $x$ as a function of $y$, use `lm(x ~ y)`. If you just want to know whether the two variables are associated, use correlation and skip the line entirely.
 
@@ -127,7 +130,7 @@ round(c(from_formula = slope_formula, from_lm = slope_lm), 6)
 
 They match. This also tells you something useful: if you standardize both variables to
 have mean 0 and standard deviation 1 before fitting, the regression slope equals the
-correlation coefficient exactly. But in real data with real units, they are different
+correlation coefficient exactly. But with unstandardized data in their original units, they are different
 quantities that answer different questions.
 
 This relationship also only holds cleanly in simple linear regression with one predictor. 

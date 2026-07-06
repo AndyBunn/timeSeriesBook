@@ -55,6 +55,7 @@ Once you can describe a series' own memory, this part asks what that buys you: w
 - **Regression**: What happens when your regression residuals are autocorrelated, why it matters, and how to fix it with generalized least squares.
   - *Aside: OLS via Algebra and Matrices*. Derives the OLS solution from scratch in both algebraic and matrix form, then implements it in R. Useful background before GLS.
 - **Trend Detection**: Mann-Kendall and Theil-Sen as a rank-based alternative to a regression trend, and why they need the same autocorrelation fix regression does.
+  - *Aside: Detecting a Breakpoint*. Explores when change in a time series can be described by an abrubt change rather than a gradual change.
 - **Forecasting**: Using a fitted model's correlation structure to predict future values, and backtesting before you trust any of it.
 - **Reconstruction**: Reconstructing centuries of streamflow from tree rings, and the calibration-and-verification habit that makes any out-of-sample prediction trustworthy.
 

@@ -20,6 +20,9 @@ We will use the `tidyverse` [@R-tidyverse] for wrangling and plotting, `tsibble`
 library(tidyverse)
 library(tsibble)
 library(slider)
+library(PNWColors)
+
+sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
 ```
 
 It is worth keeping your R installation and your packages reasonably current. A good habit is to run `update.packages(ask = FALSE)` from a fresh session every week or two. Fresh means nothing loaded yet, so restart R first (in RStudio, Session then Restart R).
@@ -95,11 +98,11 @@ Here is a histogram of the daily mean temperature with a normal curve laid over 
 kbli |>
   ggplot(aes(x = TEMP)) +
   geom_histogram(aes(y = after_stat(density)), bins = 30,
-                 fill = "lightblue", color = "white") +
+                 fill = sfPal[1], color = "white") +
   stat_function(fun = dnorm,
                 args = list(mean = mean(kbli$TEMP, na.rm = TRUE),
                             sd = sd(kbli$TEMP, na.rm = TRUE)),
-                color = "darkblue", linewidth = 1) +
+                color = sfPal[5], linewidth = 1) +
   labs(x = "Daily mean temperature (C)", y = "Density") +
   theme_minimal()
 ```
@@ -145,14 +148,14 @@ missing_prcp <- kbli |> filter(is.na(PRCP))
 kbli_ts |>
   ggplot(aes(DATE, PRCP)) +
   geom_vline(data = missing_prcp, aes(xintercept = DATE),
-             colour = "steelblue", alpha = 0.6, linewidth = 0.5) +
+             colour = sfPal[1], alpha = 0.6, linewidth = 0.5) +
   geom_line(linewidth = 0.2, na.rm = TRUE) +
   labs(x = NULL, y = "Precipitation (mm)",
-       title = "Daily precipitation; blue marks days with no measurement") +
+       title = "Daily precipitation; teal marks days with no measurement") +
   theme_minimal()
 ```
 
-The blue bands are gauge outages, not dry spells. The rain gauge went quiet for most of December 2012 into January 2013, and again from April through June of 2017. A missing value and a recorded zero look identical on a careless plot, and treating one as the other will bias anything you compute. So a series can be missing data two ways: a row that isn't there, and a value that is `NA`. The tsibble's index catches the first, a plain count catches the second, and a long station record usually has some of both. We will leave them alone for now and come back to handling missing data later, in the [filters chapter](12Filters.html).
+The teal bands are gauge outages, not dry spells. The rain gauge went quiet for most of December 2012 into January 2013, and again from April through June of 2017. A missing value and a recorded zero look identical on a careless plot, and treating one as the other will bias anything you compute. So a series can be missing data two ways: a row that isn't there, and a value that is `NA`. The tsibble's index catches the first, a plain count catches the second, and a long station record usually has some of both. We will leave them alone for now and come back to handling missing data later, in the [filters chapter](12Filters.html).
 
 ## Slicing Time: Months, Years, and Aggregation
 
@@ -172,7 +175,7 @@ That `summer` object now holds every June, July, and August day in the record, a
 summer |>
   mutate(Month = month(DATE, label = TRUE)) |>
   ggplot(aes(x = Month, y = TEMP)) +
-  geom_jitter(width = 0.2, alpha = 0.15, size = 0.5, color = "steelblue") +
+  geom_jitter(width = 0.2, alpha = 0.15, size = 0.5, color = sfPal[1]) +
   geom_boxplot(outlier.shape = NA, fill = NA, linewidth = 0.6) +
   labs(x = NULL, y = "Daily mean temperature (°C)",
        title = "Summer daily temperatures at Bellingham airport") +
@@ -211,7 +214,7 @@ annual |>
   ggplot(aes(x = Year, y = TEMP)) +
   geom_line(color = "grey70") +
   geom_point(color = "grey40", size = 2) +
-  geom_smooth(method = "lm", se = FALSE, color = "firebrick") +
+  geom_smooth(method = "lm", se = FALSE, color = sfPal[5]) +
   labs(x = NULL, y = "Annual mean temperature (C)",
        title = "Bellingham annual mean temperature, 2000-2025") +
   theme_minimal()
