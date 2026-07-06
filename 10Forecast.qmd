@@ -22,7 +22,7 @@ library(tsibble)
 library(forecast)
 library(PNWColors)
 
-sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Forecasting an AR(1) by Hand
@@ -127,7 +127,7 @@ ggplot() +
   theme_minimal()
 ```
 
-The teal forecast slides toward the mean and the band around it widens, fast at first and then hardly at all, flattening against the dotted lines that mark $\pm$ the ceiling standard deviation. By ten or fifteen steps out the forecast has essentially given up and is reporting the long-run mean give or take the long-run spread. That is the shape of a forecast from a short-memory process: useful for a few steps, then asymptotically useless, and the math tells you exactly where the cutoff is.
+The navy forecast slides toward the mean and the band around it widens, fast at first and then hardly at all, flattening against the dotted lines that mark $\pm$ the ceiling standard deviation. By ten or fifteen steps out the forecast has essentially given up and is reporting the long-run mean give or take the long-run spread. That is the shape of a forecast from a short-memory process: useful for a few steps, then asymptotically useless, and the math tells you exactly where the cutoff is.
 
 ## The Forecast Runs Both Ways
 
@@ -164,7 +164,7 @@ ggplot() +
   theme_minimal()
 ```
 
-The red forecast running off the left edge is a mirror of the teal one running off the right. Projecting backward to estimate values you never measured is hindcasting, or reconstruction, and it is how a paleoclimatologist turns a tree-ring width into a temperature for a year with no thermometer in it (next chapter!). The point to carry forward is that prediction does not have a preferred direction. The model is a statement about how neighbors in time relate, and you can lean on it to fill a gap on either side. The symmetry buys us something now: everything we are about to say about checking a forward forecast applies, unchanged, to checking a backward one.
+The gold forecast running off the left edge is a mirror of the navy one running off the right. Projecting backward to estimate values you never measured is hindcasting, or reconstruction, and it is how a paleoclimatologist turns a tree-ring width into a temperature for a year with no thermometer in it (next chapter!). The point to carry forward is that prediction does not have a preferred direction. The model is a statement about how neighbors in time relate, and you can lean on it to fill a gap on either side. The symmetry buys us something now: everything we are about to say about checking a forward forecast applies, unchanged, to checking a backward one.
 
 ## A Forward Forecast: Sunspots
 
@@ -287,7 +287,7 @@ ggplot() +
   geom_line(data = test_tb, aes(year, rec)) +
   geom_line(data = ar_tb, aes(year, yhat), color = sfPal[1]) +
   labs(x = "Year", y = "Recruits (thousands)",
-       title = "AR forecast (teal) against the withheld decade (black)") +
+       title = "AR forecast (navy) against the withheld decade (black)") +
   theme_minimal()
 ```
 
@@ -406,7 +406,7 @@ ggplot() +
   geom_line(data = test_tb, aes(year, rec)) +
   geom_line(data = hw_tb, aes(year, yhat), color = sfPal[5]) +
   labs(x = "Year", y = "Recruits (thousands)",
-       title = "Holt-Winters forecast (red) against the withheld years") +
+       title = "Holt-Winters forecast (gold) against the withheld years") +
   theme_minimal()
 ```
 

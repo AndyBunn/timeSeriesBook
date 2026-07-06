@@ -21,7 +21,7 @@ library(tidyverse)
 library(tsibble)
 library(PNWColors)
 
-sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## An Additive Model

@@ -26,7 +26,7 @@ library(gridExtra)
 library(tseries)
 library(PNWColors)
 
-sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 
 ```
 
@@ -233,7 +233,7 @@ adf.test(climber)
 kpss.test(climber)
 ```
 
-KPSS does not reject stationarity, which is correct. ADF is a near miss: it cannot quite reject the unit root, and the reason is the low power we ran into with Lake Huron. ADF struggles to tell a true unit root from a stationary series with a coefficient close to one, and 0.9 is close to one. We happen to know the truth because we built it. If you had differenced this series on the strength of the climb alone, you would have overdifferenced, injecting a spurious moving-average wobble into a series that was stationary to begin with. The stationarity chapter's exercise on overdifferencing walks through that cost in detail. The lesson that travels here is the one from the spine: let the tests and the mechanism decide, not the slope your eye draws.
+KPSS does not reject stationarity, which is correct. ADF is a near miss: it cannot quite reject the unit root, and the reason is the low power we ran into with Lake Huron. ADF struggles to tell a true unit root from a stationary series with a coefficient close to one, and 0.9 is close to one. We happen to know the truth because we built it. If you had differenced this series on the strength of the climb alone, you would have overdifferenced, injecting a spurious moving-average wobble into a series that was stationary to begin with. The stationarity chapter's exercise on overdifferencing walks through that cost in detail. Important: let the tests and the mechanism decide, not the slope your eye draws.
 
 ## An Observed Series: Race Rocks SST
 

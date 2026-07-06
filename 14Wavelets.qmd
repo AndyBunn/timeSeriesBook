@@ -22,7 +22,7 @@ library(PNWColors)
 library(dplR)
 library(waveslim)
 
-sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Can a Periodogram Tell You When?

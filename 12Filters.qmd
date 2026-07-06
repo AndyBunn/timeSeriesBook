@@ -28,7 +28,7 @@ library(zoo)
 library(tsibble)
 library(PNWColors)
 
-sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Filters as Visual Aids
@@ -63,11 +63,17 @@ treeDat <- treeDat |>
          ma50  = c(stats::filter(Z, rep(1 / 50, 50),  sides = 2)),
          ma100 = c(stats::filter(Z, rep(1 / 100, 100), sides = 2)))
 
+maLong <- treeDat |>
+  select(yrs, ma20, ma50, ma100) |>
+  pivot_longer(-yrs, names_to = "width", values_to = "value") |>
+  mutate(width = factor(width, levels = c("ma20", "ma50", "ma100"),
+                        labels = c("20 years", "50 years", "100 years")))
+
 pTree +
   labs(subtitle = "Moving average filters") +
-  geom_line(data = treeDat, aes(yrs, ma20),  color = sfPal[1], linewidth = 1) +
-  geom_line(data = treeDat, aes(yrs, ma50),  color = sfPal[2], linewidth = 1) +
-  geom_line(data = treeDat, aes(yrs, ma100), color = sfPal[3], linewidth = 1)
+  geom_line(data = maLong, aes(yrs, value, color = width, linetype = width), linewidth = 1) +
+  scale_color_manual(values = c("20 years" = sfPal[1], "50 years" = sfPal[3], "100 years" = sfPal[5]), name = NULL) +
+  scale_linetype_manual(values = c("20 years" = "solid", "50 years" = "dashed", "100 years" = "dotted"), name = NULL)
 ```
 
 ### Hanning
@@ -81,11 +87,17 @@ treeDat <- treeDat |>
          han50  = hanning(Z, n = 50),
          han100 = hanning(Z, n = 100))
 
+hanLong <- treeDat |>
+  select(yrs, han20, han50, han100) |>
+  pivot_longer(-yrs, names_to = "width", values_to = "value") |>
+  mutate(width = factor(width, levels = c("han20", "han50", "han100"),
+                        labels = c("20 years", "50 years", "100 years")))
+
 pTree +
   labs(subtitle = "Hanning filters") +
-  geom_line(data = treeDat, aes(yrs, han20),  color = sfPal[1], linewidth = 1) +
-  geom_line(data = treeDat, aes(yrs, han50),  color = sfPal[2], linewidth = 1) +
-  geom_line(data = treeDat, aes(yrs, han100), color = sfPal[3], linewidth = 1)
+  geom_line(data = hanLong, aes(yrs, value, color = width, linetype = width), linewidth = 1) +
+  scale_color_manual(values = c("20 years" = sfPal[1], "50 years" = sfPal[3], "100 years" = sfPal[5]), name = NULL) +
+  scale_linetype_manual(values = c("20 years" = "solid", "50 years" = "dashed", "100 years" = "dotted"), name = NULL)
 ```
 
 Like the moving average, the Hanning-smoothed curve is shorter than the input: both lose half a window's worth of points on each end. That's the price of refusing to answer where the window doesn't fully fit, and it's a price worth measuring exactly, which we'll do in a few pages.
@@ -101,11 +113,17 @@ treeDat <- treeDat |>
          ss0.4 = smooth.spline(Z, spar = 0.4)$y,
          ss0.6 = smooth.spline(Z, spar = 0.6)$y)
 
+ssLong <- treeDat |>
+  select(yrs, ss0.2, ss0.4, ss0.6) |>
+  pivot_longer(-yrs, names_to = "spar", values_to = "value") |>
+  mutate(spar = factor(spar, levels = c("ss0.2", "ss0.4", "ss0.6"),
+                       labels = c("spar = 0.2", "spar = 0.4", "spar = 0.6")))
+
 pTree +
   labs(subtitle = "Smoothing spline filters") +
-  geom_line(data = treeDat, aes(yrs, ss0.2), color = sfPal[1], linewidth = 1) +
-  geom_line(data = treeDat, aes(yrs, ss0.4), color = sfPal[2], linewidth = 1) +
-  geom_line(data = treeDat, aes(yrs, ss0.6), color = sfPal[3], linewidth = 1)
+  geom_line(data = ssLong, aes(yrs, value, color = spar, linetype = spar), linewidth = 1) +
+  scale_color_manual(values = c("spar = 0.2" = sfPal[1], "spar = 0.4" = sfPal[3], "spar = 0.6" = sfPal[5]), name = NULL) +
+  scale_linetype_manual(values = c("spar = 0.2" = "solid", "spar = 0.4" = "dashed", "spar = 0.6" = "dotted"), name = NULL)
 ```
 
 ### Loess
@@ -119,11 +137,17 @@ treeDat <- treeDat |>
          lo50  = loess(Z ~ yrs, span = 50  / nyrs)$fitted,
          lo100 = loess(Z ~ yrs, span = 100 / nyrs)$fitted)
 
+loLong <- treeDat |>
+  select(yrs, lo20, lo50, lo100) |>
+  pivot_longer(-yrs, names_to = "width", values_to = "value") |>
+  mutate(width = factor(width, levels = c("lo20", "lo50", "lo100"),
+                        labels = c("20 years", "50 years", "100 years")))
+
 pTree +
   labs(subtitle = "Loess filters") +
-  geom_line(data = treeDat, aes(yrs, lo20),  color = sfPal[1], linewidth = 1) +
-  geom_line(data = treeDat, aes(yrs, lo50),  color = sfPal[2], linewidth = 1) +
-  geom_line(data = treeDat, aes(yrs, lo100), color = sfPal[3], linewidth = 1)
+  geom_line(data = loLong, aes(yrs, value, color = width, linetype = width), linewidth = 1) +
+  scale_color_manual(values = c("20 years" = sfPal[1], "50 years" = sfPal[3], "100 years" = sfPal[5]), name = NULL) +
+  scale_linetype_manual(values = c("20 years" = "solid", "50 years" = "dashed", "100 years" = "dotted"), name = NULL)
 ```
 
 Unlike the moving average and Hanning filters, loess (and the smoothing spline) hand you a fitted value at every single point, including the very first and the very last. That sounds like a strict improvement, and it's tempting to treat it as one. It isn't quite. Let's find out why.
@@ -472,8 +496,8 @@ plot(zooRad[1:100], type = "b", pch = 20, ylab = expression(W ~ m^-2))
 zooRad_approx <- na.approx(zooRad)
 zooRad_spline <- na.spline(zooRad)
 
-plot(zooRad_approx[1:100], type = "b", pch = 20, ylab = expression(W ~ m^-2), col = "blue", lwd = 2)
-lines(zooRad_spline[1:100], lwd = 2, col = "red", lty = "dotted")
+plot(zooRad_approx[1:100], type = "b", pch = 20, ylab = expression(W ~ m^-2), col = sfPal[1], lwd = 2)
+lines(zooRad_spline[1:100], lwd = 2, col = sfPal[5], lty = "dotted")
 lines(zooRad[1:100], col = "grey", lwd = 1)
 ```
 

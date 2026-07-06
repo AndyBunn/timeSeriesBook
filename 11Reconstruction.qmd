@@ -26,7 +26,7 @@ library(nlme)
 library(tseries)
 library(PNWColors)
 
-sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## A Short Record and a Long Proxy

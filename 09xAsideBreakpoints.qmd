@@ -8,7 +8,7 @@ library(tidyverse)
 library(strucchange)
 library(PNWColors)
 set.seed(21)
-sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Introduction
@@ -142,7 +142,7 @@ confint(bp_step)
 
 For the planted series that interval is tight, a couple of points either side of `r bp_step$breakpoints`, because the jump is large and the noise is modest. Field data is rarely this cooperative, and the interval is where you'll feel that. The dynamic-programming search behind all of this, extending cleanly from one break to several, is @BaiPerron2003; the testing-and-dating framing used here, existence first, date second, follows @Zeileis2003.
 
-## Same Trap, Different Shape
+## Autocorrelation Fools This Test Too
 
 Mann-Kendall's problem, from the last chapter, was autocorrelation: feed it a flat AR(1) series with no trend at all and it cries trend anyway, more often as $\phi$ climbs. Does a break test fall into the same trap? Run the same kind of check, an AR(1) series with no break in it, and see how often `sctest` declares one anyway.
 

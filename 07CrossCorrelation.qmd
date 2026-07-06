@@ -24,7 +24,7 @@ library(tsibble)
 library(forecast)
 library(PNWColors)
 
-sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Lagging a Series
@@ -142,36 +142,36 @@ And look at the rest of the plot. The correlation does not drop to nothing away 
 
 ## Spurious Cross-Correlation
 
-But there is a trap. Take two random walks, each one nothing but a cumulative sum of independent noise, built so that they have absolutely nothing to do with each other.
+But there is a wrinkle. Take two random walks, each one nothing but a cumulative sum of independent noise, built so that they have absolutely nothing to do with each other.
 
 ```{r}
 #| label: ccf-spurious-build
 set.seed(70)
-rw1 <- cumsum(rnorm(200))
-rw2 <- cumsum(rnorm(200))
-cor(rw1, rw2)
+randomWalk1 <- cumsum(rnorm(200))
+randomWalk2 <- cumsum(rnorm(200))
+cor(randomWalk1, randomWalk2)
 ```
 
-Why is a cumulative sum a random walk? Because that is the definition of one. Start at zero and at each step add a fresh independent shock to wherever you already are, $y_t = y_{t-1} + \epsilon_t$. Unwind that recursion and $y_t$ is nothing but the running total of every shock so far, $\epsilon_1 + \epsilon_2 + \cdots + \epsilon_t$, which is exactly what `cumsum(rnorm(n))` computes: draw the shocks, then accumulate them. Each value carries the whole history of the series inside it, so there is no mean to pull it back and it wanders wherever the accumulated shocks have taken it. We met this in the stationarity chapter as the unit root. Here it is the engine of the trap, and looking at the two walks shows you why.
+Why is a cumulative sum a random walk? Because that is the definition of one. Start at zero and at each step add a fresh independent shock to wherever you already are, $y_t = y_{t-1} + \epsilon_t$. Unwind that recursion and $y_t$ is nothing but the running total of every shock so far, $\epsilon_1 + \epsilon_2 + \cdots + \epsilon_t$, which is exactly what `cumsum(rnorm(n))` computes: draw the shocks, then accumulate them. Each value carries the whole history of the series inside it, so there is no mean to pull it back and it wanders wherever the accumulated shocks have taken it.Let's look at two walks.
 
 ```{r}
 #| label: ccf-spurious-data
 #| fig-height: 3
-tibble(time = 1:200, rw1, rw2) |>
-  pivot_longer(c(rw1, rw2)) |>
+tibble(time = 1:200, randomWalk1, randomWalk2) |>
+  pivot_longer(c(randomWalk1, randomWalk2)) |>
   ggplot(aes(time, value, color = name)) +
   geom_line() +
-  scale_color_manual(values = c(rw1 = sfPal[1], rw2 = sfPal[5])) +
+  scale_color_manual(values = c(randomWalk1 = sfPal[1], randomWalk2 = sfPal[5])) +
   labs(x = "Time", y = NULL, color = NULL) +
   theme_minimal()
 ```
 
-Each one drifts in long smooth excursions, and over this particular stretch they happen to drift the same way. The correlation puts a number on that coincidence: `r round(cor(rw1, rw2), 2)`, between two series that share no mechanism whatsoever. The cross-correlation is worse, because it gets to go looking across lags for the best apparent match.
+Each one drifts in long smooth excursions, and over this particular stretch they happen to drift the same way. The correlation puts a number on that coincidence: `r round(cor(randomWalk1, randomWalk2), 2)`, between two series that share no mechanism whatsoever. The cross-correlation is worse, because it gets to go looking across lags for the best apparent match.
 
 ```{r}
 #| label: ccf-spurious-raw
 #| fig-height: 3
-ggCcf(rw1, rw2, lag.max = 20) +
+ggCcf(randomWalk1, randomWalk2, lag.max = 20) +
   labs(title = "Two independent random walks") +
   theme_minimal()
 ```
@@ -183,8 +183,8 @@ The fix has a name, prewhitening. Before you ask how two series relate, take the
 ```{r}
 #| label: ccf-spurious-pw
 #| fig-height: 3
-d1 <- diff(rw1)
-d2 <- diff(rw2)
+d1 <- diff(randomWalk1)
+d2 <- diff(randomWalk2)
 ggCcf(d1, d2, lag.max = 20) +
   labs(title = "After differencing both series") +
   theme_minimal()

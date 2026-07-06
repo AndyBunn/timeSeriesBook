@@ -22,7 +22,7 @@ library(tsibble)
 library(slider)
 library(PNWColors)
 
-sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 It is worth keeping your R installation and your packages reasonably current. A good habit is to run `update.packages(ask = FALSE)` from a fresh session every week or two. Fresh means nothing loaded yet, so restart R first (in RStudio, Session then Restart R).
@@ -151,11 +151,11 @@ kbli_ts |>
              colour = sfPal[1], alpha = 0.6, linewidth = 0.5) +
   geom_line(linewidth = 0.2, na.rm = TRUE) +
   labs(x = NULL, y = "Precipitation (mm)",
-       title = "Daily precipitation; teal marks days with no measurement") +
+       title = "Daily precipitation; navy marks days with no measurement") +
   theme_minimal()
 ```
 
-The teal bands are gauge outages, not dry spells. The rain gauge went quiet for most of December 2012 into January 2013, and again from April through June of 2017. A missing value and a recorded zero look identical on a careless plot, and treating one as the other will bias anything you compute. So a series can be missing data two ways: a row that isn't there, and a value that is `NA`. The tsibble's index catches the first, a plain count catches the second, and a long station record usually has some of both. We will leave them alone for now and come back to handling missing data later, in the [filters chapter](12Filters.html).
+The navy bands are gauge outages, not dry spells. The rain gauge went quiet for most of December 2012 into January 2013, and again from April through June of 2017. A missing value and a recorded zero look identical on a careless plot, and treating one as the other will bias anything you compute. So a series can be missing data two ways: a row that isn't there, and a value that is `NA`. The tsibble's index catches the first, a plain count catches the second, and a long station record usually has some of both. We will leave them alone for now and come back to handling missing data later, in the [filters chapter](12Filters.html).
 
 ## Slicing Time: Months, Years, and Aggregation
 

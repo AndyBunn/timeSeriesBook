@@ -20,7 +20,7 @@ A short gap in something that barely changes from one reading to the next (an ho
 library(tidyverse)
 library(PNWColors)
 
-sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## A Station Three Miles Away

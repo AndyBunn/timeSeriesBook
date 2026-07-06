@@ -26,7 +26,7 @@ library(ggridges)
 library(PNWColors)
 library(gridExtra)
 
-sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Two Kinds of Regression
@@ -62,7 +62,7 @@ tibble(time, y) |>
   theme_minimal()
 ```
 
-The red line is what ordinary least squares draws through it. Is that trend significantly different from zero?
+The gold line is what ordinary least squares draws through it. Is that trend significantly different from zero?
 
 ::: {.callout-note}
 ## Refresher: fitting and reading a linear model
@@ -132,7 +132,7 @@ At $\phi = 0$, when the errors are independent, OLS behaves: it cries trend abou
 
 ### A Spurious Relationship
 
-That was the trend question. Now the second kind, the relationship question, and the same trap is waiting. This time we build two series that have nothing to do with each other. Call them `a` and `b`.  Each is its own AR(1) series, drawn separately, so by construction neither has any pull on the other. Then we regress one on the other and ask whether the slope is significant. The answer we should get is no.
+That was the trend question. Now the second kind, the relationship question, and the same issue is waiting. This time we build two series that have nothing to do with each other. Call them `a` and `b`.  Each is its own AR(1) series, drawn separately, so by construction neither has any pull on the other. Then we regress one on the other and ask whether the slope is significant. The answer we should get is no.
 
 ```{r}
 #| label: reg-spurious-plant

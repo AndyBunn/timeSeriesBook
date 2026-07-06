@@ -22,7 +22,7 @@ We hand-build everything in this chapter, so there are no new packages to instal
 library(tidyverse)
 library(PNWColors)
 
-sfPal <- pnw_palette("Starfish", n = 5, type = "discrete")
+sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Distribution-Free Trend Tools
@@ -123,17 +123,18 @@ Here are the two fits side by side.
 tibble(t, x) |>
   ggplot(aes(t, x)) +
   geom_point(color = sfPal[1]) +
-  geom_abline(data = tibble(slope = coef(ols_planted)[2], 
-                            intercept = coef(ols_planted)[1], 
+  geom_abline(data = tibble(slope = coef(ols_planted)[2],
+                            intercept = coef(ols_planted)[1],
                             Line = "OLS"),
-              aes(slope = slope, intercept = intercept, color = Line),
+              aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
               linewidth = 0.7) +
-  geom_abline(data = tibble(slope = ts_planted, 
-                            intercept = median(x) - ts_planted * median(t), 
+  geom_abline(data = tibble(slope = ts_planted,
+                            intercept = median(x) - ts_planted * median(t),
                             Line = "Theil-Sen"),
-              aes(slope = slope, intercept = intercept, color = Line),
+              aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
               linewidth = 0.7) +
   scale_color_manual(values = c("OLS" = sfPal[5], "Theil-Sen" = sfPal[3]), name = NULL) +
+  scale_linetype_manual(values = c("OLS" = "solid", "Theil-Sen" = "dashed"), name = NULL) +
   labs(x = "Time", y = "Some variable", title = "One outlier, two slopes") +
   theme_minimal()
 ```
@@ -176,14 +177,15 @@ ggplot(annual, aes(year, winter)) +
   geom_abline(data = tibble(slope = coef(ols_winter)[2],
                             intercept = coef(ols_winter)[1],
                             Line = "OLS"),
-              aes(slope = slope, intercept = intercept, color = Line),
+              aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
               linewidth = 0.7) +
   geom_abline(data = tibble(slope = ts_winter,
                             intercept = median(annual$winter) - ts_winter * median(annual$year),
                             Line = "Theil-Sen"),
-              aes(slope = slope, intercept = intercept, color = Line),
+              aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
               linewidth = 0.7) +
   scale_color_manual(values = c(OLS = sfPal[5], "Theil-Sen" = sfPal[3]), name = NULL) +
+  scale_linetype_manual(values = c(OLS = "solid", "Theil-Sen" = "dashed"), name = NULL) +
   labs(x = "Water year", y = expression("Mean winter flow (m"^3*"/s)"),
        title = "North Fork Nooksack, December-February mean flow") +
   theme_minimal()

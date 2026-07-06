@@ -100,7 +100,7 @@ That comes out to about `r round(cor(y[2:n], y[1:(n-1)]), 4)`, against the `r ph
 This is the same correlation you already know, applied to a series and a lagged version of itself rather than to two different variables. Written out for a general lag $k$, the autocorrelation $\rho$ is
 
 $$\rho(k) = \frac{\frac{1}{n-k}\sum_{t=k+1}^n (y_t - \bar{y})(y_{t-k} - \bar{y})}{
-\sqrt{\frac{1}{n}\sum_{t=1}^n (y_t - \bar{y})^2}}$$
+\frac{1}{n}\sum_{t=1}^n (y_t - \bar{y})^2}$$
 
 To see the whole autocorrelation structure at once, you compute $\rho$ at successive lags and plot it. That plot is called a correlogram, and the function `ggAcf` draws it. We use `ggAcf` from `forecast` rather than the base `stats::acf`; they are nearly identical (see `?ggAcf` for the small differences).
 
