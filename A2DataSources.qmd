@@ -61,7 +61,7 @@ What comes back has the temperature and precipitation columns plus a quality-con
 ```{r}
 #| label: a1-ghcnr-clean
 #| eval: false
-kbli_fresh <- raw |>
+kbliFresh <- raw |>
   mutate(
     tmax = if_else(tmax_flag != "", NA_real_, tmax),
     tmin = if_else(tmin_flag != "", NA_real_, tmin),
@@ -81,7 +81,7 @@ Then write it back over the existing file and you are current.
 ```{r}
 #| label: a1-ghcnr-write
 #| eval: false
-write_csv(kbli_fresh, "data/kbli.csv")
+write_csv(kbliFresh, "data/kbli.csv")
 ```
 
 Finding the id for a different station is the one fiddly part. The easiest route is NOAA's station search, where you can look up an airport or town and copy its GHCN-Daily id.^[<https://www.ncei.noaa.gov/access/search/data-search/daily-summaries>] `GHCNr` can also search by location with `stations()` and `filter_stations()` if you would rather stay in R.
@@ -95,8 +95,8 @@ The filters chapter wants a longer, coarser record than the daily file above: mo
 ```{r}
 #| label: a1-read-kbli-monthly
 #| message: false
-kbli_monthly <- read_csv("data/kbli_monthly.csv")
-glimpse(kbli_monthly)
+kbliMonthly <- read_csv("data/kbli_monthly.csv")
+glimpse(kbliMonthly)
 ```
 
 A month is only kept if at least 20 of its days have a valid temperature; short of that it comes back as `NA` rather than a mean built on a handful of days. That rule catches an actual hole in the record: the station stopped reporting for about two years in the mid-1990s, so July 1996 through September 1998 are all `NA`. Build it fresh with the same `GHCNr` call as above, starting the date range at `1949-01-01`, then aggregate to monthly means with the completeness rule shown here.
@@ -110,29 +110,29 @@ raw <- daily(
   end_date   = as.character(Sys.Date())
 )
 
-daily_temp <- raw |>
+dailyTemp <- raw |>
   mutate(
     tmax = if_else(tmax_flag != "", NA_real_, tmax),
     tmin = if_else(tmin_flag != "", NA_real_, tmin),
     tavg = (tmax + tmin) / 2
   )
 
-monthly <- daily_temp |>
+monthly <- dailyTemp |>
   mutate(year = year(date), month = month(date)) |>
-  summarise(n_valid = sum(!is.na(tavg)), TAVG = mean(tavg, na.rm = TRUE),
-            .by = c(year, month)) |>
-  mutate(TAVG = if_else(n_valid >= 20, TAVG, NA_real_),
-         DATE = make_date(year, month, 1))
+  summarise(nValid = sum(!is.na(tavg)), TAVG = mean(tavg, na.rm = TRUE),
+    .by = c(year, month)) |>
+  mutate(TAVG = if_else(nValid >= 20, TAVG, NA_real_),
+    DATE = make_date(year, month, 1))
 
-full_grid <- tibble(DATE = seq(min(monthly$DATE), max(monthly$DATE), by = "month"))
-kbli_monthly_fresh <- full_grid |>
+fullGrid <- tibble(DATE = seq(min(monthly$DATE), max(monthly$DATE), by = "month"))
+kbliMonthlyFresh <- fullGrid |>
   left_join(select(monthly, DATE, TAVG), by = "DATE") |>
   mutate(TAVG = round(TAVG, 2))
 
-write_csv(kbli_monthly_fresh, "data/kbli_monthly.csv")
+write_csv(kbliMonthlyFresh, "data/kbli_monthly.csv")
 ```
 
-The `full_grid` join is the important step. Without it, a month with zero data just vanishes from the table instead of showing up as a calendar gap, an off-by-one error that's easy to miss because nothing throws a warning, and it shifts every later month one slot out of place the moment you convert the column to a `ts`. [A missing-data aside](12xAsideMissingStations.html) uses this exact gap as a worked example of filling one station's hole from a neighboring station, without altering the file above.
+The `fullGrid` join is the important step. Without it, a month with zero data just vanishes from the table instead of showing up as a calendar gap, an off-by-one error that's easy to miss because nothing throws a warning, and it shifts every later month one slot out of place the moment you convert the column to a `ts`. [A missing-data aside](12xAsideMissingStations.html) uses this exact gap as a worked example of filling one station's hole from a neighboring station, without altering the file above.
 
 ### A Neighboring Station for Filling the Gap
 
@@ -150,20 +150,20 @@ glimpse(donor)
 ```{r}
 #| label: a1-donor-pull
 #| eval: false
-donor_raw <- daily("USC00450587", start_date = "1990-01-01", end_date = "2005-12-31",
-                    variables = c("tmax", "tmin"))
+donorRaw <- daily("USC00450587", start_date = "1990-01-01", end_date = "2005-12-31",
+  variables = c("tmax", "tmin"))
 ```
 
 ```{r}
 #| label: a1-donor-clean
 #| eval: false
-donor_fresh <- donor_raw |>
+donorFresh <- donorRaw |>
   mutate(tavg = (tmax + tmin) / 2, date = as.Date(date), year = year(date), month = month(date)) |>
   filter(!is.na(tavg)) |>
-  summarise(TAVG = mean(tavg), n_days = n(), .by = c(year, month)) |>
-  filter(n_days >= 20) |>
+  summarise(TAVG = mean(tavg), nDays = n(), .by = c(year, month)) |>
+  filter(nDays >= 20) |>
   transmute(DATE = make_date(year, month, 1), TAVG = round(TAVG, 2))
-write_csv(donor_fresh, "data/bellingham_3ssw_temp.csv")
+write_csv(donorFresh, "data/bellingham_3ssw_temp.csv")
 ```
 
 ## The Nooksack River Discharge
@@ -205,15 +205,15 @@ The `rdb` format puts a one-line table of column types right under the header, s
 ```{r}
 #| label: a1-nooksack-clean
 #| eval: false
-flow_col <- grep("00060_00003$", names(raw), value = TRUE)[1]
-nooksack_fresh <- raw[-1, ] |>
+flowCol <- grep("00060_00003$", names(raw), value = TRUE)[1]
+nooksackFresh <- raw[-1, ] |>
   transmute(
     DATE = as.Date(datetime),
-    FLOW = round(as.numeric(.data[[flow_col]]) * 0.0283168, 2)   # cfs -> m^3/s
+    FLOW = round(as.numeric(.data[[flowCol]]) * 0.0283168, 2)   # cfs -> m^3/s
   ) |>
   arrange(DATE)
 
-write_csv(nooksack_fresh, "data/nooksack.csv")
+write_csv(nooksackFresh, "data/nooksack.csv")
 ```
 
 To use a different river, change the `sites` id in the query. The USGS mapper lets you find a gage and read off its number.^[<https://maps.waterdata.usgs.gov/mapper/>] If you would rather not build the web address by hand, the `dataRetrieval` package wraps all of this in a `readNWISdv()` call.
@@ -258,12 +258,12 @@ What comes back has a `period` like `"2001-01"` and a `sales` value. Convert the
 ```{r}
 #| label: a1-eia-clean
 #| eval: false
-az_fresh <- raw |>
+azFresh <- raw |>
   transmute(DATE = as.Date(paste0(period, "-01")),
-            SALES = round(as.numeric(sales), 1)) |>
+    SALES = round(as.numeric(sales), 1)) |>
   arrange(DATE)
 
-write_csv(az_fresh, "data/az_electricity.csv")
+write_csv(azFresh, "data/az_electricity.csv")
 ```
 
 To use a different state or sector, change the `stateid` and `sectorid` facets in the query (for example `TX` and `RES`, or `AZ` and `COM` for commercial). If you would rather not register a key, the same series lives in EIA's no-key bulk download `ELEC.zip`, though that file is large and you have to filter it down to the one series yourself.
@@ -293,9 +293,9 @@ data(lakeWAplankton)
 raw <- as.data.frame(lakeWAplanktonRaw)
 
 algae   <- c("Cryptomonas", "Diatoms", "Greens",
-             "Bluegreens", "Unicells", "Other.algae")
+  "Bluegreens", "Unicells", "Other.algae")
 grazers <- c("Daphnia", "Diaptomus", "Cyclops",
-             "Epischura", "Non.daphnid.cladocerans", "Non.colonial.rotifers")
+  "Epischura", "Non.daphnid.cladocerans", "Non.colonial.rotifers")
 
 # log each taxon to tame the skew, standardize so scales are comparable,
 # then average to a single producer and grazer index
@@ -305,12 +305,12 @@ grazers   <- rowMeans(zlog(as.matrix(raw[grazers])), na.rm = TRUE)
 
 # linear-interpolate the handful of months a taxon went unrecorded
 fill <- function(v) approx(seq_along(v), ifelse(is.finite(v), v, NA),
-                           seq_along(v), rule = 2)$y
+  seq_along(v), rule = 2)$y
 
-lwa_fresh <- tibble(Year = raw$Year, Month = raw$Month,
-                    producers = round(fill(producers), 3),
-                    grazers   = round(fill(grazers),   3))
-write_csv(lwa_fresh, "data/lake_wa_plankton.csv")
+lwaFresh <- tibble(Year = raw$Year, Month = raw$Month,
+  producers = round(fill(producers), 3),
+  grazers   = round(fill(grazers),   3))
+write_csv(lwaFresh, "data/lake_wa_plankton.csv")
 ```
 
 The record runs monthly from 1962 to 1994. It does not update the way a weather station does, so there is no live source to refresh against; the recipe is here so you can see exactly how the two indices were built and swap taxa in or out if you want to.
@@ -351,8 +351,8 @@ glimpse(air)
 #| label: a1-air-build
 #| eval: false
 library(lattice)
-air_fresh <- tibble(Day = seq_len(nrow(environmental)), environmental)
-write_csv(air_fresh, "data/ny_air_quality.csv")
+airFresh <- tibble(Day = seq_len(nrow(environmental)), environmental)
+write_csv(airFresh, "data/ny_air_quality.csv")
 ```
 
 ## The Poorly-Launched Sensor Data
@@ -417,16 +417,16 @@ url <- paste0(
   "&begin_date=20230101&end_date=20231231",
   "&datum=MLLW&station=9449424&time_zone=GMT&units=metric&format=json"
 )
-tides_raw <- fromJSON(url)$data
+tidesRaw <- fromJSON(url)$data
 ```
 
 ```{r}
 #| label: a1-tides-clean
 #| eval: false
-tides_fresh <- tides_raw |>
+tidesFresh <- tidesRaw |>
   transmute(DateTime = as.POSIXct(t, tz = "UTC"),
-            water_level_m = as.numeric(v))
-write_csv(tides_fresh, "data/cherry_point_tides.csv")
+    water_level_m = as.numeric(v))
+write_csv(tidesFresh, "data/cherry_point_tides.csv")
 ```
 
 ## The Blowfly Population Data
@@ -469,10 +469,10 @@ glimpse(halibut)
 library(FSAdata)
 data(HalibutPAC)
 
-halibut_fresh <- HalibutPAC
-halibut_fresh$ssb <- round(halibut_fresh$ssb, 1)
-halibut_fresh$rec <- round(halibut_fresh$rec, 1)
-write_csv(halibut_fresh, "data/halibut.csv")
+halibutFresh <- HalibutPAC
+halibutFresh$ssb <- round(halibutFresh$ssb, 1)
+halibutFresh$rec <- round(halibutFresh$rec, 1)
+write_csv(halibutFresh, "data/halibut.csv")
 ```
 
 This is a closed historical record from a specific stock assessment vintage, not a feed that updates, so there is nothing to refresh against; the recipe is here so you can see exactly where the numbers came from.

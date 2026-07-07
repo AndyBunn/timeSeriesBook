@@ -55,8 +55,8 @@ So far this is an ordinary tibble (a fancy data frame). To tell R that these dat
 
 ```{r}
 #| label: intro-make-tsibble
-kbli_ts <- as_tsibble(kbli, index = DATE)
-kbli_ts
+kbliTs <- as_tsibble(kbli, index = DATE)
+kbliTs
 ```
 
 Look at what the header tells you. It says `[1D]`, meaning the data step one day at a time, and it found that out from the `DATE` column. That visible index is the reason we lead with the tsibble. The time is a column you can see, sitting right there in the table next to everything else. You can `filter` it, `mutate` it, `group_by` other columns, and pipe it into `ggplot`, exactly as you would any tibble. Nothing new to learn, except that one column is special.
@@ -68,11 +68,11 @@ Now a picture. We have temperature and precipitation, so this is a multivariate 
 ```{r}
 #| label: intro-plot-kbli
 #| fig-height: 5
-kbli_ts |>
+kbliTs |>
   pivot_longer(c(TEMP, PRCP), names_to = "variable", values_to = "value") |>
   mutate(variable = recode_values(variable,
-                                  "TEMP" ~ "Mean temperature (°C)",
-                                  "PRCP" ~ "Precipitation (mm)")) |>
+    "TEMP" ~ "Mean temperature (°C)",
+    "PRCP" ~ "Precipitation (mm)")) |>
   ggplot(aes(x = DATE, y = value)) +
   geom_line(linewidth = 0.2) +
   facet_wrap(~variable, ncol = 1, scales = "free_y") +
@@ -98,11 +98,11 @@ Here is a histogram of the daily mean temperature with a normal curve laid over 
 kbli |>
   ggplot(aes(x = TEMP)) +
   geom_histogram(aes(y = after_stat(density)), bins = 30,
-                 fill = sfPal[1], color = "white") +
+    fill = sfPal[1], color = "white") +
   stat_function(fun = dnorm,
-                args = list(mean = mean(kbli$TEMP, na.rm = TRUE),
-                            sd = sd(kbli$TEMP, na.rm = TRUE)),
-                color = sfPal[5], linewidth = 1) +
+    args = list(mean = mean(kbli$TEMP, na.rm = TRUE),
+      sd = sd(kbli$TEMP, na.rm = TRUE)),
+    color = sfPal[5], linewidth = 1) +
   labs(x = "Daily mean temperature (C)", y = "Density") +
   theme_minimal()
 ```
@@ -116,14 +116,14 @@ A small sanity check. A long station record often has holes, and this one is no 
 
 ```{r}
 #| label: intro-has-gaps
-has_gaps(kbli_ts)
+has_gaps(kbliTs)
 ```
 
 There are. Which days?
 
 ```{r}
 #| label: intro-count-gaps
-count_gaps(kbli_ts)
+count_gaps(kbliTs)
 ```
 
 Two days. But read that carefully, because `count_gaps` finds missing *rows*, days that are absent from the table entirely. The station logged nothing, so there is no row to hold an `NA`. The day simply isn't there. That is the kind of hole ordinary tools sail past, because there is nothing to trip over, and it is exactly what the tsibble's regular `[1D]` index lets it catch.
@@ -132,7 +132,7 @@ That is not the only way data go missing, and here it is not even the common one
 
 ```{r}
 #| label: intro-count-nas
-kbli_ts |>
+kbliTs |>
   as_tibble() |>
   summarise(across(c(TMAX, TMIN, PRCP, TEMP), \(x) sum(is.na(x))))
 ```
@@ -143,15 +143,15 @@ Two missing rows, but 167 missing precipitation values. And they do not fall eve
 #| label: intro-missing-precip
 #| fig-height: 3
 #| warning: false
-missing_prcp <- kbli |> filter(is.na(PRCP))
+missingPrcp <- kbli |> filter(is.na(PRCP))
 
-kbli_ts |>
+kbliTs |>
   ggplot(aes(DATE, PRCP)) +
-  geom_vline(data = missing_prcp, aes(xintercept = DATE),
-             colour = sfPal[1], alpha = 0.6, linewidth = 0.5) +
+  geom_vline(data = missingPrcp, aes(xintercept = DATE),
+    colour = sfPal[1], alpha = 0.6, linewidth = 0.5) +
   geom_line(linewidth = 0.2, na.rm = TRUE) +
   labs(x = NULL, y = "Precipitation (mm)",
-       title = "Daily precipitation; navy marks days with no measurement") +
+    title = "Daily precipitation; navy marks days with no measurement") +
   theme_minimal()
 ```
 
@@ -165,7 +165,7 @@ Say we want only the summer months. The `month` function turns a date into its m
 
 ```{r}
 #| label: intro-summer
-summer <- kbli_ts |> filter(month(DATE) %in% 6:8)
+summer <- kbliTs |> filter(month(DATE) %in% 6:8)
 ```
 
 That `summer` object now holds every June, July, and August day in the record, about 2,400 of them. A boxplot makes a nice summary of the three months, and if we jitter the raw days behind it we get the distribution and the summary in one picture. The boxplot gives the medians and spread; the cloud of points reminds us how much day-to-day variation those tidy boxes are hiding.
@@ -178,7 +178,7 @@ summer |>
   geom_jitter(width = 0.2, alpha = 0.15, size = 0.5, color = sfPal[1]) +
   geom_boxplot(outlier.shape = NA, fill = NA, linewidth = 0.6) +
   labs(x = NULL, y = "Daily mean temperature (°C)",
-       title = "Summer daily temperatures at Bellingham airport") +
+    title = "Summer daily temperatures at Bellingham airport") +
   theme_minimal()
 ```
 
@@ -188,7 +188,7 @@ More often you want to collapse the series to a coarser step, say a yearly mean.
 
 ```{r}
 #| label: intro-annual
-annual <- kbli_ts |>
+annual <- kbliTs |>
   filter(year(DATE) < 2026) |>
   index_by(Year = ~ year(.)) |>
   summarise(TEMP = mean(TEMP, na.rm = TRUE))
@@ -204,8 +204,8 @@ One of the first questions anyone asks of a series like this is whether it is go
 
 ```{r}
 #| label: intro-trend-fit
-trend_fit <- lm(TEMP ~ Year, data = annual)
-coef(trend_fit)
+trendFit <- lm(TEMP ~ Year, data = annual)
+coef(trendFit)
 ```
 
 ```{r}
@@ -216,11 +216,11 @@ annual |>
   geom_point(color = "grey40", size = 2) +
   geom_smooth(method = "lm", se = FALSE, color = sfPal[5]) +
   labs(x = NULL, y = "Annual mean temperature (C)",
-       title = "Bellingham annual mean temperature, 2000-2025") +
+    title = "Bellingham annual mean temperature, 2000-2025") +
   theme_minimal()
 ```
 
-The slope comes out to about `r round(coef(trend_fit)[2], 3)` degrees C per year, which is roughly half a degree per decade of local warming. Before you trust that number, a warning that the whole book is built around: fitting a straight line to a time series and reading off the slope is easy, but deciding whether to believe the slope is hard, because the observations are correlated through time and the usual standard errors assume they are not. We will come back and do this responsibly. For now, notice how little code it took, and stay a little suspicious of how clean it looks.
+The slope comes out to about `r round(coef(trendFit)[2], 3)` degrees C per year, which is roughly half a degree per decade of local warming. Before you trust that number, a warning that the whole book is built around: fitting a straight line to a time series and reading off the slope is easy, but deciding whether to believe the slope is hard, because the observations are correlated through time and the usual standard errors assume they are not. We will come back and do this responsibly. For now, notice how little code it took, and stay a little suspicious of how clean it looks.
 
 ## Under the Hood: the `ts` Class
 
@@ -279,8 +279,8 @@ None of this means you should avoid `ts`. You can't, and you shouldn't want to. 
 ```{r}
 #| label: intro-bridge
 # a ts object becomes a tidy tsibble
-lake_ts <- as_tsibble(LakeHuron)
-lake_ts
+lakeTs <- as_tsibble(LakeHuron)
+lakeTs
 
 # and a tsibble can go back to ts when a base function needs it
 head(as.ts(annual))
@@ -300,8 +300,8 @@ The plot method uses the frequency the same way.
 
 ```{r}
 #| label: intro-co2-plot
-plot(co2, ylab = expression(CO[2]~(ppm)),
-     main = "Monthly atmospheric CO2 at Mauna Loa")
+plot(co2, ylab = expression(CO[2] ~ (ppm)),
+  main = "Monthly atmospheric CO2 at Mauna Loa")
 ```
 
 The steady climb is the Keeling curve, one of the most recognizable figures in science. The fuzz riding on top of it is the seasonal cycle, the planet breathing in and out once a year as Northern Hemisphere plants leaf out and die back. That annual wiggle is the twelve monthly values we just saw spelled out in the printed grid, now drawn instead of tabulated. Converting to a tsibble carries the calendar across, turning the implied months into an explicit `yearmonth` index.
@@ -327,7 +327,7 @@ These all use the `kbli` data you already have loaded, so no new files. They pic
 
 In the body we aggregated temperature to an annual value with `mean`, because temperature is a state and the yearly number you want is a typical day. Precipitation is different. It is a flux that accumulates, so the natural annual summary is the total, not the average.
 
-1. Build a series of annual total precipitation from `kbli_ts`, using `index_by` with `sum` instead of `mean`. Drop the partial final year first, the way we did for temperature, or your last total will be a half year masquerading as a full one.
+1. Build a series of annual total precipitation from `kbliTs`, using `index_by` with `sum` instead of `mean`. Drop the partial final year first, the way we did for temperature, or your last total will be a half year masquerading as a full one.
 2. Plot it. Is there a trend? Fit a linear model of annual total precipitation against year and report the slope in millimeters per year.
 3. A subtlety to notice rather than fix: `sum(PRCP, na.rm = TRUE)` quietly treats a missing day as zero, so any year with flagged or missing days reads a little dry. How many such days are there, and does knowing that make you trust the trend more or less?
 

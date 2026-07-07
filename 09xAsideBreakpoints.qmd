@@ -49,7 +49,7 @@ Nothing drifts here. The series is flat, jumps once, and is flat again. Run last
 
 ```{r}
 #| label: bp-mk-ts
-mann_kendall <- function(x) {
+mannKendall <- function(x) {
   n <- length(x)
   S <- 0
   for (j in 2:n) {
@@ -58,15 +58,15 @@ mann_kendall <- function(x) {
     }
   }
   ties <- table(x)
-  tie_term <- sum(ties * (ties - 1) * (2 * ties + 5))
-  varS <- (n * (n - 1) * (2 * n + 5) - tie_term) / 18
+  tieTerm <- sum(ties * (ties - 1) * (2 * ties + 5))
+  varS <- (n * (n - 1) * (2 * n + 5) - tieTerm) / 18
   Z <- (S - sign(S)) / sqrt(varS)
   tau <- S / (n * (n - 1) / 2)
   p <- 2 * (1 - pnorm(abs(Z)))
   tibble(S = S, varS = varS, Z = Z, tau = tau, p = p)
 }
 
-theil_sen <- function(x, t = seq_along(x)) {
+theilSen <- function(x, t = seq_along(x)) {
   n <- length(x)
   slopes <- c()
   for (j in 2:n) {
@@ -77,12 +77,12 @@ theil_sen <- function(x, t = seq_along(x)) {
   median(slopes)
 }
 
-mk_step <- mann_kendall(step)
-ts_step <- theil_sen(step)
-c(tau = mk_step$tau, p = mk_step$p, theil_sen_per_unit = ts_step)
+mkStep <- mannKendall(step)
+tsStep <- theilSen(step)
+c(tau = mkStep$tau, p = mkStep$p, theilSenPerUnit = tsStep)
 ```
 
-Mann-Kendall reports $\tau$ = `r round(mk_step$tau, 2)` with a $p$-value of `r format(mk_step$p, scientific = TRUE, digits = 2)`. Screaming significant, as it should be, later values really do sit above earlier ones. The Theil-Sen slope of `r round(ts_step, 2)` per unit time, multiplied out over `r n - 1` points, lands close to the actual jump of 5. But look at what that slope claims: a steady climb, a little bit every year, for eighty years. That's not what happened. Nothing moved for forty-five points, then five units of change arrived at once, then nothing moved again. The number is roughly the right size and describes the wrong process entirely. Wrong tool for this shape of change, even when it doesn't look wrong.
+Mann-Kendall reports $\tau$ = `r round(mkStep$tau, 2)` with a $p$-value of `r format(mkStep$p, scientific = TRUE, digits = 2)`. Screaming significant, as it should be, later values really do sit above earlier ones. The Theil-Sen slope of `r round(tsStep, 2)` per unit time, multiplied out over `r n - 1` points, lands close to the actual jump of 5. But look at what that slope claims: a steady climb, a little bit every year, for eighty years. That's not what happened. Nothing moved for forty-five points, then five units of change arrived at once, then nothing moved again. The number is roughly the right size and describes the wrong process entirely. Wrong tool for this shape of change, even when it doesn't look wrong.
 
 ## Finding the Break by Hand
 
@@ -90,16 +90,16 @@ Here's the idea, and it is about as simple as Mann-Kendall's pairwise sum. Try e
 
 ```{r}
 #| label: bp-byhand
-rss_at_split <- function(x, k) {
+rssAtSplit <- function(x, k) {
   before <- x[1:k]
   after <- x[(k + 1):length(x)]
   sum((before - mean(before))^2) + sum((after - mean(after))^2)
 }
 
 candidates <- 5:(n - 5)
-rss <- map_dbl(candidates, rss_at_split, x = step)
-best_split <- candidates[which.min(rss)]
-best_split
+rss <- map_dbl(candidates, rssAtSplit, x = step)
+bestSplit <- candidates[which.min(rss)]
+bestSplit
 ```
 
 ```{r}
@@ -107,13 +107,13 @@ best_split
 tibble(split = candidates, rss = rss) |>
   ggplot(aes(split, rss)) +
   geom_line(color = sfPal[1]) +
-  geom_vline(xintercept = best_split, linetype = "dashed", color = sfPal[5]) +
+  geom_vline(xintercept = bestSplit, linetype = "dashed", color = sfPal[5]) +
   labs(x = "Candidate split point", y = "Leftover variation (RSS)",
-       title = "Where the series is best explained by two means instead of one") +
+    title = "Where the series is best explained by two means instead of one") +
   theme_minimal()
 ```
 
-The minimum lands at point `r best_split`, one point off the true break at 45, about as close as noisy data lets you get. Compare that RSS at the best split, `r round(min(rss), 1)`, against the RSS if you'd insisted on a single mean for the whole series, `r round(sum((step - mean(step))^2), 1)`. Cutting the series in two explains a lot more of it. That comparison, one mean's leftover variance against two means' leftover variance, is exactly what an F-test asks. This by-hand scan is a Chow test with extra steps.
+The minimum lands at point `r bestSplit`, one point off the true break at 45, about as close as noisy data lets you get. Compare that RSS at the best split, `r round(min(rss), 1)`, against the RSS if you'd insisted on a single mean for the whole series, `r round(sum((step - mean(step))^2), 1)`. Cutting the series in two explains a lot more of it. That comparison, one mean's leftover variance against two means' leftover variance, is exactly what an F-test asks. This by-hand scan is a Chow test with extra steps.
 
 ## A Formal Test: strucchange
 
@@ -121,26 +121,26 @@ The minimum lands at point `r best_split`, one point off the true break at 45, a
 
 ```{r}
 #| label: bp-strucchange
-bp_step <- breakpoints(step ~ 1)
-bp_step$breakpoints
+bpStep <- breakpoints(step ~ 1)
+bpStep$breakpoints
 ```
 
-Same answer as the by-hand scan, point `r bp_step$breakpoints`, because for one break they are the same calculation. What the package adds is a formal test for whether that break should be trusted at all, using the same F-statistic under the hood.
+Same answer as the by-hand scan, point `r bpStep$breakpoints`, because for one break they are the same calculation. What the package adds is a formal test for whether that break should be trusted at all, using the same F-statistic under the hood.
 
 ```{r}
 #| label: bp-sctest
-fs_step <- Fstats(step ~ 1)
-sctest(fs_step, type = "supF")
+fsStep <- Fstats(step ~ 1)
+sctest(fsStep, type = "supF")
 ```
 
 And a confidence interval on the date itself, not just a point guess.
 
 ```{r}
 #| label: bp-confint
-confint(bp_step)
+confint(bpStep)
 ```
 
-For the planted series that interval is tight, a couple of points either side of `r bp_step$breakpoints`, because the jump is large and the noise is modest. Field data is rarely this cooperative, and the interval is where you'll feel that. The dynamic-programming search behind all of this, extending cleanly from one break to several, is @BaiPerron2003; the testing-and-dating framing used here, existence first, date second, follows @Zeileis2003.
+For the planted series that interval is tight, a couple of points either side of `r bpStep$breakpoints`, because the jump is large and the noise is modest. Field data is rarely this cooperative, and the interval is where you'll feel that. The dynamic-programming search behind all of this, extending cleanly from one break to several, is @BaiPerron2003; the testing-and-dating framing used here, existence first, date second, follows @Zeileis2003.
 
 ## Autocorrelation Fools This Test Too
 
@@ -148,33 +148,33 @@ Mann-Kendall's problem, from the last chapter, was autocorrelation: feed it a fl
 
 ```{r}
 #| label: bp-mc
-ar1_series <- function(phi, n) {
+ar1Series <- function(phi, n) {
   if (phi == 0) rnorm(n) else as.numeric(arima.sim(list(ar = phi), n = n))
 }
 
-bp_false_positive <- function(phi, n = 60, sims = 200) {
+bpFalsePositive <- function(phi, n = 60, sims = 200) {
   mean(replicate(sims, {
-    fs <- Fstats(ar1_series(phi, n) ~ 1)
+    fs <- Fstats(ar1Series(phi, n) ~ 1)
     sctest(fs, type = "supF")$p.value < 0.05
   }))
 }
 
 set.seed(10)
 phis <- c(0, 0.3, 0.5, 0.7, 0.9)
-bp_fp <- tibble(phi = phis, rate = map_dbl(phis, bp_false_positive))
-bp_fp
+bpFp <- tibble(phi = phis, rate = map_dbl(phis, bpFalsePositive))
+bpFp
 ```
 
 ```{r}
 #| label: bp-mc-plot
-ggplot(bp_fp, aes(factor(phi), rate)) +
+ggplot(bpFp, aes(factor(phi), rate)) +
   geom_col(fill = sfPal[5], width = 0.6) +
   geom_hline(yintercept = 0.05, linetype = "dashed") +
   scale_y_continuous(labels = scales::percent) +
   labs(x = expression("AR(1) coefficient " * (phi)),
-       y = "Breaks declared significant",
-       title = "A break test finds a break in break-free data too",
-       subtitle = "Share of 200 flat AR(1) series called significant at the 5% level") +
+    y = "Breaks declared significant",
+    title = "A break test finds a break in break-free data too",
+    subtitle = "Share of 200 flat AR(1) series called significant at the 5% level") +
   theme_minimal()
 ```
 
@@ -187,19 +187,19 @@ The autocorrelation chapter introduced the Nile's annual flow at Aswan and point
 ```{r}
 #| label: bp-nile
 data(Nile)
-bp_nile <- breakpoints(Nile ~ 1)
-bp_nile$breakpoints
+bpNile <- breakpoints(Nile ~ 1)
+bpNile$breakpoints
 ```
 
 ```{r}
 #| label: bp-nile-break
-nile_break_year <- time(Nile)[bp_nile$breakpoints]
-nile_ci <- confint(bp_nile)
-nile_ci_years <- time(Nile)[nile_ci$confint]
-nile_before <- mean(Nile[1:bp_nile$breakpoints])
-nile_after <- mean(Nile[(bp_nile$breakpoints + 1):length(Nile)])
+nileBreakYear <- time(Nile)[bpNile$breakpoints]
+nileCI <- confint(bpNile)
+nileCIYears <- time(Nile)[nileCI$confint]
+nileBefore <- mean(Nile[1:bpNile$breakpoints])
+nileAfter <- mean(Nile[(bpNile$breakpoints + 1):length(Nile)])
 
-c(break_year = nile_break_year, before = round(nile_before, 1), after = round(nile_after, 1))
+c(breakYear = nileBreakYear, before = round(nileBefore, 1), after = round(nileAfter, 1))
 ```
 
 ```{r}
@@ -207,21 +207,21 @@ c(break_year = nile_break_year, before = round(nile_before, 1), after = round(ni
 tibble(year = as.numeric(time(Nile)), flow = as.numeric(Nile)) |>
   ggplot(aes(year, flow)) +
   geom_line(color = sfPal[1]) +
-  geom_vline(xintercept = nile_break_year, linetype = "dashed", color = sfPal[5]) +
-  annotate("rect", xmin = nile_ci_years[1], xmax = nile_ci_years[2], ymin = -Inf, ymax = Inf,
-           fill = sfPal[5], alpha = 0.1) +
-  labs(x = "Year", y = expression(10^8~m^3),
-       title = "River Nile, annual flow: best single break",
-       subtitle = "Shaded band is the 95% confidence interval on the break date") +
+  geom_vline(xintercept = nileBreakYear, linetype = "dashed", color = sfPal[5]) +
+  annotate("rect", xmin = nileCIYears[1], xmax = nileCIYears[2], ymin = -Inf, ymax = Inf,
+    fill = sfPal[5], alpha = 0.1) +
+  labs(x = "Year", y = expression(10^8 ~ m^3),
+    title = "River Nile, annual flow: best single break",
+    subtitle = "Shaded band is the 95% confidence interval on the break date") +
   theme_minimal()
 ```
 
-The break lands at `r nile_break_year`, the year the dam's construction began, and the mean drops from `r round(nile_before, 1)` to `r round(nile_after, 1)`, about `r round(nile_before - nile_after, 1)` (units of $10^8$ m$^3$) lower on average once the dam started holding water back. The 95% confidence interval, `r nile_ci_years[1]` to `r nile_ci_years[2]`, brackets almost exactly the span from the start of construction to its completion. And the existence test isn't shy about it either.
+The break lands at `r nileBreakYear`, the year the dam's construction began, and the mean drops from `r round(nileBefore, 1)` to `r round(nileAfter, 1)`, about `r round(nileBefore - nileAfter, 1)` (units of $10^8$ m$^3$) lower on average once the dam started holding water back. The 95% confidence interval, `r nileCIYears[1]` to `r nileCIYears[2]`, brackets almost exactly the span from the start of construction to its completion. And the existence test isn't shy about it either.
 
 ```{r}
 #| label: bp-nile-test
-fs_nile <- Fstats(Nile ~ 1)
-sctest(fs_nile, type = "supF")
+fsNile <- Fstats(Nile ~ 1)
+sctest(fsNile, type = "supF")
 ```
 
 That's what a break test looks like when the premise actually holds: one structural cause, one clean jump in the mean, and a date narrow enough to match the history books without having read them first. The planted step earlier in this aside was built to behave exactly this well. Most series aren't this obliging, which is worth remembering the next time a break test hands you a tight interval on something you can't independently check.

@@ -12,23 +12,23 @@ white <- rnorm(n)
 ar1   <- as.numeric(arima.sim(model = list(ar = 0.6), n = n))
 rw    <- cumsum(white)
 
-spec_white <- spectrum(white, plot = FALSE)
-spec_ar1   <- spectrum(ar1,   plot = FALSE)
-spec_rw    <- spectrum(rw,    plot = FALSE)
+specWhite <- spectrum(white, plot = FALSE)
+specAr1   <- spectrum(ar1,   plot = FALSE)
+specRw    <- spectrum(rw,    plot = FALSE)
 
 bind_rows(
-  tibble(series = "white noise", freq = spec_white$freq, spec = spec_white$spec),
-  tibble(series = "AR(1), phi=0.6", freq = spec_ar1$freq, spec = spec_ar1$spec),
-  tibble(series = "random walk", freq = spec_rw$freq, spec = spec_rw$spec)
+  tibble(series = "white noise", freq = specWhite$freq, spec = specWhite$spec),
+  tibble(series = "AR(1), phi=0.6", freq = specAr1$freq, spec = specAr1$spec),
+  tibble(series = "random walk", freq = specRw$freq, spec = specRw$spec)
 ) |>
   ggplot(aes(freq, spec)) +
   geom_line() +
   facet_wrap(~series, ncol = 1, scales = "free_y") +
   labs(x = "Frequency", y = "Spectral density")
 
-cat("white noise low/high ratio:", spec_white$spec[1] / tail(spec_white$spec, 1), "\n")
-cat("AR(1) low/high ratio:      ", spec_ar1$spec[1]   / tail(spec_ar1$spec, 1),   "\n")
-cat("random walk low/high ratio:", spec_rw$spec[1]    / tail(spec_rw$spec, 1),    "\n")
+cat("white noise low/high ratio:", specWhite$spec[1] / tail(specWhite$spec, 1), "\n")
+cat("AR(1) low/high ratio:      ", specAr1$spec[1]   / tail(specAr1$spec, 1),   "\n")
+cat("random walk low/high ratio:", specRw$spec[1]    / tail(specRw$spec, 1),    "\n")
 # White noise is flat on average, but a raw, unsmoothed periodogram is a
 # jagged, high-variance estimator even for pure noise: one bin can sit a
 # thousand times taller than its neighbor for no reason at all. AR(1) with a
@@ -56,11 +56,11 @@ wav5   <- 0.50 * sin(2 * pi / 5   * tm2)
 trendPart <- 0.01 * tm2
 allWaveTrend <- wav250 + wav50 + wav10 + wav5 + trendPart + rnorm(n2)
 
-spec_default   <- spectrum(allWaveTrend, plot = FALSE)                  # detrend = TRUE
-spec_notrend   <- spectrum(allWaveTrend, detrend = FALSE, plot = FALSE)
+specDefault   <- spectrum(allWaveTrend, plot = FALSE)                  # detrend = TRUE
+specNotrend   <- spectrum(allWaveTrend, detrend = FALSE, plot = FALSE)
 
-cat("lowest-frequency bin, default (detrend = TRUE): ", spec_default$spec[1], "\n")
-cat("lowest-frequency bin, detrend = FALSE:          ", spec_notrend$spec[1], "\n")
+cat("lowest-frequency bin, default (detrend = TRUE): ", specDefault$spec[1], "\n")
+cat("lowest-frequency bin, detrend = FALSE:          ", specNotrend$spec[1], "\n")
 # spectrum()'s default is detrend = TRUE: it fits and removes a linear trend
 # before running the Fourier transform, so a straightforward trend does NOT
 # show up as a towering low-frequency spike the way you might expect (the
@@ -85,21 +85,21 @@ peakPeriod <- 1 / peakFreq
 cat("tallest peak, period (kyr):", round(peakPeriod, 1), "\n")
 
 milankovitchBands <- tibble(cycle = c("precession", "precession", "obliquity", "eccentricity"),
-                             period = c(23, 19, 41, 100)) |>
+  period = c(23, 19, 41, 100)) |>
   mutate(freq = 1 / period)
 
 insolationSpecDat <- tibble(freq = insolationSpec$freq, spec = insolationSpec$spec)
-eccPct <- insolationSpecDat$spec[which.min(abs(insolationSpecDat$freq - 1/100))] /
+eccPct <- insolationSpecDat$spec[which.min(abs(insolationSpecDat$freq - 1 / 100))] /
   max(insolationSpecDat$spec) * 100
 cat("eccentricity peak, % of tallest peak:", round(eccPct, 2), "\n")
 
 ggplot(insolationSpecDat, aes(freq, spec)) +
   geom_line(color = "grey40") +
   geom_vline(data = milankovitchBands, aes(xintercept = freq, color = cycle),
-             linetype = "dashed", linewidth = 0.8) +
+    linetype = "dashed", linewidth = 0.8) +
   scale_x_continuous(limits = c(0, 0.06)) +
   labs(x = "Frequency (cycles / kyr)", y = "Spectral density", color = NULL,
-       title = "The Milankovitch bands in July insolation at 65°N")
+    title = "The Milankovitch bands in July insolation at 65°N")
 # All three bands show up. The tallest peak sits at about 23.8 kyr, squarely
 # in the precession band (19-24 kyr, the wobble of Earth's axis interacting
 # with its elliptical orbit); a smaller peak lands right at the 41 kyr

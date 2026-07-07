@@ -11,22 +11,22 @@ library(forecast)
 # the training years, and predict the held-out grazers.
 
 lwa <- read_csv("data/lake_wa_plankton.csv", show_col_types = FALSE) |>
-  mutate(prod_lag = dplyr::lag(producers, 1))   # producers about a month ahead
+  mutate(prodLag = dplyr::lag(producers, 1))   # producers about a month ahead
 
 train <- lwa |> filter(Year <= 1984) |> drop_na()
 test  <- lwa |> filter(Year >= 1985) |> drop_na()
 
-fit <- lm(grazers ~ prod_lag, data = train)
+fit <- lm(grazers ~ prodLag, data = train)
 summary(fit)
 
-test$grazers_hat <- predict(fit, newdata = test)
-cor(test$grazers, test$grazers_hat)             # skill on the held-out years
+test$grazersHat <- predict(fit, newdata = test)
+cor(test$grazers, test$grazersHat)             # skill on the held-out years
 
 ggplot(test, aes(seq_along(grazers))) +
   geom_line(aes(y = grazers), color = "black") +
-  geom_line(aes(y = grazers_hat), color = "darkred") +
+  geom_line(aes(y = grazersHat), color = "darkred") +
   labs(x = "Month of test period", y = "Grazer index",
-       title = "Held-out grazers (black) and one-month-lag prediction (red)") +
+    title = "Held-out grazers (black) and one-month-lag prediction (red)") +
   theme_minimal()
 
 # How much can it explain? Not much. The lagged-producer R^2 is modest because
@@ -44,7 +44,7 @@ ggplot(test, aes(seq_along(grazers))) +
 # Simulate independent random-walk pairs, measure the raw spurious peak, then
 # prewhiten by differencing and confirm it collapses.
 
-spurious_peak <- function(seed) {
+spuriousPeak <- function(seed) {
   set.seed(seed)
   a <- cumsum(rnorm(200))
   b <- cumsum(rnorm(200))
@@ -53,7 +53,7 @@ spurious_peak <- function(seed) {
   c(raw = raw, prewhitened = pw)
 }
 
-results <- map_dfr(1:12, spurious_peak)
+results <- map_dfr(1:12, spuriousPeak)
 results$seed <- 1:12
 results
 

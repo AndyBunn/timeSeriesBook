@@ -31,11 +31,12 @@ wavelet.plot(cwtOut, useRaster = NA, reverse.y = TRUE, crn.lab = "Signal")
 # cone-of-influence bite, but otherwise nothing new: the wavelet transform
 # doesn't care how many times the frequency changes, only how much record it
 # has on each side of a given point.
-switchA <- 130; switchB <- 270
+switchA <- 130
+switchB <- 270
 sig2 <- rnorm(n, sd = 0.3) +
   case_when(tm <= switchA ~ sin(2 * pi * tm / 10),
-            tm <= switchB ~ sin(2 * pi * tm / 30),
-            TRUE ~ sin(2 * pi * tm / 10))
+    tm <= switchB ~ sin(2 * pi * tm / 30),
+    TRUE ~ sin(2 * pi * tm / 10))
 cwtOut2 <- morlet(y1 = sig2, x1 = tm, p2 = 8, dj = 0.1, siglvl = 0.99)
 wavelet.plot(cwtOut2, useRaster = NA, reverse.y = TRUE, crn.lab = "Signal")
 
@@ -43,18 +44,18 @@ wavelet.plot(cwtOut2, useRaster = NA, reverse.y = TRUE, crn.lab = "Signal")
 # Exercise 2: Confirm it with numbers (tree-ring chronology)
 # ---------------------------------------------------------------------------
 data(co021)
-co021_rwi <- detrend(co021, method = "AgeDepSpline")  # matches the chapter's wave-chron chunk
-co021_crn <- chron(co021_rwi)
-chronVal <- co021_crn[, 1]
-chronYrs <- as.numeric(time(co021_crn))
+co021Rwi <- detrend(co021, method = "AgeDepSpline")  # matches the chapter's wave-chron chunk
+co021Crn <- chron(co021Rwi)
+chronVal <- co021Crn[, 1]
+chronYrs <- as.numeric(time(co021Crn))
 
 nScales <- trunc(log(length(chronYrs)) / log(2)) - 1
 dwtOut <- mra(chronVal, wf = "la8", J = nScales, method = "modwt", boundary = "periodic")
 
 mid <- length(chronYrs) %/% 2
 tibble(level = names(dwtOut),
-       early = map_dbl(dwtOut, ~ var(.x[1:mid])),
-       late  = map_dbl(dwtOut, ~ var(.x[(mid + 1):length(chronYrs)]))) |>
+  early = map_dbl(dwtOut, ~ var(.x[1:mid])),
+  late  = map_dbl(dwtOut, ~ var(.x[(mid + 1):length(chronYrs)]))) |>
   mutate(ratio = round(late / early, 2))
 # Unlike the planted demo, no single level flips as dramatically here; measured
 # data rarely hands you a clean answer. The two biggest movers are D6 (roughly
@@ -74,7 +75,7 @@ tibble(level = names(dwtOut),
 blowfly <- read_csv("data/blowfly.csv", show_col_types = FALSE)
 
 plot(blowfly$Day, blowfly$Count, type = "l", xlab = "Day", ylab = "Adult count",
-     main = "Nicholson's blowfly population")
+  main = "Nicholson's blowfly population")
 # The raw series alone shows more than one thing changing: the population
 # swings get bigger in the back half of the record (mean count roughly
 # doubles, and the max goes from under 9000 to nearly 14700), not just slower.
@@ -86,16 +87,16 @@ wavelet.plot(blowflyCwt, useRaster = NA, reverse.y = TRUE, crn.lab = "Count")
 
 # Same helper the chapter builds for the switching demo and the chronology,
 # reproduced here since this script doesn't source the .qmd.
-plot_mra <- function(dwtOut, x, xlab, unit, title) {
+plotMra <- function(dwtOut, x, xlab, unit, title) {
   nLevels <- length(dwtOut)
   dwtScaled <- scale(as.data.frame(dwtOut))
   levelLabels <- colnames(dwtScaled)
   scaleLabels <- c(paste0(2^(1:(nLevels - 1)), " ", unit),
-                    paste0("> ", 2^(nLevels - 1), " ", unit))
+    paste0("> ", 2^(nLevels - 1), " ", unit))
 
   par(mar = c(3, 2, 2, 2), mgp = c(1.25, 0.25, 0), tcl = 0.5, xaxs = "i", yaxs = "i")
   plot(x, rep(1, length(x)), type = "n", axes = FALSE, ylab = "", xlab = "",
-       ylim = c(-3, 5 * nLevels))
+    ylim = c(-3, 5 * nLevels))
   title(main = title, line = 0.75)
   axis(side = 1)
   mtext(xlab, side = 1, line = 1.25)
@@ -113,12 +114,12 @@ plot_mra <- function(dwtOut, x, xlab, unit, title) {
 
 blowflyScales <- trunc(log(length(blowfly$Day)) / log(2)) - 1
 blowflyDwt <- mra(blowfly$Count, wf = "la8", J = blowflyScales, method = "modwt", boundary = "periodic")
-plot_mra(blowflyDwt, blowfly$Day, "Day", "days", "Multiresolution decomposition of the blowfly population")
+plotMra(blowflyDwt, blowfly$Day, "Day", "days", "Multiresolution decomposition of the blowfly population")
 
 mid <- length(blowfly$Day) %/% 2
 tibble(level = names(blowflyDwt),
-       early = map_dbl(blowflyDwt, ~ var(.x[1:mid])),
-       late  = map_dbl(blowflyDwt, ~ var(.x[(mid + 1):length(blowfly$Day)]))) |>
+  early = map_dbl(blowflyDwt, ~ var(.x[1:mid])),
+  late  = map_dbl(blowflyDwt, ~ var(.x[(mid + 1):length(blowfly$Day)]))) |>
   mutate(ratio = round(late / early, 2))
 # The period does drift. Taking the CWT's dominant period at each time step
 # (whichever period has the most power that day) and comparing the two halves
@@ -142,4 +143,3 @@ tibble(level = names(blowflyDwt),
 # D5's 8-fold jump. D5 is doing something the level shift by itself can't,
 # which is the tell that the period story and the amplitude story are two
 # separate findings, not one.
-

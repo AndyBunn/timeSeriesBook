@@ -58,7 +58,7 @@ tibble(time, y) |>
   geom_line(color = sfPal[1]) +
   geom_smooth(method = "lm", se = FALSE, color = sfPal[5], linewidth = 0.7) +
   labs(x = "Time", y = "y",
-       title = "A series with no trend, and the line OLS fits to it") +
+    title = "A series with no trend, and the line OLS fits to it") +
   theme_minimal()
 ```
 
@@ -76,11 +76,11 @@ The important part here is that every standard error, $t$ value, and $p$-value i
 
 ```{r}
 #| label: reg-trend-ols
-ols_trend <- lm(y ~ time)
-summary(ols_trend)
+olsTrend <- lm(y ~ time)
+summary(olsTrend)
 ```
 
-The coefficient on time is `r round(coef(ols_trend)[2],3)` and the $p$-value on the slope is around three in a billion. Recall what that number means: if the true slope were zero, you would see an estimate this far from zero only about three times in a billion tries. By any conventional standard that is a screaming, unambiguous trend.
+The coefficient on time is `r round(coef(olsTrend)[2],3)` and the $p$-value on the slope is around three in a billion. Recall what that number means: if the true slope were zero, you would see an estimate this far from zero only about three times in a billion tries. By any conventional standard that is a screaming, unambiguous trend.
 
 This is important so read this a few times. The coefficient is not an illusion. The line not flat, the series ends lower than it began, and over these 120 steps it did move. For real. That much is a description of the data in front of you. What is wrong is the next step, the inference that the series has a *tendency* to descend, some persistent pull that produced the fall and would go on producing it. There is no such pull. We built `y` from a stationary AR(1) process with mean zero and no drift, so the process has nowhere to trend toward. Autocorrelation lets a single realization wander off in one direction and hold there long enough to trace out a slope. If you ran that again with the same seed but a larger $n$ (say `n <- n*3`) the slope would trend weakly positive. Run it again under a different seed and it might lean the other way, or hardly lean at all. Try it and you'll agree.
 
@@ -98,7 +98,7 @@ Ulam saw that the same trick could crack a much harder problem he and John von N
 
 ```{r}
 #| label: reg-trend-mc
-false_positive_rate <- function(phi, n = 100, sims = 1000) {
+falsePositiveRate <- function(phi, n = 100, sims = 1000) {
   hits <- replicate(sims, {
     # phi = 0 is white noise; build it directly so arima.sim is not handed a
     # zero coefficient (which throws a harmless but noisy warning)
@@ -111,7 +111,7 @@ false_positive_rate <- function(phi, n = 100, sims = 1000) {
 
 phis <- c(0, 0.3, 0.5, 0.7, 0.9)
 fp <- tibble(phi = phis,
-             rate = map_dbl(phis, false_positive_rate))
+  rate = map_dbl(phis, falsePositiveRate))
 fp
 ```
 
@@ -122,9 +122,9 @@ ggplot(fp, aes(factor(phi), rate)) +
   geom_hline(yintercept = 0.05, linetype = "dashed") +
   scale_y_continuous(labels = scales::percent) +
   labs(x = expression("AR(1) coefficient of the errors  " * (phi)),
-       y = "Trends declared significant",
-       title = "OLS finds a trend in trend-free data (length = 100)",
-       subtitle = "Each bar: share of 1000 flat AR(1) series where OLS calls the slope significant") +
+    y = "Trends declared significant",
+    title = "OLS finds a trend in trend-free data (length = 100)",
+    subtitle = "Each bar: share of 1000 flat AR(1) series where OLS calls the slope significant") +
   theme_minimal()
 ```
 
@@ -160,8 +160,8 @@ Now regress `b` on `a`.
 
 ```{r}
 #| label: reg-spurious-ols
-ols_spurious <- lm(b ~ a)
-summary(ols_spurious)
+olsSpurious <- lm(b ~ a)
+summary(olsSpurious)
 ```
 
 The slope comes back significant at a $p$-value around two in ten million, and the model claims to explain a fifth of the variation in `b`. If `a` and `b` were two variables you had measured in the field, you would think you had found something. Imagine `a` is some water quality measurement and `b` is some species abundance if you like. But this relationship is a mirage. We built the two series independently, so there is no association to find. This is the regression cousin of the spurious cross-correlation from the last chapter, where two independent random walks lined up into a correlation near 0.9. Same idea, fit with a straight line here instead of read off a cross-correlation plot.
@@ -171,7 +171,7 @@ The tell is the same as it was for the trend. The residuals carry the memory the
 ```{r}
 #| label: reg-spurious-resid
 #| fig-height: 3
-ggAcf(residuals(ols_spurious)) + labs(title = "ACF of OLS residuals") +
+ggAcf(residuals(olsSpurious)) + labs(title = "ACF of OLS residuals") +
   theme_minimal()
 ```
 
@@ -181,17 +181,17 @@ And it is no more a fluke than the trend was. Pair up independent AR(1) series o
 #| label: reg-spurious-mc
 # draw one AR(1) series; when phi = 0 that is just white noise, and we make it
 # directly so arima.sim is not handed a zero coefficient to complain about
-ar1_series <- function(phi, n) {
+ar1Series <- function(phi, n) {
   if (phi == 0) rnorm(n) else as.numeric(arima.sim(list(ar = phi), n = n))
 }
 
 # How often does OLS call two INDEPENDENT AR(1) series significantly related?
-spurious_rate <- function(phi, n = 120, sims = 1000) {
+spuriousRate <- function(phi, n = 120, sims = 1000) {
   # run the experiment `sims` times; each run returns TRUE/FALSE, and the mean
   # of a TRUE/FALSE vector is just the fraction that came back TRUE
   mean(replicate(sims, {
-    a <- ar1_series(phi, n)   # one series
-    b <- ar1_series(phi, n)   # a second, unrelated one
+    a <- ar1Series(phi, n)   # one series
+    b <- ar1Series(phi, n)   # a second, unrelated one
     # fit b ~ a and grab the slope's p-value: [2, 4] is row 2 (the slope) and
     # column 4 (its Pr(>|t|)). Flag the run if that p-value clears 0.05.
     summary(lm(b ~ a))$coefficients[2, 4] < 0.05
@@ -199,7 +199,7 @@ spurious_rate <- function(phi, n = 120, sims = 1000) {
 }
 
 # compare white-noise series (phi = 0) against strongly autocorrelated ones
-c(white_noise = spurious_rate(0), phi_0.85 = spurious_rate(0.85))
+c(whiteNoise = spuriousRate(0), phi_0.85 = spuriousRate(0.85))
 ```
 
 When the two series are white noise, OLS is fooled the 5% of the time it is supposed to be. By $\phi = 0.85$ it is fooled more than 40% of the time. 
@@ -219,7 +219,7 @@ So the diagnosis is always the same. Fit your model, then look at the residuals 
 ```{r}
 #| label: reg-trend-resid
 #| fig-height: 3
-ggAcf(residuals(ols_trend)) + labs(title = "ACF of OLS residuals") +
+ggAcf(residuals(olsTrend)) + labs(title = "ACF of OLS residuals") +
   theme_minimal()
 ```
 
@@ -244,8 +244,8 @@ Let's fix the trend regression. We fit the same model, $y$ against time, but tel
 
 ```{r}
 #| label: reg-trend-gls
-gls_trend <- gls(y ~ time, correlation = corAR1())
-summary(gls_trend)
+glsTrend <- gls(y ~ time, correlation = corAR1())
+summary(glsTrend)
 ```
 
 The slope estimate shrinks toward zero, and the standard error more than quadruples. The $p$-value climbs from three-in-a-billion to about 0.6. GLS has accounted for the memory in the errors, recognized that 120 autocorrelated points are worth far fewer than 120 independent ones, and reported the uncertainty correctly. The trend that OLS was certain of has evaporated, which is exactly what should happen, because we built a series with no trend.
@@ -266,8 +266,8 @@ GLS does the same favor for the spurious relationship. We refit the two independ
 
 ```{r}
 #| label: reg-spurious-gls
-gls_spurious <- gls(b ~ a, correlation = corAR1())
-summary(gls_spurious)$tTable
+glsSpurious <- gls(b ~ a, correlation = corAR1())
+summary(glsSpurious)$tTable
 ```
 
 The slope that looked so convincing, significant at two in ten million, now carries a $p$-value around 0.15. Gone. Once GLS stops treating the autocorrelated wobbles of `a` and `b` as independent evidence, two series wandering on their own no longer look related. Both the false trend and the false relationship fall to the same fix.
@@ -295,8 +295,8 @@ Notice that here the predictor `x` is white noise, so by the rule from a moment 
 
 ```{r}
 #| label: reg-plant-ols
-ols_plant <- lm(y ~ x)
-coef(ols_plant)[2]
+olsPlant <- lm(y ~ x)
+coef(olsPlant)[2]
 ```
 
 The true slope is 0.5 and OLS returned something nearer 0.2. The residuals, predictably, are autocorrelated.
@@ -304,7 +304,7 @@ The true slope is 0.5 and OLS returned something nearer 0.2. The residuals, pred
 ```{r}
 #| label: reg-plant-resid
 #| fig-height: 3
-ggAcf(residuals(ols_plant)) + labs(title = "ACF of OLS residuals") +
+ggAcf(residuals(olsPlant)) + labs(title = "ACF of OLS residuals") +
   theme_minimal()
 ```
 
@@ -312,23 +312,23 @@ Before we hand this to `gls`, it is worth seeing what GLS does under the hood. P
 
 ```{r}
 #| label: reg-plant-byhand
-ar1 <- ar(residuals(ols_plant))$ar[1]
-y_lag1 <- dplyr::lag(y)
-x_lag1 <- dplyr::lag(x)
-y_white <- y - ar1 * y_lag1
-x_white <- x - ar1 * x_lag1
+ar1 <- ar(residuals(olsPlant))$ar[1]
+yLag1 <- dplyr::lag(y)
+xLag1 <- dplyr::lag(x)
+yWhite <- y - ar1 * yLag1
+xWhite <- x - ar1 * xLag1
 
-ols_white <- lm(y_white ~ x_white)
-coef(ols_white)[2]
+olsWhite <- lm(yWhite ~ xWhite)
+coef(olsWhite)[2]
 ```
 
-That slope is much closer to the true 0.5, and the residuals of `ols_white` are clean. This hand transform is the old Cochrane-Orcutt idea, and it is essentially what GLS automates, except GLS estimates the correlation structure and the regression coefficients together rather than in two passes. Here is the `gls` version.
+That slope is much closer to the true 0.5, and the residuals of `olsWhite` are clean. This hand transform is the old Cochrane-Orcutt idea, and it is essentially what GLS automates, except GLS estimates the correlation structure and the regression coefficients together rather than in two passes. Here is the `gls` version.
 
 ```{r}
 #| label: reg-plant-gls
-gls_plant <- gls(y ~ x, correlation = corARMA(p = 1))
-coef(gls_plant)[2]
-summary(gls_plant)$tTable
+glsPlant <- gls(y ~ x, correlation = corARMA(p = 1))
+coef(glsPlant)[2]
+summary(glsPlant)$tTable
 ```
 
 We ask for `corARMA(p = 1)`, which is an AR(1) error structure. Had the residuals looked like an ARMA(1,1) we could try `corARMA(p = 1, q = 1)`, and `gls` would estimate those parameters by numerical optimization, which can (and does!) fail when the model is too complex. The GLS slope lands near 0.5, the value we built in, and its standard error reflects the true uncertainty. When you inspect GLS residuals for autocorrelation, ask for the `normalized` ones, which are the residuals transformed by the estimated correlation structure and so are what should look like white noise if the structure was right.
@@ -336,7 +336,7 @@ We ask for `corARMA(p = 1)`, which is an AR(1) error structure. Had the residual
 ```{r}
 #| label: reg-plant-gls-resid
 #| fig-height: 3
-ggAcf(residuals(gls_plant, type = "normalized")) +
+ggAcf(residuals(glsPlant, type = "normalized")) +
   labs(title = "ACF of normalized GLS residuals") +
   theme_minimal()
 ```
@@ -349,25 +349,25 @@ A single simulation proves nothing. OLS got unlucky on that seed, and you could 
 
 ```{r}
 #| label: reg-mc-sim
-sim_one <- function(n, phi) {
+simOne <- function(n, phi) {
   x <- rnorm(n)
   epsilon <- as.numeric(arima.sim(model = list(ar = phi), n = n))
   epsilon <- epsilon - mean(epsilon)
   y <- 0.5 * x + epsilon
   ols <- lm(y ~ x)
-  gls_fit <- tryCatch(gls(y ~ x, correlation = corARMA(p = 1)),
-                      error = function(e) NULL)
-  if (is.null(gls_fit)) return(NULL)
-  tibble(OLS = coef(ols)[2], GLS = coef(gls_fit)[2])
+  glsFit <- tryCatch(gls(y ~ x, correlation = corARMA(p = 1)),
+    error = function(e) NULL)
+  if (is.null(glsFit)) return(NULL)
+  tibble(OLS = coef(ols)[2], GLS = coef(glsFit)[2])
 }
 
 set.seed(872)
 grid <- expand_grid(n = c(50, 100, 150, 200),
-                    phi = c(0.3, 0.5, 0.7, 0.9),
-                    rep = 1:225)
+  phi = c(0.3, 0.5, 0.7, 0.9),
+  rep = 1:225)
 
 sim <- grid |>
-  mutate(out = map2(n, phi, sim_one)) |>
+  mutate(out = map2(n, phi, simOne)) |>
   unnest(out)
 ```
 
@@ -378,19 +378,19 @@ sim |>
   pivot_longer(c(OLS, GLS), names_to = "model", values_to = "B1hat") |>
   filter(between(B1hat, 0, 1)) |>
   mutate(model = factor(model, levels = c("OLS", "GLS")),
-         phi_lab = factor(phi, labels = paste0("phi == ", c(0.3, 0.5, 0.7, 0.9))),
-         n_lab = factor(n)) |>
-  ggplot(aes(x = B1hat, y = n_lab, fill = model)) +
+    phiLab = factor(phi, labels = paste0("phi == ", c(0.3, 0.5, 0.7, 0.9))),
+    nLab = factor(n)) |>
+  ggplot(aes(x = B1hat, y = nLab, fill = model)) +
   geom_density_ridges(alpha = 0.7, scale = 1.1) +
   geom_vline(xintercept = 0.5, linetype = "dashed") +
-  facet_grid(rows = vars(model), cols = vars(phi_lab),
-             labeller = labeller(phi_lab = label_parsed)) +
+  facet_grid(rows = vars(model), cols = vars(phiLab),
+    labeller = labeller(phiLab = label_parsed)) +
   scale_fill_manual(values = c(OLS = sfPal[5], GLS = sfPal[1]), guide = "none") +
   labs(x = expression(hat(beta)[1]), y = "Sample size",
-       title = "GLS recovers the true slope more tightly than OLS",
-       subtitle = expression(y[t] == 0.5 * x[t] + epsilon[t] *
-                             "  with " * epsilon * " an AR(1) process; dashed line is the truth"),
-       caption = "3600 simulations") +
+    title = "GLS recovers the true slope more tightly than OLS",
+    subtitle = expression(y[t] == 0.5 * x[t] + epsilon[t] *
+      "  with " * epsilon * " an AR(1) process; dashed line is the truth"),
+    caption = "3600 simulations") +
   theme_minimal() +
   theme(legend.position = "none")
 ```
@@ -410,7 +410,7 @@ flow <- read_csv("data/woodhouse.csv") |>
 ggplot(flow, aes(Year, MAF)) +
   geom_line(color = sfPal[1]) +
   labs(y = "Flow (millions of acre feet)", x = "Water year",
-       title = "Colorado River at Lees Ferry") +
+    title = "Colorado River at Lees Ferry") +
   theme_minimal()
 ```
 
@@ -418,8 +418,8 @@ The flow record is the annual total at Lees Ferry, where the river is measured b
 
 ```{r}
 #| label: reg-flow-ols
-ols_flow <- lm(LeesWYflow ~ OctAprP, data = flow)
-summary(ols_flow)
+olsFlow <- lm(LeesWYflow ~ OctAprP, data = flow)
+summary(olsFlow)
 ```
 
 Precipitation explains about two thirds of the variance in annual flow, which is a strong relationship and makes physical sense: more cool-season precipitation, more water in the river. But this is a time series, so the slope and its standard error are only trustworthy if the residuals are independent.
@@ -427,7 +427,7 @@ Precipitation explains about two thirds of the variance in annual flow, which is
 ```{r}
 #| label: reg-flow-resid
 #| fig-height: 3
-ggAcf(residuals(ols_flow)) + labs(title = "ACF of OLS residuals, flow on precipitation") +
+ggAcf(residuals(olsFlow)) + labs(title = "ACF of OLS residuals, flow on precipitation") +
   theme_minimal()
 ```
 
@@ -435,9 +435,9 @@ They are not. The lag-1 autocorrelation is around 0.4 and clears the significanc
 
 ```{r}
 #| label: reg-flow-gls
-gls_flow <- gls(LeesWYflow ~ OctAprP, data = flow,
-                correlation = corAR1())
-summary(gls_flow)
+glsFlow <- gls(LeesWYflow ~ OctAprP, data = flow,
+  correlation = corAR1())
+summary(glsFlow)
 ```
 
 The slope stays large and overwhelmingly significant, so the headline finding survives: precipitation is a strong driver of flow. But the coefficient is different. Now think back to the rule from "Why Spurious Results Appear." The residuals here are strongly autocorrelated, but the predictor is not. Precipitation from one year to the next is close to independent, with a lag-1 autocorrelation near zero. That puts us in the efficiency regime, not the standard-error-deflation one, so the OLS standard error was not badly inflated to begin with, and GLS actually tightens it a little rather than widening it. Either way the effect is far too strong for the autocorrelation to change the verdict.
@@ -452,15 +452,15 @@ Let's look at ozone and temperature before we make a model. First ozone.
 #| label: reg-ozone
 #| message: false
 air <- read_csv("data/ny_air_quality.csv")
-layout_mat <- matrix(c(1, 1, 2, 3), nrow = 2, byrow = TRUE)
+layoutMat <- matrix(c(1, 1, 2, 3), nrow = 2, byrow = TRUE)
 p1 <- ggplot(air, aes(Day, ozone)) +
   geom_line(color = sfPal[1]) +
   labs(x = "Day of summer", y = "Ozone (ppb)",
-       title = "Daily ground-level ozone, New York, summer 1973") +
+    title = "Daily ground-level ozone, New York, summer 1973") +
   theme_minimal()
 p2 <- ggAcf(air$ozone) + labs(title = NULL) + theme_minimal()
 p3 <- ggPacf(air$ozone) + labs(title = NULL) + theme_minimal()
-grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
+grid.arrange(p1, p2, p3, layout_matrix = layoutMat)
 ```
 
 Definitely some structure there. Now what about temperature?
@@ -471,18 +471,18 @@ Definitely some structure there. Now what about temperature?
 p1 <- ggplot(air, aes(Day, temperature)) +
   geom_line(color = sfPal[1]) +
   labs(x = "Day of summer", y = "Ozone (ppb)",
-       title = "Daily temperature, New York, summer 1973") +
+    title = "Daily temperature, New York, summer 1973") +
   theme_minimal()
 p2 <- ggAcf(air$temperature) + labs(title = NULL) + theme_minimal()
 p3 <- ggPacf(air$temperature) + labs(title = NULL) + theme_minimal()
-grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
+grid.arrange(p1, p2, p3, layout_matrix = layoutMat)
 ```
 
 Now let's make a model.
 
 ```{r}
-ols_ozone <- lm(ozone ~ temperature, data = air)
-summary(ols_ozone)$coefficients
+olsOzone <- lm(ozone ~ temperature, data = air)
+summary(olsOzone)$coefficients
 ```
 
 Temperature is a strong predictor, as expected. The day-to-day persistence of the weather means temperature itself is autocorrelated. By the instinct we have built, that should set off alarms. So check the residuals.
@@ -490,7 +490,7 @@ Temperature is a strong predictor, as expected. The day-to-day persistence of th
 ```{r}
 #| label: reg-ozone-resid
 #| fig-height: 3
-ggAcf(residuals(ols_ozone)) + labs(title = "ACF of OLS residuals, ozone on temperature") +
+ggAcf(residuals(olsOzone)) + labs(title = "ACF of OLS residuals, ozone on temperature") +
   theme_minimal()
 ```
 

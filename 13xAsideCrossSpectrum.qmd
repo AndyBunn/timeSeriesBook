@@ -38,8 +38,8 @@ LynxHare <- readRDS("data/LynxHare.rds")
 #| label: xspec-lynxhare-plot
 #| fig-height: 3
 tibble(year = as.numeric(time(LynxHare)),
-       Hare = as.numeric(LynxHare[, "Hare"]),
-       Lynx = as.numeric(LynxHare[, "Lynx"])) |>
+  Hare = as.numeric(LynxHare[, "Hare"]),
+  Lynx = as.numeric(LynxHare[, "Lynx"])) |>
   pivot_longer(c(Hare, Lynx)) |>
   ggplot(aes(year, value, color = name)) +
   geom_line() +
@@ -68,7 +68,7 @@ tibble(freq = xspec$freq, coherence = xspec$coh) |>
   geom_line(color = sfPal[1]) +
   geom_vline(xintercept = cycleFreq, linetype = "dashed", color = "grey40") +
   labs(x = "Frequency (cycle / year)", y = "Coherence",
-       title = "Hare and lynx, coherence by frequency") +
+    title = "Hare and lynx, coherence by frequency") +
   theme_minimal()
 ```
 
@@ -85,7 +85,7 @@ tibble(freq = xspec$freq, phase = xspec$phase) |>
   geom_hline(yintercept = 0, color = "grey70") +
   geom_vline(xintercept = cycleFreq, linetype = "dashed", color = "grey40") +
   labs(x = "Frequency (cycle / year)", y = "Phase (radians)",
-       title = "Hare and lynx, phase by frequency") +
+    title = "Hare and lynx, phase by frequency") +
   theme_minimal()
 ```
 

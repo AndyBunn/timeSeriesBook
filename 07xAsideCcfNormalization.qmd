@@ -31,8 +31,8 @@ x <- rnorm(n)
 y <- 0.8 * c(0, x[1:(n - 1)]) + rnorm(n, sd = 0.5)
 
 # the two vectors aligned for lag 1
-x_lag <- x[1:(n - 1)]
-y_trunc <- y[2:n]
+xLag <- x[1:(n - 1)]
+yTrunc <- y[2:n]
 ```
 
 Here are the first fifty points of the two series we built.
@@ -54,16 +54,16 @@ The ordinary Pearson correlation at lag one uses only the overlapping pairs, all
 
 ```{r}
 #| label: ccfnorm-cor
-cor(x_lag, y_trunc)
+cor(xLag, yTrunc)
 ```
 
 Now compare that to what `Ccf` reports at the same lag.
 
 ```{r}
 #| label: ccfnorm-ccf
-ccf_obj <- Ccf(x, y, lag.max = 10, plot = FALSE)
-ccf_lag1 <- ccf_obj$acf[ccf_obj$lag == -1]
-ccf_lag1
+ccfObj <- Ccf(x, y, lag.max = 10, plot = FALSE)
+ccfLag1 <- ccfObj$acf[ccfObj$lag == -1]
+ccfLag1
 ```
 
 The two numbers are very close but slightly different. The reason is that `Ccf`, like `Acf`, normalizes every lag against the full series rather than the overlapping subset. It uses only the $n - 1$ available pairs in the numerator, but it divides by standard deviations computed from all $n$ values of each series. The same denominator is used at every lag, no matter how many pairs actually overlap.
@@ -75,12 +75,12 @@ We can rebuild the `Ccf` value at lag one from its parts. The numerator is the c
 ```{r}
 #| label: ccfnorm-manual
 k <- 1
-num   <- sum((x_lag - mean(x)) * (y_trunc - mean(y)))  # full-series means
+num   <- sum((xLag - mean(x)) * (yTrunc - mean(y)))  # full-series means
 denom <- (n - k) * sd(x) * sd(y)                        # full-series sds
 num / denom
 ```
 
-That matches `ccf_lag1` exactly.
+That matches `ccfLag1` exactly.
 
 So why hold the denominator fixed? Because it puts every lag on the same footing. As the lag grows the number of overlapping pairs shrinks, and if you let each lag normalize against its own dwindling subset, the correlations at far lags would be scaled differently from the ones near zero and you could not compare them on a single plot. Anchoring the standard deviations to the whole series keeps the whole cross-correlation function on one scale. It is a small thing, and it almost never changes a conclusion, but when you are reading a lead off a plot at a lag of forty days, as we did with the producers and grazers, it is worth knowing that the function has been holding the scale steady for you.
 

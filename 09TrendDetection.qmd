@@ -35,7 +35,7 @@ The Mann-Kendall statistic is almost embarrassingly simple. Walk through every p
 
 ```{r}
 #| label: trend-mk-fn
-mann_kendall <- function(x) {
+mannKendall <- function(x) {
   n <- length(x)
   # S: for every pair (i < j), +1 if x_j > x_i, -1 if x_j < x_i, 0 if tied
   S <- 0
@@ -46,8 +46,8 @@ mann_kendall <- function(x) {
   }
   # variance of S under the no-trend null, with a correction for ties
   ties <- table(x)
-  tie_term <- sum(ties * (ties - 1) * (2 * ties + 5))
-  varS <- (n * (n - 1) * (2 * n + 5) - tie_term) / 18
+  tieTerm <- sum(ties * (ties - 1) * (2 * ties + 5))
+  varS <- (n * (n - 1) * (2 * n + 5) - tieTerm) / 18
   # standardized statistic (with a continuity correction) and two-sided p
   Z <- (S - sign(S)) / sqrt(varS)
   tau <- S / (n * (n - 1) / 2)
@@ -56,7 +56,7 @@ mann_kendall <- function(x) {
 }
 ```
 
-A few lines in that function deserve a closer look. Under the null hypothesis of no trend, every ordering of the data is equally likely, and from that you can work out that $S$ has mean zero and variance $\frac{n(n-1)(2n+5)}{18}$. The `tie_term` subtracts a correction when values repeat, since tied pairs carry no directional information. Dividing $S$ by its standard deviation gives a $Z$ score that is approximately normal for $n$ bigger than about ten, which is where the $p$-value comes from. The last quantity, `tau`, is Kendall's $\tau$: the same $S$ scaled to run from $-1$ to $1$, so it reads like a correlation between value and time.
+A few lines in that function deserve a closer look. Under the null hypothesis of no trend, every ordering of the data is equally likely, and from that you can work out that $S$ has mean zero and variance $\frac{n(n-1)(2n+5)}{18}$. The `tieTerm` subtracts a correction when values repeat, since tied pairs carry no directional information. Dividing $S$ by its standard deviation gives a $Z$ score that is approximately normal for $n$ bigger than about ten, which is where the $p$-value comes from. The last quantity, `tau`, is Kendall's $\tau$: the same $S$ scaled to run from $-1$ to $1$, so it reads like a correlation between value and time.
 
 ### Theil-Sen
 
@@ -64,7 +64,7 @@ Mann-Kendall tells you whether there is a trend while Theil-Sen says how steep t
 
 ```{r}
 #| label: trend-ts-fn
-theil_sen <- function(x, t = seq_along(x)) {
+theilSen <- function(x, t = seq_along(x)) {
   n <- length(x)
   slopes <- c()
   for (j in 2:n) {
@@ -89,8 +89,8 @@ x <- 2 + 0.3 * t + rnorm(n, sd = 2)
 x[32] <- x[32] + 25   # two wild years
 x[37] <- x[37] + 21   # two wild years
 
-ols_planted <- lm(x ~ t)
-summary(ols_planted)
+olsPlanted <- lm(x ~ t)
+summary(olsPlanted)
 
 tibble(t, x) |>
   ggplot(aes(t, x)) +
@@ -103,18 +103,18 @@ tibble(t, x) |>
 Look at the output from the OLS model and see that the slope is dragged up toward `r round(coef(lm(x ~ t))[2], 2)` by that one point. It's also wildly significant. Let's look at MK and TS output
 
 ```{r}
-mk_planted <- mann_kendall(x)
-mk_planted
+mkPlanted <- mannKendall(x)
+mkPlanted
 ```
 
-Note that Mann-Kendall, meanwhile, sees the trend clearly, with $\tau$ = `r round(mk_planted$tau, 2)` and a $p$-value of `r format(mk_planted$p, scientific = TRUE, digits = 2)`.
+Note that Mann-Kendall, meanwhile, sees the trend clearly, with $\tau$ = `r round(mkPlanted$tau, 2)` and a $p$-value of `r format(mkPlanted$p, scientific = TRUE, digits = 2)`.
 
 ```{r}
-ts_planted <- theil_sen(x)
-ts_planted
+tsPlanted <- theilSen(x)
+tsPlanted
 ```
 
-And that Theil-Sen has the slope nearer the true 0.3 at `r round(ts_planted, 2)`. 
+And that Theil-Sen has the slope nearer the true 0.3 at `r round(tsPlanted, 2)`. 
 
 Here are the two fits side by side.
 
@@ -123,16 +123,16 @@ Here are the two fits side by side.
 tibble(t, x) |>
   ggplot(aes(t, x)) +
   geom_point(color = sfPal[1]) +
-  geom_abline(data = tibble(slope = coef(ols_planted)[2],
-                            intercept = coef(ols_planted)[1],
-                            Line = "OLS"),
-              aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
-              linewidth = 0.7) +
-  geom_abline(data = tibble(slope = ts_planted,
-                            intercept = median(x) - ts_planted * median(t),
-                            Line = "Theil-Sen"),
-              aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
-              linewidth = 0.7) +
+  geom_abline(data = tibble(slope = coef(olsPlanted)[2],
+    intercept = coef(olsPlanted)[1],
+    Line = "OLS"),
+  aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
+  linewidth = 0.7) +
+  geom_abline(data = tibble(slope = tsPlanted,
+    intercept = median(x) - tsPlanted * median(t),
+    Line = "Theil-Sen"),
+  aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
+  linewidth = 0.7) +
   scale_color_manual(values = c("OLS" = sfPal[5], "Theil-Sen" = sfPal[3]), name = NULL) +
   scale_linetype_manual(values = c("OLS" = "solid", "Theil-Sen" = "dashed"), name = NULL) +
   labs(x = "Time", y = "Some variable", title = "One outlier, two slopes") +
@@ -155,57 +155,57 @@ The North Fork Nooksack drains the glaciers and snowfields of Mount Baker down i
 nooksack <- read_csv("data/nooksack.csv") |>
   mutate(year = year(DATE), month = month(DATE))
 
-full_years <- nooksack |> count(year) |> filter(n >= 350) |> pull(year)
+fullYears <- nooksack |> count(year) |> filter(n >= 350) |> pull(year)
 
 annual <- nooksack |>
-  filter(year %in% full_years) |>
+  filter(year %in% fullYears) |>
   group_by(year) |>
   summarise(winter = mean(FLOW[month %in% c(12, 1, 2)]),
-            summer = mean(FLOW[month %in% 7:9]),
-            .groups = "drop")
+    summer = mean(FLOW[month %in% 7:9]),
+    .groups = "drop")
 ```
 
 Start with winter. Always look at the data first, with both slopes drawn through it.
 
 ```{r}
 #| label: trend-winter-plot
-ts_winter <- theil_sen(annual$winter, annual$year)
-ols_winter <- lm(winter ~ year, data = annual)
+tsWinter <- theilSen(annual$winter, annual$year)
+olsWinter <- lm(winter ~ year, data = annual)
 
 ggplot(annual, aes(year, winter)) +
   geom_line(color = sfPal[1]) +
-  geom_abline(data = tibble(slope = coef(ols_winter)[2],
-                            intercept = coef(ols_winter)[1],
-                            Line = "OLS"),
-              aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
-              linewidth = 0.7) +
-  geom_abline(data = tibble(slope = ts_winter,
-                            intercept = median(annual$winter) - ts_winter * median(annual$year),
-                            Line = "Theil-Sen"),
-              aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
-              linewidth = 0.7) +
+  geom_abline(data = tibble(slope = coef(olsWinter)[2],
+    intercept = coef(olsWinter)[1],
+    Line = "OLS"),
+  aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
+  linewidth = 0.7) +
+  geom_abline(data = tibble(slope = tsWinter,
+    intercept = median(annual$winter) - tsWinter * median(annual$year),
+    Line = "Theil-Sen"),
+  aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
+  linewidth = 0.7) +
   scale_color_manual(values = c(OLS = sfPal[5], "Theil-Sen" = sfPal[3]), name = NULL) +
   scale_linetype_manual(values = c(OLS = "solid", "Theil-Sen" = "dashed"), name = NULL) +
-  labs(x = "Water year", y = expression("Mean winter flow (m"^3*"/s)"),
-       title = "North Fork Nooksack, December-February mean flow") +
+  labs(x = "Water year", y = expression("Mean winter flow (m"^3 * "/s)"),
+    title = "North Fork Nooksack, December-February mean flow") +
   theme_minimal()
 ```
 
 ```{r}
 #| label: trend-winter-mk
-mk_winter <- mann_kendall(annual$winter)
-c(tau = mk_winter$tau, p = mk_winter$p, theil_sen_per_yr = ts_winter)
+mkWinter <- mannKendall(annual$winter)
+c(tau = mkWinter$tau, p = mkWinter$p, theilSenPerYr = tsWinter)
 ```
 
-Winter flow is rising. Mann-Kendall returns $\tau$ = `r round(mk_winter$tau, 2)` with a $p$-value of `r round(mk_winter$p, 3)`, and the Theil-Sen slope of `r round(ts_winter, 3)` cubic meters per second per year works out to roughly `r round(ts_winter * (max(annual$year) - min(annual$year)))` more over the length of the record. Maybe that is the rain-not-snow fingerprint showing up in the data? Now summer.
+Winter flow is rising. Mann-Kendall returns $\tau$ = `r round(mkWinter$tau, 2)` with a $p$-value of `r round(mkWinter$p, 3)`, and the Theil-Sen slope of `r round(tsWinter, 3)` cubic meters per second per year works out to roughly `r round(tsWinter * (max(annual$year) - min(annual$year)))` more over the length of the record. Maybe that is the rain-not-snow fingerprint showing up in the data? Now summer.
 
 ```{r}
 #| label: trend-summer-mk
-mk_summer <- mann_kendall(annual$summer)
-c(tau = mk_summer$tau, p = mk_summer$p, theil_sen_per_yr = theil_sen(annual$summer, annual$year))
+mkSummer <- mannKendall(annual$summer)
+c(tau = mkSummer$tau, p = mkSummer$p, theilSenPerYr = theilSen(annual$summer, annual$year))
 ```
 
-Summer flow is sliding the other way, with a negative slope, but Mann-Kendall returns a $p$-value of `r round(mk_summer$p, 2)`, nowhere near significant. The melt-season decline is the half of the fingerprint we would most expect, and on this single gauge it is buried in the noise. 
+Summer flow is sliding the other way, with a negative slope, but Mann-Kendall returns a $p$-value of `r round(mkSummer$p, 2)`, nowhere near significant. The melt-season decline is the half of the fingerprint we would most expect, and on this single gauge it is buried in the noise. 
 
 So, the same physical story leaves one signal you can stand behind and one you cannot, at least not from a single record. Report the winter trend, flag the summer one as suggestive, and resist the urge to round it up.
 
@@ -217,17 +217,17 @@ So let's check, the same way we did in the regression chapter. Generate a flat s
 
 ```{r}
 #| label: trend-mc
-ar1_series <- function(phi, n) {
+ar1Series <- function(phi, n) {
   if (phi == 0) rnorm(n) else as.numeric(arima.sim(list(ar = phi), n = n))
 }
 
-mk_false_positive <- function(phi, n = 60, sims = 500) {
-  mean(replicate(sims, mann_kendall(ar1_series(phi, n))$p < 0.05))
+mkFalsePositive <- function(phi, n = 60, sims = 500) {
+  mean(replicate(sims, mannKendall(ar1Series(phi, n))$p < 0.05))
 }
 
 set.seed(10)
 phis <- c(0, 0.3, 0.5, 0.7, 0.9)
-falsePositives <- tibble(phi = phis, rate = map_dbl(phis, mk_false_positive))
+falsePositives <- tibble(phi = phis, rate = map_dbl(phis, mkFalsePositive))
 falsePositives
 ```
 
@@ -238,9 +238,9 @@ ggplot(falsePositives, aes(factor(phi), rate)) +
   geom_hline(yintercept = 0.05, linetype = "dashed") +
   scale_y_continuous(labels = scales::percent) +
   labs(x = expression("AR(1) coefficient " * (phi)),
-       y = "Trends declared significant",
-       title = "Mann-Kendall finds a trend in trend-free data",
-       subtitle = "Share of 500 flat AR(1) series called significant at the 5% level") +
+    y = "Trends declared significant",
+    title = "Mann-Kendall finds a trend in trend-free data",
+    subtitle = "Share of 500 flat AR(1) series called significant at the 5% level") +
   theme_minimal()
 ```
 
@@ -258,8 +258,8 @@ When $r_1$ is zero the two are equal. As $r_1$ climbs toward one, $n_{\text{eff}
 
 ```{r}
 #| label: trend-mk-ess
-mann_kendall_ess <- function(x) {
-  base <- mann_kendall(x)
+mannKendallESS <- function(x) {
+  base <- mannKendall(x)
   r1 <- acf(x, plot = FALSE)$acf[2]
   inflation <- if (r1 > 0) (1 + r1) / (1 - r1) else 1
   varS <- base$varS * inflation
@@ -272,24 +272,24 @@ Run the same Monte Carlo, this time with the corrected test.
 
 ```{r}
 #| label: trend-mc-corrected
-mk_fp_corrected <- function(phi, n = 60, sims = 500) {
-  mean(replicate(sims, mann_kendall_ess(ar1_series(phi, n))$p < 0.05))
+mkFpCorrected <- function(phi, n = 60, sims = 500) {
+  mean(replicate(sims, mannKendallESS(ar1Series(phi, n))$p < 0.05))
 }
 
 set.seed(10)
 tibble(phi = phis,
-       naive = falsePositives$rate,
-       corrected = map_dbl(phis, mk_fp_corrected))
+  naive = falsePositives$rate,
+  corrected = map_dbl(phis, mkFpCorrected))
 ```
 
 The corrected false-positive rate drops back to where it belongs, near 5%, no matter how strong the autocorrelation. We have stopped the test from overcounting. Now turn it on the winter Nooksack, where the question actually matters.
 
 ```{r}
 #| label: trend-winter-corrected
-mann_kendall_ess(annual$winter)
+mannKendallESS(annual$winter)
 ```
 
-The lag-one correlation in winter flow is modest, around `r round(mann_kendall_ess(annual$winter)$r1, 2)`, so the correction is gentle. The $p$-value moves from `r round(mk_winter$p, 3)` to `r round(mann_kendall_ess(annual$winter)$p, 3)`. Still significant. That is the outcome you hope for: the warming signal in winter flow is strong enough to survive a careful accounting of the dependence in the record. Had it not survived, you would have learned that the trend you were about to report was partly an artifact of wet years clustering, which is exactly the thing this correction exists to catch.
+The lag-one correlation in winter flow is modest, around `r round(mannKendallESS(annual$winter)$r1, 2)`, so the correction is gentle. The $p$-value moves from `r round(mkWinter$p, 3)` to `r round(mannKendallESS(annual$winter)$p, 3)`. Still significant. That is the outcome you hope for: the warming signal in winter flow is strong enough to survive a careful accounting of the dependence in the record. Had it not survived, you would have learned that the trend you were about to report was partly an artifact of wet years clustering, which is exactly the thing this correction exists to catch.
 
 A note on what we built. Inflating the variance with a single lag-one correlation is the readable core of an idea with a fuller form. The standard reference, @HamedRao1998, sums the correction over the autocorrelation at all lags rather than just the first, which matters when a series carries memory beyond one step. There is also a second school of thought that fixes the problem by prewhitening, the same move we made in the cross-correlation and regression chapters: estimate the autocorrelation, filter it out of the series, then run the test on what remains [@Yue2002]. Both approaches are after the same thing we are, a fair count of the independent information in a dependent series.
 

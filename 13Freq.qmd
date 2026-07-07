@@ -95,7 +95,7 @@ waveDat <- tibble(tm = 1:1000, wav250 = 0.3 * sin(2 * pi / 250 * tm))
 ggplot(waveDat, aes(tm, wav250)) +
   geom_line(color = sfPal[1]) +
   labs(x = "Time", y = "Signal",
-       title = "Period 250, frequency = 0.004", subtitle = "Amplitude = 0.3") +
+    title = "Period 250, frequency = 0.004", subtitle = "Amplitude = 0.3") +
   theme_minimal()
 ```
 
@@ -105,8 +105,8 @@ Now three more, each with its own period and amplitude.
 #| label: freq-wave-others
 waveDat <- waveDat |>
   mutate(wav50 = 0.75 * sin(2 * pi / 50 * tm),
-         wav10 = 1.00 * sin(2 * pi / 10 * tm),
-         wav5  = 0.50 * sin(2 * pi / 5  * tm))
+    wav10 = 1.00 * sin(2 * pi / 10 * tm),
+    wav5  = 0.50 * sin(2 * pi / 5  * tm))
 ```
 
 ```{r}
@@ -114,7 +114,7 @@ waveDat <- waveDat |>
 ggplot(waveDat, aes(tm, wav50)) +
   geom_line(color = sfPal[2]) +
   labs(x = "Time", y = "Signal",
-       title = "Period 50, frequency = 0.02", subtitle = "Amplitude = 0.75") +
+    title = "Period 50, frequency = 0.02", subtitle = "Amplitude = 0.75") +
   theme_minimal()
 ```
 
@@ -123,7 +123,7 @@ ggplot(waveDat, aes(tm, wav50)) +
 ggplot(waveDat, aes(tm, wav10)) +
   geom_line(color = sfPal[3]) +
   labs(x = "Time", y = "Signal",
-       title = "Period 10, frequency = 0.1", subtitle = "Amplitude = 1") +
+    title = "Period 10, frequency = 0.1", subtitle = "Amplitude = 1") +
   theme_minimal()
 ```
 
@@ -132,7 +132,7 @@ ggplot(waveDat, aes(tm, wav10)) +
 ggplot(waveDat, aes(tm, wav5)) +
   geom_line(color = sfPal[4]) +
   labs(x = "Time", y = "Signal",
-       title = "Period 5, frequency = 0.2", subtitle = "Amplitude = 0.5") +
+    title = "Period 5, frequency = 0.2", subtitle = "Amplitude = 0.5") +
   theme_minimal()
 ```
 
@@ -184,10 +184,10 @@ knownFreqs <- tibble(period = c(5, 10, 50, 250)) |> mutate(freq = 1 / period)
 ggplot(waveSpecDat, aes(freq, spec)) +
   geom_line(color = "grey40") +
   geom_vline(data = knownFreqs, aes(xintercept = freq),
-             linetype = "dashed", color = sfPal[5]) +
+    linetype = "dashed", color = sfPal[5]) +
   labs(x = "Frequency", y = "Spectral density",
-       title = "The periodogram recovers all four planted cycles",
-       subtitle = "Dashed lines mark the frequencies we built in: periods 5, 10, 50, 250") +
+    title = "The periodogram recovers all four planted cycles",
+    subtitle = "Dashed lines mark the frequencies we built in: periods 5, 10, 50, 250") +
   theme_minimal()
 ```
 
@@ -233,7 +233,7 @@ noiseSpecDat <- tibble(freq = noiseSpec$freq, spec = noiseSpec$spec)
 ggplot(noiseSpecDat, aes(freq, spec)) +
   geom_line(color = "grey40") +
   labs(x = "Frequency", y = "Spectral density",
-       title = "White noise") +
+    title = "White noise") +
   theme_minimal()
 ```
 
@@ -262,12 +262,12 @@ ordinates100  <- replicate(500, noiseOrdinate(100))
 ordinates1000 <- replicate(500, noiseOrdinate(1000))
 
 tibble(n = factor(rep(c("100", "1000"), each = 500), levels = c("100", "1000")),
-       value = c(ordinates100, ordinates1000)) |>
+  value = c(ordinates100, ordinates1000)) |>
   ggplot(aes(value, fill = n)) +
   geom_histogram(position = "identity", alpha = 0.6, bins = 30) +
   scale_fill_manual(values = c(`100` = sfPal[1], `1000` = sfPal[5])) +
   labs(x = "Periodogram value at frequency 0.1", y = "Count", fill = "n",
-       title = "Ten times the data, the same amount of noise") +
+    title = "Ten times the data, the same amount of noise") +
   theme_minimal()
 ```
 
@@ -290,10 +290,10 @@ arOrdinate <- function() {
 
 cv <- function(x) sd(x) / mean(x)
 tibble(estimator = c("raw", "span = 5", "span = 21", "spec.ar()"),
-       cv = c(cv(replicate(500, smoothedOrdinate(NULL))),
-              cv(replicate(500, smoothedOrdinate(5))),
-              cv(replicate(500, smoothedOrdinate(21))),
-              cv(replicate(500, arOrdinate()))))
+  cv = c(cv(replicate(500, smoothedOrdinate(NULL))),
+    cv(replicate(500, smoothedOrdinate(5))),
+    cv(replicate(500, smoothedOrdinate(21))),
+    cv(replicate(500, arOrdinate()))))
 ```
 
 Widening the smoothing span from 5 to 21 roughly halves the coefficient of variation again, the usual averaging-more-neighbors payoff, at the cost of blurring together frequencies that used to be distinguishable. The other fix is `spectrum(x, method = "ar")`, which sidesteps the whole averaging trade-off by fitting an AR model to the series (the same `ar()` the forecasting chapter used) and reporting that model's own theoretical spectrum instead of the raw Fourier transform. Borrowing a smooth parametric shape from an AR fit turns out to be an even more efficient way to estimate a spectrum than averaging neighboring frequencies, provided the AR model is a reasonable description of the series. Every periodogram in this chapter so far has used `span = 5` for exactly this reason: not to make the plots prettier, but because an unsmoothed periodogram is close to untrustworthy on its own.
@@ -326,8 +326,8 @@ ggplot(filterRespDat, aes(freq, response, color = filter)) +
   geom_vline(xintercept = 1 / boxWidth, linetype = "dashed", color = "grey40") +
   scale_color_manual(values = c("100-point moving average" = sfPal[1], "100-point Hanning" = sfPal[5])) +
   labs(x = "Frequency", y = "Fraction of amplitude that survives", color = NULL,
-       title = "The same 100-point width, two very different filters",
-       subtitle = "Dashed line: the period-100 cycle from the filters chapter") +
+    title = "The same 100-point width, two very different filters",
+    subtitle = "Dashed line: the period-100 cycle from the filters chapter") +
   theme_minimal()
 ```
 
@@ -361,28 +361,28 @@ tideSpecDat <- tibble(freq = tideSpec$freq, spec = tideSpec$spec) |>
 tidalConstituents <- tibble(
   label     = c("K1", "O1", "M2", "S2"),
   name      = c("K1 (diurnal)", "O1 (diurnal)", "M2 (semidiurnal)", "S2 (semidiurnal)"),
-  period_hr = c(23.9345, 25.8193, 12.4206, 12.0)
+  periodHr = c(23.9345, 25.8193, 12.4206, 12.0)
 ) |>
-  mutate(freq    = 1 / period_hr,
-         label_y = max(tideSpecDat$spec) * c(1.15, 0.55, 1.15, 0.55),
-         label_h = c(-0.3, 1.3, 1.3, -0.3))
+  mutate(freq    = 1 / periodHr,
+    labelY = max(tideSpecDat$spec) * c(1.15, 0.55, 1.15, 0.55),
+    labelH = c(-0.3, 1.3, 1.3, -0.3))
 
 periodBreaksHr <- c(8, 12, 16, 24, 48)
 
 ggplot(tideSpecDat, aes(freq, spec)) +
   geom_line(color = "grey40") +
   geom_vline(data = tidalConstituents, aes(xintercept = freq, color = label),
-             linetype = "dashed", linewidth = 0.7) +
-  geom_text(data = tidalConstituents, aes(x = freq, y = label_y, label = label, color = label, hjust = label_h),
-            fontface = "bold", show.legend = FALSE) +
+    linetype = "dashed", linewidth = 0.7) +
+  geom_text(data = tidalConstituents, aes(x = freq, y = labelY, label = label, color = label, hjust = labelH),
+    fontface = "bold", show.legend = FALSE) +
   scale_color_manual(values = setNames(sfPal[c(1, 2, 4, 5)], tidalConstituents$label), guide = "none") +
   scale_y_continuous(expand = expansion(mult = c(0.02, 0.18))) +
   scale_x_continuous(name = "Frequency (cycles / hour)",
-                      sec.axis = sec_axis(~., breaks = 1 / periodBreaksHr, labels = periodBreaksHr,
-                                           name = "Period (hr / cycle)")) +
+    sec.axis = sec_axis(~., breaks = 1 / periodBreaksHr, labels = periodBreaksHr,
+      name = "Period (hr / cycle)")) +
   labs(y = "Spectral density",
-       title = "Named tidal constituents recovered from a year of hourly data",
-       subtitle = "K1/O1 are diurnal (daily); M2/S2 are semidiurnal (twice daily)") +
+    title = "Named tidal constituents recovered from a year of hourly data",
+    subtitle = "K1/O1 are diurnal (daily); M2/S2 are semidiurnal (twice daily)") +
   theme_minimal()
 ```
 
@@ -404,7 +404,7 @@ The cycling is obvious by eye, but how regular is it, really? Compute the period
 #| label: freq-sunspot-annual-spec
 sunspotAnnualSpec <- spectrum(sunspot.year, span = 5, plot = FALSE)
 plot(sunspotAnnualSpec, log = "no", type = "h",
-     xlab = "Frequency (cycles / yr)", ylab = "Spectral density")
+  xlab = "Frequency (cycles / yr)", ylab = "Spectral density")
 ```
 
 There's a sharp spike around a frequency of 0.09. Since $f = 1/p$, that's a period of about `r round(1 / sunspotAnnualSpec$freq[which.max(sunspotAnnualSpec$spec)], 1)` years, right where the well-known eleven-year solar cycle should land, in a record that goes back to 1700.
@@ -414,7 +414,7 @@ Zoom in on the low end of the frequency axis and there's more going on.
 ```{r}
 #| label: freq-sunspot-annual-zoom
 plot(sunspotAnnualSpec, log = "no", type = "h",
-     xlab = "Frequency (cycles / yr)", ylab = "Spectral density", xlim = c(0, 0.2))
+  xlab = "Frequency (cycles / yr)", ylab = "Spectral density", xlim = c(0, 0.2))
 ```
 
 Below the eleven-year spike there's a broad rise in power at much lower frequencies, periods out past fifty years, that never resolves into a single sharp peak the way the eleven-year cycle does. That's consistent with the Gleissberg cycle [@Peristykh2003], a slower, roughly eighty-to-one-hundred-year modulation of how strong each eleven-year cycle runs (some cycles stronger, some weaker, riding a slower wave of their own). `sunspot.year` only spans `r diff(range(time(sunspot.year)))` years, not even three full Gleissberg cycles, so what shows up here is a broad rise rather than a resolvable peak. That's worth remembering the next time a periodogram gives you a shapeless bump instead of a clean spike: sometimes that's a cycle the record is simply too short to pin down, not an absence of one.
@@ -432,8 +432,8 @@ ggplot(sunspotAnnualDat, aes(x = freq, xend = freq, y = 0, yend = spec)) +
   geom_segment() +
   scale_y_continuous(name = "Spectral density", expand = c(0, 0)) +
   scale_x_continuous(name = "Frequency (cycle / yr)",
-                      sec.axis = sec_axis(~., breaks = freqBreaks, labels = periodLabels,
-                                           name = "Period (yr / cycle)")) +
+    sec.axis = sec_axis(~., breaks = freqBreaks, labels = periodLabels,
+      name = "Period (yr / cycle)")) +
   theme_minimal()
 ```
 

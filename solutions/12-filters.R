@@ -15,16 +15,16 @@ truth <- 0.3 * sin(2 * pi / 100 * x) + 0.5 * sin(2 * pi / 200 * x)
 y <- as.numeric(noise) + truth
 rmse <- function(a, b) sqrt(mean((a - b)^2, na.rm = TRUE))
 
-ma_widths <- seq(5, 150, by = 5)
-ma_rmse <- map_dbl(ma_widths, ~ rmse(c(stats::filter(y, rep(1 / .x, .x), sides = 2)), truth))
+maWidths <- seq(5, 150, by = 5)
+maRMSE <- map_dbl(maWidths, ~ rmse(c(stats::filter(y, rep(1 / .x, .x), sides = 2)), truth))
 
-ggplot(tibble(width = ma_widths, rmse = ma_rmse), aes(width, rmse)) +
+ggplot(tibble(width = maWidths, rmse = maRMSE), aes(width, rmse)) +
   geom_line() + geom_point() +
   geom_vline(xintercept = 100, linetype = "dashed", color = "grey50") +
   labs(x = "Moving-average width", y = "RMSE to truth",
-       title = "RMSE bottoms out near 50, then worsens, with a visible kink at 100")
+    title = "RMSE bottoms out near 50, then worsens, with a visible kink at 100")
 
-cat("best MA width:", ma_widths[which.min(ma_rmse)], "\n")
+cat("best MA width:", maWidths[which.min(maRMSE)], "\n")
 # Best width lands around 50. RMSE climbs steadily past that, but there's a
 # kink right at 100: a 100-point moving average is a box filter with a null
 # at frequency 1/100, so it erases the planted 100-period cycle outright
@@ -33,16 +33,16 @@ cat("best MA width:", ma_widths[which.min(ma_rmse)], "\n")
 # data. Any moving-average width that divides evenly into 100 or 200 pays
 # some version of this penalty.
 
-lo_spans <- seq(0.02, 0.6, by = 0.02)
-lo_rmse <- map_dbl(lo_spans, ~ rmse(loess(y ~ x, span = .x)$fitted, truth))
+loSpans <- seq(0.02, 0.6, by = 0.02)
+loRMSE <- map_dbl(loSpans, ~ rmse(loess(y ~ x, span = .x)$fitted, truth))
 
-ggplot(tibble(span = lo_spans, rmse = lo_rmse), aes(span, rmse)) +
+ggplot(tibble(span = loSpans, rmse = loRMSE), aes(span, rmse)) +
   geom_line() + geom_point() +
   labs(x = "Loess span", y = "RMSE to truth",
-       title = "Loess RMSE is a smoother bowl, no cancellation kink")
+    title = "Loess RMSE is a smoother bowl, no cancellation kink")
 
-cat("best loess span:", lo_spans[which.min(lo_rmse)],
-    "->", round(lo_spans[which.min(lo_rmse)] * n), "points\n")
+cat("best loess span:", loSpans[which.min(loRMSE)],
+  "->", round(loSpans[which.min(loRMSE)] * n), "points\n")
 # Loess has no equivalent cliff: it's a local weighted regression, not a flat
 # box average, so there's no single width where it goes exactly deaf to a
 # cycle. The bowl is shallower and the minimum less dramatic than the moving

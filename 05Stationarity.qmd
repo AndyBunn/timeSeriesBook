@@ -71,9 +71,9 @@ faces <- tibble(
 ) |>
   pivot_longer(-t, names_to = "series", values_to = "value") |>
   mutate(series = factor(series, levels = c("Stationary AR(1)",
-                                            "Trend (mean drifts)",
-                                            "Changing variance",
-                                            "Random walk")))
+    "Trend (mean drifts)",
+    "Changing variance",
+    "Random walk")))
 
 faces |>
   ggplot(aes(t, value)) +
@@ -135,7 +135,7 @@ tibble(t = 1:n, empirical = apply(walks, 1, var)) |>
   geom_line(aes(y = empirical), color = sfPal[1]) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
   labs(x = "Time", y = "Variance across realizations",
-       title = "Random-walk variance grows with time") +
+    title = "Random-walk variance grows with time") +
   theme_minimal()
 ```
 
@@ -171,14 +171,14 @@ t <- 1:n
 e <- rnorm(n)
 ar <- numeric(n)
 for (i in 2:n) ar[i] <- 0.6 * ar[i - 1] + e[i]
-det_trend <- 0.05 * t + ar
+detTrend <- 0.05 * t + ar
 
 # difference-stationary: a random walk with the same drift
-stoch_trend <- numeric(n)
-for (i in 2:n) stoch_trend[i] <- 0.05 + stoch_trend[i - 1] + rnorm(1)
+stochTrend <- numeric(n)
+for (i in 2:n) stochTrend[i] <- 0.05 + stochTrend[i - 1] + rnorm(1)
 
-tibble(t, `Deterministic trend` = det_trend,
-          `Stochastic trend` = stoch_trend) |>
+tibble(t, `Deterministic trend` = detTrend,
+  `Stochastic trend` = stochTrend) |>
   pivot_longer(-t, names_to = "series", values_to = "value") |>
   ggplot(aes(t, value)) +
   geom_line() +
@@ -194,8 +194,8 @@ The repairs are not interchangeable. For the deterministic trend, you subtract t
 ```{r}
 #| label: stat-detrend
 #| fig-height: 3
-det_resid <- resid(lm(det_trend ~ t))
-ggplot(tibble(t, det_resid), aes(t, det_resid)) +
+detResid <- resid(lm(detTrend ~ t))
+ggplot(tibble(t, detResid), aes(t, detResid)) +
   geom_line() +
   labs(x = "Time", y = "Residual", title = "Detrended deterministic series") +
   theme_minimal()
@@ -206,26 +206,26 @@ That residual series is flat, centered, and stationary. Detrending was the right
 ```{r}
 #| label: stat-detrend-wrong
 #| fig-height: 3
-stoch_resid <- resid(lm(stoch_trend ~ t))
-ggplot(tibble(t, stoch_resid), aes(t, stoch_resid)) +
+stochResid <- resid(lm(stochTrend ~ t))
+ggplot(tibble(t, stochResid), aes(t, stochResid)) +
   geom_line() +
   labs(x = "Time", y = "Residual",
-       title = "Random walk after subtracting a fitted line") +
+    title = "Random walk after subtracting a fitted line") +
   theme_minimal()
 ```
 
-Subtracting the line did not fix it. The residuals still wander in long slow excursions, because there was no line there to remove in the first place. The lag-1 autocorrelation of those residuals is still about `r round(acf(stoch_resid, plot = FALSE)$acf[2], 2)`, almost as persistent as the original. Detrending a stochastic trend leaves you with a non-stationary series and a false sense that you handled it.
+Subtracting the line did not fix it. The residuals still wander in long slow excursions, because there was no line there to remove in the first place. The lag-1 autocorrelation of those residuals is still about `r round(acf(stochResid, plot = FALSE)$acf[2], 2)`, almost as persistent as the original. Detrending a stochastic trend leaves you with a non-stationary series and a false sense that you handled it.
 
 The right repair for the stochastic trend is differencing.
 
 ```{r}
 #| label: stat-difference
 #| fig-height: 3
-stoch_diff <- diff(stoch_trend)
-ggplot(tibble(t = 2:n, stoch_diff), aes(t, stoch_diff)) +
+stochDiff <- diff(stochTrend)
+ggplot(tibble(t = 2:n, stochDiff), aes(t, stochDiff)) +
   geom_line() +
-  labs(x = "Time", y = expression(y[t] - y[t-1]),
-       title = "Differenced stochastic series") +
+  labs(x = "Time", y = expression(y[t] - y[t - 1]),
+    title = "Differenced stochastic series") +
   theme_minimal()
 ```
 
@@ -269,11 +269,11 @@ The ADF p-value is large, so it cannot reject a unit root. The KPSS p-value is a
 ```{r}
 #| label: stat-diff-plot
 #| fig-height: 3
-planted_diff <- diff(planted)
-ggplot(tibble(t = seq_along(planted_diff), planted_diff), aes(t, planted_diff)) +
+plantedDiff <- diff(planted)
+ggplot(tibble(t = seq_along(plantedDiff), plantedDiff), aes(t, plantedDiff)) +
   geom_line() +
-  labs(x = "Time", y = expression(y[t] - y[t-1]),
-       title = "The planted walk, differenced") +
+  labs(x = "Time", y = expression(y[t] - y[t - 1]),
+    title = "The planted walk, differenced") +
   theme_minimal()
 ```
 
@@ -282,8 +282,8 @@ That looks like noise around a flat line, which is the point. Run the tests agai
 ```{r}
 #| label: stat-test-differenced
 #| warning: false
-adf.test(planted_diff)
-kpss.test(planted_diff)
+adf.test(plantedDiff)
+kpss.test(plantedDiff)
 ```
 
 The verdicts flip. ADF now rejects the unit root, KPSS no longer rejects stationarity, and the differenced series passes both. We planted a unit root, the tests caught it, we differenced it out, and the tests cleared. That is the planted-signal loop in miniature, and it is exactly the workflow you run on data whose history you do not already know.
@@ -303,7 +303,7 @@ huron |>
   ggplot(aes(index, value)) +
   geom_line() +
   labs(x = "Year", y = "Level (feet)",
-       title = "Lake Huron annual water level, 1875-1972") +
+    title = "Lake Huron annual water level, 1875-1972") +
   theme_minimal()
 ```
 
@@ -321,12 +321,12 @@ ADF cannot reject a unit root, and KPSS rejects stationarity. Both point the sam
 ```{r}
 #| label: stat-huron-diff
 #| warning: false
-LakeHuron_diff <- diff(LakeHuron)
-adf.test(LakeHuron_diff)
-kpss.test(LakeHuron_diff)
+lakeHuronDiff <- diff(LakeHuron)
+adf.test(lakeHuronDiff)
+kpss.test(lakeHuronDiff)
 ```
 
-The differenced series clears both tests. `LakeHuron_diff` is stationary, same as the planted walk once we differenced it.
+The differenced series clears both tests. `lakeHuronDiff` is stationary, same as the planted walk once we differenced it.
 
 A test is a tool, not an oracle, and Lake Huron is a good place to see why. ADF is known to have low power: it struggles to tell a true unit root from a stationary series with a coefficient close to one, and Lake Huron is  well-described as a stationary AR(2) with strong persistence. A lake also has a physical floor and ceiling; the water level cannot wander off to infinity the way a true random walk can, so a literal unit root is implausible on mechanistic grounds no matter what the test prints. So do not read the result as a verdict. Read it as a narrowed question: the data are persistent enough that ADF cannot rule out a unit root, and that persistence is the thing I have to handle either way. The p-value narrows the question but can't answer it. Mechanism can.
 
@@ -361,8 +361,8 @@ The two-kinds-of-trend section built a deterministic-trend series and a stochast
 set.seed(101)
 n <- 250
 t <- 1:n
-mystery_a <- 0.04 * t + arima.sim(list(ar = 0.5), n = n)
-mystery_b <- cumsum(rnorm(n)) + 0.04 * t
+mysteryA <- 0.04 * t + arima.sim(list(ar = 0.5), n = n)
+mysteryB <- cumsum(rnorm(n)) + 0.04 * t
 ```
 
 1. Plot both. Can you tell which is trend-stationary and which is difference-stationary by eye? Say how confident you are.

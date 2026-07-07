@@ -27,7 +27,6 @@ library(tseries)
 library(PNWColors)
 
 sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
-
 ```
 
 ## The Moving Average Model
@@ -61,12 +60,12 @@ for (i in 2:n) {
   y[i] <- theta * epsilon[i - 1] + epsilon[i]
 }
 
-layout_mat <- matrix(c(1, 1, 2, 3), nrow = 2, byrow = TRUE)
+layoutMat <- matrix(c(1, 1, 2, 3), nrow = 2, byrow = TRUE)
 p1 <- ggplot(tibble(t = 1:n, y), aes(t, y)) +
   geom_line() + labs(x = "Time", y = expression(y[t])) + theme_minimal()
 p2 <- ggAcf(y) + labs(title = NULL) + theme_minimal()
 p3 <- ggPacf(y) + labs(title = NULL) + theme_minimal()
-grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
+grid.arrange(p1, p2, p3, layout_matrix = layoutMat)
 ```
 
 This is the MA(1) signature, and it is the mirror image of the AR(1). The ACF has a single strong bar at lag 1 and then cuts off, because $y_t$ and $y_{t-1}$ share the term $\epsilon_{t-1}$ but $y_t$ and $y_{t-2}$ share nothing. There is no geometric decay the way there was for an autoregressive process. The PACF, meanwhile, does not cut off; it decays and oscillates, sometimes dipping negative at lag 2. The reasons that the partial autocorrelation behaves this way take a little work to see, and they are laid out in the [aside on MA(1) ACF and PACF shapes](04xAsideMA1-ACF-PACF-Interp.html).
@@ -97,7 +96,7 @@ p1 <- ggplot(tibble(t = 1:n, y = as.numeric(y)), aes(t, y)) +
   geom_line() + labs(x = "Time", y = expression(y[t])) + theme_minimal()
 p2 <- ggAcf(y) + labs(title = NULL) + theme_minimal()
 p3 <- ggPacf(y) + labs(title = NULL) + theme_minimal()
-grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
+grid.arrange(p1, p2, p3, layout_matrix = layoutMat)
 ```
 
 The ACF and PACF now carry features of both parents, which is exactly why mixed models are harder to read off a plot by eye than a pure AR or pure MA. That is fine. We are about to stop guessing the order from the plot and start selecting it with a criterion.
@@ -121,7 +120,7 @@ p1 <- ggplot(tibble(t = 1:n, y = as.numeric(y)), aes(t, y)) +
   geom_line() + labs(x = "Time", y = expression(y[t])) + theme_minimal()
 p2 <- ggAcf(y) + labs(title = NULL) + theme_minimal()
 p3 <- ggPacf(y) + labs(title = NULL) + theme_minimal()
-grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
+grid.arrange(p1, p2, p3, layout_matrix = layoutMat)
 ```
 
 Now fit a grid of ARMA(p,q) models with $p$ and $q$ each running from zero to two. We use the `Arima` function from `forecast`, a slightly friendlier version of base R's `arima`. The middle number in `order` is the differencing term, and we leave it at zero because we built `y` to be stationary and there is nothing to difference. Each fit gets its own name so we can look at it later.
@@ -151,7 +150,7 @@ You get the coefficient estimates and their standard errors, and three numbers f
 ```{r}
 #| label: arma-bic
 armaBIC <- BIC(arma00, arma10, arma20, arma01, arma02,
-               arma11, arma21, arma12, arma22)
+  arma11, arma21, arma12, arma22)
 armaBIC
 ```
 
@@ -174,7 +173,7 @@ p1 <- ggplot(tibble(t = 1:n, e = as.numeric(resid11)), aes(t, e)) +
   geom_line() + labs(x = "Time", y = "Residual") + theme_minimal()
 p2 <- ggAcf(resid11) + labs(title = NULL) + theme_minimal()
 p3 <- ggPacf(resid11) + labs(title = NULL) + theme_minimal()
-grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
+grid.arrange(p1, p2, p3, layout_matrix = layoutMat)
 ```
 
 Clean. No bar pokes meaningfully past the band, so the model has soaked up the dependence and left noise behind.
@@ -220,7 +219,7 @@ for (i in 2:n) {
 ggplot(tibble(t = 1:n, climber), aes(t, climber)) +
   geom_line() +
   labs(x = "Time", y = expression(y[t]),
-       title = "Looks like a trend") +
+    title = "Looks like a trend") +
   theme_minimal()
 ```
 
@@ -247,12 +246,12 @@ sst <- readRDS("data/RaceRocksSST.rds")
 p1 <- as_tsibble(sst) |>
   ggplot(aes(index, value)) +
   geom_line() +
-  labs(x = "Year", y = expression(degree~C),
-       title = "Sea surface temperature, Race Rocks") +
+  labs(x = "Year", y = expression(degree ~ C),
+    title = "Sea surface temperature, Race Rocks") +
   theme_minimal()
 p2 <- ggAcf(sst) + labs(title = NULL) + theme_minimal()
 p3 <- ggPacf(sst) + labs(title = NULL) + theme_minimal()
-grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
+grid.arrange(p1, p2, p3, layout_matrix = layoutMat)
 ```
 
 That is a more complicated picture than anything we simulated. The series drifts and the ACF tapers off slowly, the kind of pattern that can mean strong persistence or can mean a unit root. This is precisely the situation the stationarity chapter built the tests for, so rather than eyeball the slope and difference on a hunch, let's ask ADF and KPSS.
@@ -269,37 +268,37 @@ ADF cannot reject a unit root and KPSS rejects stationarity. Both point the same
 ```{r}
 #| label: arma-sst-diff
 #| fig-height: 4
-sst_diff <- diff(sst)
+sstDiff <- diff(sst)
 
-p1 <- as_tsibble(sst_diff) |>
+p1 <- as_tsibble(sstDiff) |>
   ggplot(aes(index, value)) +
   geom_line() +
-  labs(x = "Year", y = expression(degree~C~"anomaly"),
-       title = "Differenced SST") +
+  labs(x = "Year", y = expression(degree ~ C ~ "anomaly"),
+    title = "Differenced SST") +
   theme_minimal()
-p2 <- ggAcf(sst_diff) + labs(title = NULL) + theme_minimal()
-p3 <- ggPacf(sst_diff) + labs(title = NULL) + theme_minimal()
-grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
+p2 <- ggAcf(sstDiff) + labs(title = NULL) + theme_minimal()
+p3 <- ggPacf(sstDiff) + labs(title = NULL) + theme_minimal()
+grid.arrange(p1, p2, p3, layout_matrix = layoutMat)
 ```
 
-I differenced by hand and will fit ARMA models to `sst_diff` because keeping the two steps visible is clearer for teaching. You could instead let `Arima` do the differencing internally by setting the middle order to one, as in `Arima(sst, order = c(1, 1, 0))`. That is almost the same as differencing by hand and fitting `Arima(sst_diff, order = c(1, 0, 0))`, with one wrinkle worth knowing: when $d > 0$, `forecast::Arima` drops the mean term unless you ask for it back with `include.drift = TRUE`. The two routes are not bit-for-bit identical, so I keep the differencing in plain sight.
+I differenced by hand and will fit ARMA models to `sstDiff` because keeping the two steps visible is clearer for teaching. You could instead let `Arima` do the differencing internally by setting the middle order to one, as in `Arima(sst, order = c(1, 1, 0))`. That is almost the same as differencing by hand and fitting `Arima(sstDiff, order = c(1, 0, 0))`, with one wrinkle worth knowing: when $d > 0$, `forecast::Arima` drops the mean term unless you ask for it back with `include.drift = TRUE`. The two routes are not bit-for-bit identical, so I keep the differencing in plain sight.
 
 Now fit the grid on the differenced series and compare by BIC.
 
 ```{r}
 #| label: arma-sst-grid
-arma00 <- Arima(sst_diff, order = c(0, 0, 0))
-arma10 <- Arima(sst_diff, order = c(1, 0, 0))
-arma20 <- Arima(sst_diff, order = c(2, 0, 0))
-arma01 <- Arima(sst_diff, order = c(0, 0, 1))
-arma02 <- Arima(sst_diff, order = c(0, 0, 2))
-arma11 <- Arima(sst_diff, order = c(1, 0, 1))
-arma21 <- Arima(sst_diff, order = c(2, 0, 1))
-arma12 <- Arima(sst_diff, order = c(1, 0, 2))
-arma22 <- Arima(sst_diff, order = c(2, 0, 2))
+arma00 <- Arima(sstDiff, order = c(0, 0, 0))
+arma10 <- Arima(sstDiff, order = c(1, 0, 0))
+arma20 <- Arima(sstDiff, order = c(2, 0, 0))
+arma01 <- Arima(sstDiff, order = c(0, 0, 1))
+arma02 <- Arima(sstDiff, order = c(0, 0, 2))
+arma11 <- Arima(sstDiff, order = c(1, 0, 1))
+arma21 <- Arima(sstDiff, order = c(2, 0, 1))
+arma12 <- Arima(sstDiff, order = c(1, 0, 2))
+arma22 <- Arima(sstDiff, order = c(2, 0, 2))
 
 armaBIC <- BIC(arma00, arma10, arma20, arma01, arma02,
-               arma11, arma21, arma12, arma22)
+  arma11, arma21, arma12, arma22)
 armaBIC |> arrange(BIC)
 ```
 
@@ -314,7 +313,7 @@ p1 <- as_tsibble(resid01) |>
   geom_line() + labs(x = "Year", y = "Residual") + theme_minimal()
 p2 <- ggAcf(resid01) + labs(title = NULL) + theme_minimal()
 p3 <- ggPacf(resid01) + labs(title = NULL) + theme_minimal()
-grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
+grid.arrange(p1, p2, p3, layout_matrix = layoutMat)
 ```
 
 Those residuals are clean, so the ARMA(0,2) on the differenced series is a defensible model. So is the ARMA(1,1). With measured data you often end up holding two or three models that all fit about equally well, and no p-value settles it. What would settle it, or at least make the choice interesting, is knowing more about the physics and biology that drive sea surface temperature in this strait. Pattern is a clue. Process is the prize.
@@ -335,15 +334,14 @@ You met the lynx and the snowshoe hare in ecology, in the standard story about p
 #| label: arma-lynxhare
 LynxHare <- readRDS("data/LynxHare.rds")
 tibble(year = as.numeric(time(LynxHare)),
-       Hare = as.numeric(LynxHare[, "Hare"]),
-       Lynx = as.numeric(LynxHare[, "Lynx"])) |>
+  Hare = as.numeric(LynxHare[, "Hare"]),
+  Lynx = as.numeric(LynxHare[, "Lynx"])) |>
   pivot_longer(c(Hare, Lynx)) |>
   ggplot(aes(year, value, color = name)) +
   geom_line() +
   scale_color_manual(values = c(Hare = sfPal[1], Lynx = sfPal[5])) +
   labs(x = "Year", y = "Pelts traded (thousands)", color = NULL) +
   theme_minimal()
-
 ```
 
 The hare is the lynx's main food, and the two populations rise and fall together with a lag. Before you fit anything, write down how you expect that coupling to show up in the time-series properties of the lynx series. Would you expect an AR component, an MA component, or both, and why? Then look at the ACF and PACF of the lynx pelts and fit a grid of ARMA models, selecting one by BIC. Does the order you land on fit the predator-prey story you told yourself? Speculate, wildly and irresponsibly, about what the coefficients say about the population cycle.

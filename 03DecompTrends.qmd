@@ -45,11 +45,11 @@ Here are the three pieces. A trend that climbs slowly and steadily, a seasonal c
 n <- 240                                    # twenty years of monthly data
 tt <- 1:n
 
-trend_true  <- 10 + 0.05 * tt               # a slow linear climb
-season_true <- 4 * sin(2 * pi * tt / 12)    # an annual cycle
-noise_true  <- rnorm(n, sd = 2)             # the jostle
+trendTrue  <- 10 + 0.05 * tt               # a slow linear climb
+seasonTrue <- 4 * sin(2 * pi * tt / 12)    # an annual cycle
+noiseTrue  <- rnorm(n, sd = 2)             # the jostle
 
-y <- trend_true + season_true + noise_true
+y <- trendTrue + seasonTrue + noiseTrue
 y <- ts(y, start = c(2000, 1), frequency = 12)
 ```
 
@@ -76,13 +76,13 @@ This runs from $t = 7$ to $t = n-6$, because we need six months on each side. We
 
 ```{r}
 #| label: decomp-trend-loop
-m_loop <- rep(NA, n)                         # an empty vector to fill
+mLoop <- rep(NA, n)                         # an empty vector to fill
 for (i in 7:(n - 6)) {
-  m_loop[i] <- (0.5*y[i-6] + y[i-5] + y[i-4] + y[i-3] + y[i-2] + y[i-1] +
-                y[i] + y[i+1] + y[i+2] + y[i+3] + y[i+4] + y[i+5] +
-                0.5*y[i+6]) / 12
+  mLoop[i] <- (0.5 * y[i - 6] + y[i - 5] + y[i - 4] + y[i - 3] + y[i - 2] + y[i - 1] +
+    y[i] + y[i + 1] + y[i + 2] + y[i + 3] + y[i + 4] + y[i + 5] +
+    0.5 * y[i + 6]) / 12
 }
-m_loop <- ts(m_loop, start = start(y), frequency = 12)
+mLoop <- ts(mLoop, start = start(y), frequency = 12)
 ```
 
 The loop is a bit ugly, the way loops usually are, but it is worth seeing once. We march through the data, look back six steps and forward six steps, average them with the half-weights on the ends, and write the answer into the $i$th slot. Once you understand that, you never have to write it again, because R has a function that does the same convolution in one line. It is `stats::filter`. The name matters: if you have the tidyverse loaded, `dplyr::filter` is sitting on the same name, and you want the one from `stats`. Watch those masking messages when you load packages.
@@ -98,7 +98,7 @@ That is the same trend with far less typing. We can prove it is the same by chec
 
 ```{r}
 #| label: decomp-trend-compare
-max(abs(m_loop - m_hat), na.rm = TRUE)
+max(abs(mLoop - m_hat), na.rm = TRUE)
 ```
 
 A number that small is zero with rounding dust on it. Now the part we could never do with measured data. Lay the recovered trend over the true one we planted.
@@ -106,13 +106,13 @@ A number that small is zero with rounding dust on it. Now the part we could neve
 ```{r}
 #| label: decomp-trend-truth
 #| fig-height: 3
-tibble(t = tt, planted = trend_true, recovered = as.numeric(m_hat)) |>
+tibble(t = tt, planted = trendTrue, recovered = as.numeric(m_hat)) |>
   pivot_longer(c(planted, recovered), names_to = "series", values_to = "value") |>
   ggplot(aes(t, value, color = series)) +
   geom_line(na.rm = TRUE) +
   scale_color_manual(values = c(planted = sfPal[1], recovered = sfPal[5])) +
   labs(x = "Month", y = "Trend", color = NULL,
-       title = "Recovered trend vs. the truth") +
+    title = "Recovered trend vs. the truth") +
   theme_minimal()
 ```
 
@@ -126,16 +126,16 @@ $$\hat s_t + \hat z_t = y_t - \hat m_t$$
 
 ```{r}
 #| label: decomp-deseason
-s_detrended <- y - m_hat
+sDetrended <- y - m_hat
 ```
 
 To separate the season from the noise, we lean on the one thing that makes a season a season: it repeats. The seasonal effect for, say, every March should be the same. So we average the detrended series within each month. The `cycle` function tells us which month of the year each observation belongs to, and `tapply` averages within those twelve groups.
 
 ```{r}
 #| label: decomp-season-means
-monthly_means <- tapply(s_detrended, cycle(y), FUN = mean, na.rm = TRUE)
-monthly_means <- monthly_means - mean(monthly_means)   # center on zero
-monthly_means
+monthlyMeans <- tapply(sDetrended, cycle(y), FUN = mean, na.rm = TRUE)
+monthlyMeans <- monthlyMeans - mean(monthlyMeans)   # center on zero
+monthlyMeans
 ```
 
 That gives twelve numbers, one per month, and we center them so the seasonal component neither adds to nor subtracts from the overall level. Those twelve values are the estimated seasonal pattern. Compare them to the true season we built from a sine wave.
@@ -144,8 +144,8 @@ That gives twelve numbers, one per month, and we center them so the seasonal com
 #| label: decomp-season-truth
 #| fig-height: 3
 tibble(month = 1:12,
-       planted = 4 * sin(2 * pi * (1:12) / 12),
-       recovered = as.numeric(monthly_means)) |>
+  planted = 4 * sin(2 * pi * (1:12) / 12),
+  recovered = as.numeric(monthlyMeans)) |>
   pivot_longer(c(planted, recovered), names_to = "series", values_to = "value") |>
   ggplot(aes(month, value, color = series)) +
   geom_line() +
@@ -153,7 +153,7 @@ tibble(month = 1:12,
   scale_x_continuous(breaks = 1:12) +
   scale_color_manual(values = c(planted = sfPal[1], recovered = sfPal[5])) +
   labs(x = "Month", y = "Seasonal effect", color = NULL,
-       title = "Recovered season vs. the truth") +
+    title = "Recovered season vs. the truth") +
   theme_minimal()
 ```
 
@@ -161,7 +161,7 @@ The recovered monthly effects trace the sine wave we planted. To turn those twel
 
 ```{r}
 #| label: decomp-season-series
-s_hat <- rep(monthly_means, length.out = n)
+s_hat <- rep(monthlyMeans, length.out = n)
 s_hat <- ts(s_hat, start = start(y), frequency = 12)
 ```
 
@@ -191,18 +191,18 @@ Stack the four pieces together and you can see the whole model at once. Watch th
 #| label: decomp-byhand-stack
 #| fig-height: 5
 tibble(t = tt,
-       Observed = as.numeric(y),
-       Trend    = as.numeric(m_hat),
-       Seasonal = as.numeric(s_hat),
-       Noise    = as.numeric(z_hat)) |>
+  Observed = as.numeric(y),
+  Trend    = as.numeric(m_hat),
+  Seasonal = as.numeric(s_hat),
+  Noise    = as.numeric(z_hat)) |>
   pivot_longer(-t, names_to = "component", values_to = "value") |>
   mutate(component = factor(component,
-           levels = c("Observed", "Trend", "Seasonal", "Noise"))) |>
+    levels = c("Observed", "Trend", "Seasonal", "Noise"))) |>
   ggplot(aes(t, value)) +
   geom_line(na.rm = TRUE) +
   facet_wrap(~component, ncol = 1, scales = "free_y") +
   labs(x = "Month", y = NULL,
-       title = "The planted series, taken apart by hand") +
+    title = "The planted series, taken apart by hand") +
   theme_minimal()
 ```
 
@@ -212,29 +212,29 @@ As much as I hope you enjoyed the loop, you will be relieved to know that R does
 
 ```{r}
 #| label: decomp-decompose
-y_decomp <- decompose(y, type = "additive")
+yDecomp <- decompose(y, type = "additive")
 ```
 
 `decompose` comes with its own `plot` method, but it crams all four panels into base graphics that are hard to read. Since we are going to look at several of these, let's write a small helper that pulls the pieces into a tidy frame and draws them with ggplot. It works on any `decomposed.ts`, additive or multiplicative.
 
 ```{r}
 #| label: decomp-tidy-helper
-tidy_decomp <- function(d) {
+tidyDecomp <- function(d) {
   tibble(time     = as.numeric(time(d$x)),
-         Observed = as.numeric(d$x),
-         Trend    = as.numeric(d$trend),
-         Seasonal = as.numeric(d$seasonal),
-         Random   = as.numeric(d$random)) |>
+    Observed = as.numeric(d$x),
+    Trend    = as.numeric(d$trend),
+    Seasonal = as.numeric(d$seasonal),
+    Random   = as.numeric(d$random)) |>
     pivot_longer(-time, names_to = "component", values_to = "value") |>
     mutate(component = factor(component,
-             levels = c("Observed", "Trend", "Seasonal", "Random")))
+      levels = c("Observed", "Trend", "Seasonal", "Random")))
 }
 ```
 
 ```{r}
 #| label: decomp-decompose-plot
 #| fig-height: 5
-ggplot(tidy_decomp(y_decomp), aes(time, value)) +
+ggplot(tidyDecomp(yDecomp), aes(time, value)) +
   geom_line(na.rm = TRUE) +
   facet_wrap(~component, ncol = 1, scales = "free_y") +
   labs(x = NULL, y = NULL, title = "decompose() on the planted series") +
@@ -245,18 +245,18 @@ Same four panels, same story. And it is not just similar to our hand work, it is
 
 ```{r}
 #| label: decomp-decompose-check
-max(abs(y_decomp$trend - m_hat), na.rm = TRUE)
-max(abs(y_decomp$seasonal - s_hat), na.rm = TRUE)
+max(abs(yDecomp$trend - m_hat), na.rm = TRUE)
+max(abs(yDecomp$seasonal - s_hat), na.rm = TRUE)
 ```
 
 Zero and zero. Everything we did by hand, `decompose` did in one line. Look at what it gives back.
 
 ```{r}
 #| label: decomp-decompose-str
-str(y_decomp)
+str(yDecomp)
 ```
 
-It is a list of class `decomposed.ts` with the original data, the three components, and a note that the model was additive. You reach into it the usual way, `y_decomp$trend` and so on, which is what we just did to check the recovery. The same function handles a multiplicative model too, which we will use at the end of the chapter.
+It is a list of class `decomposed.ts` with the original data, the three components, and a note that the model was additive. You reach into it the usual way, `yDecomp$trend` and so on, which is what we just did to check the recovery. The same function handles a multiplicative model too, which we will use at the end of the chapter.
 
 So why grind through the loop and the subtraction if one function does it all? Because the function will run on anything, and it will always return a trend and a season, and it will never tell you whether those pieces mean anything. We are about to see that. But first, now that we trust the tool, let's point it at data where we do not know the answer.
 
@@ -268,13 +268,13 @@ We used the `co2` data in the last chapter. It is the monthly record of atmosphe
 #| label: decomp-co2
 #| fig-height: 5
 data(co2)
-co2_decomp <- decompose(co2, type = "additive")
-ggplot(tidy_decomp(co2_decomp), aes(time, value)) +
+co2Decomp <- decompose(co2, type = "additive")
+ggplot(tidyDecomp(co2Decomp), aes(time, value)) +
   geom_line(na.rm = TRUE) +
   facet_wrap(~component, ncol = 1, scales = "free_y") +
-  labs(x = NULL, y = NULL, 
-       title = "decompose() on the Keeling curve",
-       subtitle = "Units are ppm of carbon dioxide") +
+  labs(x = NULL, y = NULL,
+    title = "decompose() on the Keeling curve",
+    subtitle = "Units are ppm of carbon dioxide") +
   theme_minimal()
 ```
 
@@ -286,17 +286,17 @@ We said at the start that you could also get a trend by fitting a line against t
 
 ```{r}
 #| label: decomp-co2-lm
-co2_lm <- lm(co2 ~ time(co2))
-coef(co2_lm)
+co2Lm <- lm(co2 ~ time(co2))
+coef(co2Lm)
 ```
 
-The slope says carbon dioxide rose about `r round(coef(co2_lm)[2], 2)` ppm per year on average over this record. Put that line on the data.
+The slope says carbon dioxide rose about `r round(coef(co2Lm)[2], 2)` ppm per year on average over this record. Put that line on the data.
 
 ```{r}
 #| label: decomp-co2-lm-plot
 #| fig-height: 3
-plot(co2, ylab = expression(CO[2]~(ppm)))
-abline(co2_lm, col = sfPal[5])
+plot(co2, ylab = expression(CO[2] ~ (ppm)))
+abline(co2Lm, col = sfPal[5])
 ```
 
 The line fits, in the sense that it passes through the middle of the climb. But a line is committed to a single rate forever. Now put the same line against the trend from the decomposition.
@@ -304,9 +304,9 @@ The line fits, in the sense that it passes through the middle of the climb. But 
 ```{r}
 #| label: decomp-co2-trend-compare
 #| fig-height: 3
-plot(co2_decomp$trend, ylab = expression(CO[2]~(ppm)),
-     main = "Decomposition trend (black) vs. linear fit (red)")
-abline(co2_lm, col = sfPal[5])
+plot(co2Decomp$trend, ylab = expression(CO[2] ~ (ppm)),
+  main = "Decomposition trend (black) vs. linear fit (red)")
+abline(co2Lm, col = sfPal[5])
 ```
 
 Both are trends, and both are reasonable, but they answer different questions. The straight line gives you one number, an average rate, and assumes the rate never changed. The moving-average trend makes no such promise. It follows the data, and you can see it steepening: the curve pulls above the straight line at both ends and dips below it in the middle, because the rise actually accelerated over these decades. The regression slope is a summary. The decomposition trend is a description. Which one you want depends on whether you care about a single headline rate or the shape of the climb.
@@ -319,8 +319,8 @@ Here is a thread that runs through the book. A computer does what it is told. `d
 #| label: decomp-noise-warning
 #| fig-height: 5
 junk <- ts(rnorm(120), start = c(2010, 1), frequency = 12)
-junk_decomp <- decompose(junk)
-ggplot(tidy_decomp(junk_decomp), aes(time, value)) +
+junkDecomp <- decompose(junk)
+ggplot(tidyDecomp(junkDecomp), aes(time, value)) +
   geom_line(na.rm = TRUE) +
   facet_wrap(~component, ncol = 1, scales = "free_y") +
   labs(x = NULL, y = NULL, title = "decompose() on pure noise") +
@@ -345,7 +345,7 @@ Arizona electricity does exactly that. The file `data/az_electricity.csv` holds 
 #| label: decomp-az-read
 #| message: false
 azElec <- read_csv("data/az_electricity.csv")
-elec_ts <- ts(azElec$SALES, start = c(2001, 1), frequency = 12)
+elecTs <- ts(azElec$SALES, start = c(2001, 1), frequency = 12)
 ```
 
 ```{r}
@@ -355,7 +355,7 @@ azElec |>
   ggplot(aes(DATE, SALES)) +
   geom_line() +
   labs(x = NULL, y = "Residential sales (GWh)",
-       title = "Arizona monthly residential electricity") +
+    title = "Arizona monthly residential electricity") +
   theme_minimal()
 ```
 
@@ -366,16 +366,16 @@ We tell `decompose` the model is multiplicative.
 ```{r}
 #| label: decomp-az-mult
 #| fig-height: 5
-elec_decomp <- decompose(elec_ts, type = "multiplicative")
-ggplot(tidy_decomp(elec_decomp), aes(time, value)) +
+elecDecomp <- decompose(elecTs, type = "multiplicative")
+ggplot(tidyDecomp(elecDecomp), aes(time, value)) +
   geom_line(na.rm = TRUE) +
   facet_wrap(~component, ncol = 1, scales = "free_y") +
   labs(x = NULL, y = NULL,
-       title = "decompose() on Arizona residential electricity") +
+    title = "decompose() on Arizona residential electricity") +
   theme_minimal()
 ```
 
-Read the scales. The trend is in gigawatt-hours, the rising demand, but the seasonal and random panels are centered on 1 and have no units, because they are multipliers rather than amounts. The seasonal panel says July runs at about `r round(max(elec_decomp$figure), 1)` times the trend and the winter low at about `r round(min(elec_decomp$figure), 1)` times, every year, whatever the trend happens to be. Read that July multiplier as cooling load: a typical July pulls something like sixty percent more electricity than the annual trend, almost all of it air conditioning. A random value of 1.1 means that month came in ten percent above what the trend and season together predicted. The additive intuition carries straight over: swap addition for multiplication, and swap zero for one as the do-nothing value.
+Read the scales. The trend is in gigawatt-hours, the rising demand, but the seasonal and random panels are centered on 1 and have no units, because they are multipliers rather than amounts. The seasonal panel says July runs at about `r round(max(elecDecomp$figure), 1)` times the trend and the winter low at about `r round(min(elecDecomp$figure), 1)` times, every year, whatever the trend happens to be. Read that July multiplier as cooling load: a typical July pulls something like sixty percent more electricity than the annual trend, almost all of it air conditioning. A random value of 1.1 means that month came in ten percent above what the trend and season together predicted. The additive intuition carries straight over: swap addition for multiplication, and swap zero for one as the do-nothing value.
 
 How do you know multiplicative is the right call and not additive? You fit both and compare their errors. You will do that in the exercises.
 
@@ -395,7 +395,7 @@ There is one piece we kind of glossed over. The noise term $z_t$ we treated as s
 
 In the body we decomposed the Arizona electricity multiplicatively and read the widening summer-winter gap as the sign that the season scales with the level. Put a number on which model the data actually prefer.
 
-1. Take `elec_ts` from the body and decompose it the other way too, additively. For each fit, reconstruct the fitted series (`trend + seasonal` for the additive model, `trend * seasonal` for the multiplicative one) and compute the MSE of the residual. Which model fits better, and by how much?
+1. Take `elecTs` from the body and decompose it the other way too, additively. For each fit, reconstruct the fitted series (`trend + seasonal` for the additive model, `trend * seasonal` for the multiplicative one) and compute the MSE of the residual. Which model fits better, and by how much?
 2. The multiplicative model should win, but not by a landslide. The size of its advantage comes from how much the level climbs over the record: a fixed additive season falls further behind the faster the trend grows. Arizona grew by about half across these years. How would you expect the gap between the two models to change for a series that tripled over its record, and for one whose level stayed flat?
 
 ### Decompose the Bellingham weather

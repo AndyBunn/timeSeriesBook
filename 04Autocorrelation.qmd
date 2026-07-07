@@ -107,7 +107,7 @@ To see the whole autocorrelation structure at once, you compute $\rho$ at succes
 ```{r}
 #| label: auto-acf
 #| fig-height: 3
-ggAcf(y) + 
+ggAcf(y) +
   theme_minimal()
 ```
 
@@ -172,7 +172,7 @@ as_tsibble(Nile) |>
   ggplot(aes(index, value)) +
   geom_line() +
   geom_vline(xintercept = 1899, linetype = "dashed", color = "red") +
-  labs(x = "Year", y = expression(10^8~m^3), title = "River Nile annual flow") +
+  labs(x = "Year", y = expression(10^8 ~ m^3), title = "River Nile annual flow") +
   theme_minimal()
 ```
 
@@ -201,8 +201,8 @@ data(nhtemp)
 as_tsibble(nhtemp) |>
   ggplot(aes(index, value)) +
   geom_line() +
-  labs(x = "Year", y = expression(degree~F),
-       title = "Mean annual temperature, New Haven") +
+  labs(x = "Year", y = expression(degree ~ F),
+    title = "Mean annual temperature, New Haven") +
   theme_minimal()
 ```
 
@@ -251,8 +251,8 @@ The `ar` function fits an AR model and picks the order by AIC for you.
 
 ```{r}
 #| label: auto-ar-fit
-ar_nhtemp <- ar(nhtemp)
-ar_nhtemp
+arNhtemp <- ar(nhtemp)
+arNhtemp
 ```
 
 For the New Haven temperatures, `ar` selects the order that minimizes AIC and reports the coefficients. Compare its choice to the PACF plot above; the formal criterion and your eye should be telling a similar story. The function fits by maximum likelihood rather than the ordinary least squares you are used to from regression. The two give similar answers for an AR model, with maximum likelihood being a touch more efficient in small samples. The help page for `ar` is worth reading.
@@ -312,12 +312,12 @@ epsilon <- rnorm(n)
 y <- numeric(n)
 for (i in 2:n) y[i] <- phi * y[i - 1] + epsilon[i]
 
-layout_mat <- matrix(c(1, 1, 2, 3), nrow = 2, byrow = TRUE)
+layoutMat <- matrix(c(1, 1, 2, 3), nrow = 2, byrow = TRUE)
 p1 <- ggplot(tibble(t = 1:n, y), aes(t, y)) +
   geom_line() + labs(x = "Time", y = NULL) + theme_minimal()
 p2 <- ggAcf(y) + labs(title = NULL) + theme_minimal()
 p3 <- ggPacf(y) + labs(title = NULL) + theme_minimal()
-grid.arrange(p1, p2, p3, layout_matrix = layout_mat)
+grid.arrange(p1, p2, p3, layout_matrix = layoutMat)
 ```
 
 ## Further Reading

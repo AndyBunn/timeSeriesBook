@@ -49,17 +49,17 @@ There are `r nrow(coRiverFlow)` years of proxy and only `r nrow(instrumental)` y
 ```{r}
 #| label: recon-data-plot
 #| fig-height: 4
-p_proxy <- ggplot(coRiverFlow, aes(Year, Proxy)) +
+pProxy <- ggplot(coRiverFlow, aes(Year, Proxy)) +
   geom_line(color = sfPal[1], linewidth = 0.3) +
   labs(y = "Tree-ring index (z)", x = NULL, title = "The proxy reaches back to 762") +
   theme_minimal()
 
-p_flow <- ggplot(coRiverFlow, aes(Year, ObsMAF)) +
+pFlow <- ggplot(coRiverFlow, aes(Year, ObsMAF)) +
   geom_line(color = sfPal[5]) +
   labs(y = "Flow (MAF)", x = "Year", title = "The gauge starts in 1906") +
   theme_minimal()
 
-cowplot::plot_grid(p_proxy, p_flow, ncol = 1, align = "v")
+cowplot::plot_grid(pProxy, pFlow, ncol = 1, align = "v")
 ```
 
 And here are the same data over the instrumental period.
@@ -68,44 +68,43 @@ And here are the same data over the instrumental period.
 #| label: recon-data-plot-zoom
 #| fig-height: 4.5
 
-p_proxy <- ggplot(instrumental, aes(Year, Proxy)) +
+pProxy <- ggplot(instrumental, aes(Year, Proxy)) +
   geom_line(color = sfPal[1], linewidth = 0.3) +
   geom_point(color = sfPal[1], alpha = 0.35) +
   labs(y = "Tree-ring index (z)", x = NULL) +
   theme_minimal()
 
-p_flow <- ggplot(instrumental, aes(Year, ObsMAF)) +
-  geom_line(color = sfPal[5],linewidth = 0.3) +
+pFlow <- ggplot(instrumental, aes(Year, ObsMAF)) +
+  geom_line(color = sfPal[5], linewidth = 0.3) +
   geom_point(color = sfPal[5], alpha = 0.35) +
   labs(y = "Flow (MAF)", x = "Year") +
   theme_minimal()
 
-p_scatter <- ggplot(instrumental, aes(Proxy, ObsMAF)) +
+pScatter <- ggplot(instrumental, aes(Proxy, ObsMAF)) +
   geom_point(color = sfPal[3], alpha = 0.5) +
   geom_smooth(method = "lm", se = FALSE, color = sfPal[3], linewidth = 0.7) +
   labs(x = "Tree-ring index (z)", y = "Flow (MAF)") +
   theme_minimal()
 
-p_series <- cowplot::plot_grid(p_proxy, p_flow, ncol = 1, align = "v")
-cowplot::plot_grid(p_series, p_scatter, ncol = 2, rel_widths = c(1.3, 1))
+pSeries <- cowplot::plot_grid(pProxy, pFlow, ncol = 1, align = "v")
+cowplot::plot_grid(pSeries, pScatter, ncol = 2, rel_widths = c(1.3, 1))
 ```
 
 This is a stunning match between tree growth and river flow. And before we go any further let's look at the autocorrelation in these data over the instrumental record.
 
 ```{r}
 #| label: recon-proxy-acf
-p_proxy_acf <- ggAcf(instrumental$Proxy) +
+pProxyACF <- ggAcf(instrumental$Proxy) +
   labs(title = "Proxy data") +
   theme_minimal()
 
-p_flow_acf <- ggAcf(instrumental$ObsMAF) +
+pFlowACF <- ggAcf(instrumental$ObsMAF) +
   labs(title = "Flow data") +
   theme_minimal()
 
-cowplot::plot_grid(p_proxy_acf,
-                   p_flow_acf,
-                   ncol = 2, align = "v")
-
+cowplot::plot_grid(pProxyACF,
+  pFlowACF,
+  ncol = 2, align = "v")
 ```
 
 Both show a significant AR(1) process. We'll have to keep that in mind as we continue to build a model.
@@ -140,8 +139,8 @@ Unlike the raw data, nothing crosses the band. These are the kind of numbers cha
 
 ```{r}
 #| label: recon-gls-check
-gls_model <- gls(ObsMAF ~ Proxy, data = calib, correlation = corAR1())
-summary(gls_model)
+glsModel <- gls(ObsMAF ~ Proxy, data = calib, correlation = corAR1())
+summary(glsModel)
 ```
 
 The estimated AR(1) parameter comes back near zero, and the slope and its standard error barely move from the OLS fit. GLS has nothing to fix here, so we will not drag the rest of the chapter through it. Check, don't assume, and here the check says OLS already had it right. If you reconstruct something where that check fails, that is exactly when you would reach for `gls` the way the regression chapter did.
@@ -152,15 +151,15 @@ The reduction of error, RE, compares the model's squared errors against what you
 
 ```{r}
 #| label: recon-skill
-skill <- function(obs, pred, calib_mean) {
+skill <- function(obs, pred, calibMean) {
   sse <- sum((obs - pred)^2)
-  RE <- 1 - sse / sum((obs - calib_mean)^2)   # vs the calibration-period mean
+  RE <- 1 - sse / sum((obs - calibMean)^2)   # vs the calibration-period mean
   CE <- 1 - sse / sum((obs - mean(obs))^2)     # vs the verification-period mean
   c(RE = RE, CE = CE)
 }
 
-obs_skill <- skill(verif$ObsMAF, verif$pred, calib_mean = mean(calib$ObsMAF))
-obs_skill
+obsSkill <- skill(verif$ObsMAF, verif$pred, calibMean = mean(calib$ObsMAF))
+obsSkill
 ```
 
 Both come back well above zero. An RE or CE of zero means the model is no better than guessing the mean; anything above zero means it has skill on years it never saw, and one means perfect prediction. Getting a CE comfortably above zero is the result you want, because it is the harder of the two to clear. A model can post a high calibration $R^2$ and still fail here, and if it did, that would be the model telling you it had memorized the calibration period rather than learned anything that travels. This one travels.
@@ -171,25 +170,27 @@ That answer is not always safe. @MaciasFauria2012 showed that an autocorrelated 
 
 ```{r}
 #| label: recon-skill-mc
-phi_proxy <- acf(instrumental$Proxy, plot = FALSE)$acf[2]
-nCal <- nrow(calib); nVer <- nrow(verif); nTot <- nCal + nVer
+phiProxy <- acf(instrumental$Proxy, plot = FALSE)$acf[2]
+nCal <- nrow(calib)
+nVer <- nrow(verif)
+nTot <- nCal + nVer
 
 nSim <- 2000
-null_RE <- numeric(nSim)
-null_CE <- numeric(nSim)
+nullRE <- numeric(nSim)
+nullCE <- numeric(nSim)
 for (i in 1:nSim) {
-  fakeProxy <- arima.sim(list(ar = phi_proxy), n = nTot)
+  fakeProxy <- arima.sim(list(ar = phiProxy), n = nTot)
   m <- lm(calib$ObsMAF ~ fakeProxy[1:nCal])
   pred <- coef(m)[1] + coef(m)[2] * fakeProxy[(nCal + 1):nTot]
-  s <- skill(verif$ObsMAF, pred, calib_mean = mean(calib$ObsMAF))
-  null_RE[i] <- s["RE"]
-  null_CE[i] <- s["CE"]
+  s <- skill(verif$ObsMAF, pred, calibMean = mean(calib$ObsMAF))
+  nullRE[i] <- s["RE"]
+  nullCE[i] <- s["CE"]
 }
 
-c(null_RE_max = max(null_RE), null_CE_max = max(null_CE))
+c(nullREMax = max(nullRE), nullCEMax = max(nullCE))
 ```
 
-`phi_proxy` is the lag-1 autocorrelation of the tree-ring index itself, about `r round(phi_proxy, 2)`, so every simulated proxy carries the same persistence as the one we actually have without carrying any information about flow. Two thousand of them, and none come close. The best a meaningless, equally persistent proxy could manage was an RE of `r round(max(null_RE), 2)` and a CE of `r round(max(null_CE), 2)`, nowhere near the `r round(obs_skill["RE"], 2)` and `r round(obs_skill["CE"], 2)` this proxy actually earned. So yes, these numbers are good, and now that conclusion comes from a Monte Carlo test. It is also worth noticing why the rule of thumb held up here: this proxy's persistence is mild. Run the same check on a more autocorrelated proxy and the safe threshold creeps up well past zero, which is exactly the point @MaciasFauria2012 make. Zero is not a law of nature, just a threshold that needs checking like anything else in this book.
+`phiProxy` is the lag-1 autocorrelation of the tree-ring index itself, about `r round(phiProxy, 2)`, so every simulated proxy carries the same persistence as the one we actually have without carrying any information about flow. Two thousand of them, and none come close. The best a meaningless, equally persistent proxy could manage was an RE of `r round(max(nullRE), 2)` and a CE of `r round(max(nullCE), 2)`, nowhere near the `r round(obsSkill["RE"], 2)` and `r round(obsSkill["CE"], 2)` this proxy actually earned. So yes, these numbers are good, and now that conclusion comes from a Monte Carlo test. It is also worth noticing why the rule of thumb held up here: this proxy's persistence is mild. Run the same check on a more autocorrelated proxy and the safe threshold creeps up well past zero, which is exactly the point @MaciasFauria2012 make. Zero is not a law of nature, just a threshold that needs checking like anything else in this book.
 
 There is nothing special about calibrating on the early half and verifying on the late half, so we should check it the other way too. Swapping the roles is standard practice, and a reconstruction you can trust should pass in both directions.
 
@@ -198,8 +199,8 @@ There is nothing special about calibrating on the early half and verifying on th
 validate <- function(cal, ver) {
   m <- lm(ObsMAF ~ Proxy, data = cal)
   pred <- predict(m, ver)
-  c(calib_R2 = summary(m)$r.squared,
-    skill(ver$ObsMAF, pred, calib_mean = mean(cal$ObsMAF)))
+  c(calibR2 = summary(m)$r.squared,
+    skill(ver$ObsMAF, pred, calibMean = mean(cal$ObsMAF)))
 }
 
 bind_rows(
@@ -217,27 +218,27 @@ With the relationship validated, we refit it on the whole instrumental period to
 
 ```{r}
 #| label: recon-fit
-final_model <- lm(ObsMAF ~ Proxy, data = instrumental)
-coef(final_model)
+finalModel <- lm(ObsMAF ~ Proxy, data = instrumental)
+coef(finalModel)
 
 coRiverFlow <- coRiverFlow |>
-  mutate(recon = predict(final_model, coRiverFlow),
-         recon_smooth = slide_dbl(recon, mean, .before = 12, .after = 12,
-                                  .complete = TRUE))
+  mutate(recon = predict(finalModel, coRiverFlow),
+    reconSmooth = slide_dbl(recon, mean, .before = 12, .after = 12,
+      .complete = TRUE))
 ```
 
-The fitted relationship is ObsMAF $= `r round(coef(final_model)[1], 1)` + `r round(coef(final_model)[2], 1)` \times \text{proxy}$, in millions of acre-feet. Running it across the whole proxy gives an estimate of Colorado River flow for every year since 762. The annual reconstruction is noisy, so we overlay a 25-year centered running mean to bring out the slow swings, the droughts and pluvials that play out over decades.
+The fitted relationship is ObsMAF $= `r round(coef(finalModel)[1], 1)` + `r round(coef(finalModel)[2], 1)` \times \text{proxy}$, in millions of acre-feet. Running it across the whole proxy gives an estimate of Colorado River flow for every year since 762. The annual reconstruction is noisy, so we overlay a 25-year centered running mean to bring out the slow swings, the droughts and pluvials that play out over decades.
 
 ```{r}
 #| label: recon-plot
 #| fig-height: 3.5
 ggplot(coRiverFlow, aes(Year)) +
   geom_line(aes(y = recon), color = sfPal[1], linewidth = 0.2, alpha = 0.6) +
-  geom_line(aes(y = recon_smooth), color = sfPal[5], linewidth = 0.8) +
+  geom_line(aes(y = reconSmooth), color = sfPal[5], linewidth = 0.8) +
   geom_hline(yintercept = mean(instrumental$ObsMAF), linetype = "dashed") +
   labs(x = "Year", y = "Reconstructed flow (MAF)",
-       title = "Colorado River flow at Lees Ferry, reconstructed from 762",
-       subtitle = "Thin line annual, thick line 25-year mean, dashed line the instrumental average") +
+    title = "Colorado River flow at Lees Ferry, reconstructed from 762",
+    subtitle = "Thin line annual, thick line 25-year mean, dashed line the instrumental average") +
   theme_minimal()
 ```
 
@@ -247,18 +248,18 @@ The dashed line is the average flow over the instrumental period, the number eve
 
 ```{r}
 #| label: recon-context
-inst_mean <- mean(instrumental$ObsMAF)
-pct_of_normal <- function(years) {
-  round(100 * mean(coRiverFlow$recon[coRiverFlow$Year %in% years]) / inst_mean)
+instMean <- mean(instrumental$ObsMAF)
+pctOfNormal <- function(years) {
+  round(100 * mean(coRiverFlow$recon[coRiverFlow$Year %in% years]) / instMean)
 }
 
-c(full_record = pct_of_normal(coRiverFlow$Year),
-  compact_decade_1912_1921 = pct_of_normal(1912:1921),
-  megadrought_1130_1154 = pct_of_normal(1130:1154),
-  dust_bowl_1933_1940 = pct_of_normal(1933:1940))
+c(fullRecord = pctOfNormal(coRiverFlow$Year),
+  compactDecade1912_1921 = pctOfNormal(1912:1921),
+  megadrought1130_1154 = pctOfNormal(1130:1154),
+  dustBowl1933_1940 = pctOfNormal(1933:1940))
 ```
 
-The Colorado River Compact, which still governs how the river is divided among seven states and Mexico, was negotiated in 1922 using flow data from the preceding decade. That decade, 1912 to 1921, ran at `r pct_of_normal(1912:1921)`% of the long-term average. The river was carved up on the basis of one of the wettest stretches in twelve hundred years, and the allocations have been writing checks the river cannot cash ever since. Meanwhile the full twelve-century record averages `r pct_of_normal(coRiverFlow$Year)`% of the instrumental mean, confirming that the gauged era itself ran a little wet. And the medieval megadrought of the twelfth century, 1130 to 1154, held the river at `r pct_of_normal(1130:1154)`% of normal for a quarter century straight, a sustained drought deeper and longer than anything in the instrumental record, deeper than the Dust Bowl. None of that is visible from ninety-nine years of gauge data. You can only see it because the trees remembered, and you can only believe the trees because the reconstruction earned it in verification.
+The Colorado River Compact, which still governs how the river is divided among seven states and Mexico, was negotiated in 1922 using flow data from the preceding decade. That decade, 1912 to 1921, ran at `r pctOfNormal(1912:1921)`% of the long-term average. The river was carved up on the basis of one of the wettest stretches in twelve hundred years, and the allocations have been writing checks the river cannot cash ever since. Meanwhile the full twelve-century record averages `r pctOfNormal(coRiverFlow$Year)`% of the instrumental mean, confirming that the gauged era itself ran a little wet. And the medieval megadrought of the twelfth century, 1130 to 1154, held the river at `r pctOfNormal(1130:1154)`% of normal for a quarter century straight, a sustained drought deeper and longer than anything in the instrumental record, deeper than the Dust Bowl. None of that is visible from ninety-nine years of gauge data. You can only see it because the trees remembered, and you can only believe the trees because the reconstruction earned it in verification.
 
 ## Stationarity Is Dead
 
@@ -281,10 +282,10 @@ None of that shrinks what comes next. Slide a 100-year window across the full tw
 #| label: recon-window-pct
 roll100 <- slide_dbl(coRiverFlow$recon, mean, .before = 99, .complete = TRUE)
 roll100 <- roll100[!is.na(roll100)]
-round(100 * mean(roll100 > inst_mean), 1)
+round(100 * mean(roll100 > instMean), 1)
 ```
 
-Only `r round(100 * mean(roll100 > inst_mean), 1)`% of the windows do. The instrumental record sits near the `r round(100 * mean(roll100 < inst_mean), 1)`th percentile of everything the river has done since 762. A stationary process with this much natural variability can still hand you a deeply misleading 99-year sample, and that is what it did. Water law, reservoir design, and drought planning across the American West were built on that one stretch, mean and variance both, as if it were the river's settled character. Twelve centuries of tree rings say the stretch was generous, not settled.
+Only `r round(100 * mean(roll100 > instMean), 1)`% of the windows do. The instrumental record sits near the `r round(100 * mean(roll100 < instMean), 1)`th percentile of everything the river has done since 762. A stationary process with this much natural variability can still hand you a deeply misleading 99-year sample, and that is what it did. Water law, reservoir design, and drought planning across the American West were built on that one stretch, mean and variance both, as if it were the river's settled character. Twelve centuries of tree rings say the stretch was generous, not settled.
 
 Once you can see a thousand years of a river, you can see exactly how unrepresentative the slice anyone has ever gauged turns out to be.
 

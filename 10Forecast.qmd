@@ -99,14 +99,14 @@ for (t in 2:n) {
 }
 
 # chained forecast and its standard deviation, h steps out
-fc_sd <- function(k) sigma * sqrt(cumsum(phi^(2 * (0:(k - 1)))))
-forecast_df <- tibble(
+fcSd <- function(k) sigma * sqrt(cumsum(phi^(2 * (0:(k - 1)))))
+forecastDf <- tibble(
   time = (n + 1):(n + h),
   yhat = phi^(1:h) * y[n],
-  sd   = fc_sd(h)
+  sd   = fcSd(h)
 )
-observed_df <- tibble(time = 1:n, y = y)
-ceiling_sd <- sigma / sqrt(1 - phi^2)
+observedDf <- tibble(time = 1:n, y = y)
+ceilingSd <- sigma / sqrt(1 - phi^2)
 ```
 
 ```{r}
@@ -114,16 +114,16 @@ ceiling_sd <- sigma / sqrt(1 - phi^2)
 #| echo: false
 #| fig-height: 3.5
 ggplot() +
-  geom_hline(yintercept = c(-ceiling_sd, ceiling_sd),
-             linetype = "dotted", color = "grey50") +
+  geom_hline(yintercept = c(-ceilingSd, ceilingSd),
+    linetype = "dotted", color = "grey50") +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_line(data = observed_df, aes(time, y)) +
-  geom_ribbon(data = forecast_df,
-              aes(time, ymin = yhat - sd, ymax = yhat + sd),
-              fill = sfPal[1], alpha = 0.3) +
-  geom_line(data = forecast_df, aes(time, yhat), color = sfPal[1]) +
+  geom_line(data = observedDf, aes(time, y)) +
+  geom_ribbon(data = forecastDf,
+    aes(time, ymin = yhat - sd, ymax = yhat + sd),
+    fill = sfPal[1], alpha = 0.3) +
+  geom_line(data = forecastDf, aes(time, yhat), color = sfPal[1]) +
   labs(x = "Time", y = expression(y[t]),
-       title = "AR(1) forecast") +
+    title = "AR(1) forecast") +
   theme_minimal()
 ```
 
@@ -135,10 +135,10 @@ Look again at the variance formula. There is no $t$ in it and no sign that says 
 
 ```{r}
 #| label: fc-direction
-backward_df <- tibble(
+backwardDf <- tibble(
   time = (1 - h):0,
   yhat = rev(phi^(1:h) * y[1]),
-  sd   = rev(fc_sd(h))
+  sd   = rev(fcSd(h))
 )
 ```
 
@@ -147,20 +147,20 @@ backward_df <- tibble(
 #| echo: false
 #| fig-height: 3.5
 ggplot() +
-  geom_hline(yintercept = c(-ceiling_sd, ceiling_sd),
-             linetype = "dotted", color = "grey50") +
+  geom_hline(yintercept = c(-ceilingSd, ceilingSd),
+    linetype = "dotted", color = "grey50") +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_line(data = observed_df, aes(time, y)) +
-  geom_ribbon(data = forecast_df,
-              aes(time, ymin = yhat - sd, ymax = yhat + sd),
-              fill = sfPal[1], alpha = 0.3) +
-  geom_line(data = forecast_df, aes(time, yhat), color = sfPal[1]) +
-  geom_ribbon(data = backward_df,
-              aes(time, ymin = yhat - sd, ymax = yhat + sd),
-              fill = sfPal[5], alpha = 0.3) +
-  geom_line(data = backward_df, aes(time, yhat), color = sfPal[5]) +
+  geom_line(data = observedDf, aes(time, y)) +
+  geom_ribbon(data = forecastDf,
+    aes(time, ymin = yhat - sd, ymax = yhat + sd),
+    fill = sfPal[1], alpha = 0.3) +
+  geom_line(data = forecastDf, aes(time, yhat), color = sfPal[1]) +
+  geom_ribbon(data = backwardDf,
+    aes(time, ymin = yhat - sd, ymax = yhat + sd),
+    fill = sfPal[5], alpha = 0.3) +
+  geom_line(data = backwardDf, aes(time, yhat), color = sfPal[5]) +
   labs(x = "Time", y = expression(y[t]),
-       title = "Same model, projected both directions") +
+    title = "Same model, projected both directions") +
   theme_minimal()
 ```
 
@@ -183,8 +183,8 @@ Up to now we have chosen model orders by hand, reading the ACF and PACF and comp
 
 ```{r}
 #| label: fc-sunspot-ar
-sunspot_ar <- ar(sunspot.year)
-sunspot_ar$order
+sunspotAr <- ar(sunspot.year)
+sunspotAr$order
 ```
 
 ::: {.callout-warning}
@@ -197,15 +197,15 @@ Here `ar` landed on an AR(9), and for once the order is defensible. The sunspot 
 
 ```{r}
 #| label: fc-sunspot-forecast
-sunspot_fc <- predict(sunspot_ar, n.ahead = 40)
+sunspotFc <- predict(sunspotAr, n.ahead = 40)
 
-forecast_tb <- tibble(
-  year  = as.numeric(time(sunspot_fc$pred)),
-  yhat  = as.numeric(sunspot_fc$pred),
-  lower = yhat - sunspot_fc$se,
-  upper = yhat + sunspot_fc$se
+forecastTb <- tibble(
+  year  = as.numeric(time(sunspotFc$pred)),
+  yhat  = as.numeric(sunspotFc$pred),
+  lower = yhat - sunspotFc$se,
+  upper = yhat + sunspotFc$se
 )
-observed_tb <- tibble(
+observedTb <- tibble(
   year = as.numeric(time(sunspot.year)),
   y    = as.numeric(sunspot.year)
 )
@@ -216,10 +216,10 @@ observed_tb <- tibble(
 #| echo: false
 #| fig-height: 3.5
 ggplot() +
-  geom_line(data = observed_tb, aes(year, y)) +
-  geom_ribbon(data = forecast_tb, aes(year, ymin = lower, ymax = upper),
-              fill = sfPal[1], alpha = 0.4) +
-  geom_line(data = forecast_tb, aes(year, yhat), color = sfPal[1]) +
+  geom_line(data = observedTb, aes(year, y)) +
+  geom_ribbon(data = forecastTb, aes(year, ymin = lower, ymax = upper),
+    fill = sfPal[1], alpha = 0.4) +
+  geom_line(data = forecastTb, aes(year, yhat), color = sfPal[1]) +
   labs(x = "Year", y = "Sunspots (n)") +
   coord_cartesian(xlim = c(1950, 2030)) +
   theme_minimal()
@@ -252,7 +252,7 @@ halibut |>
   geom_line() +
   geom_point() +
   labs(x = "Year", y = "Recruits (thousands)",
-       title = "Pacific Halibut recruitment, 1935-1981") +
+    title = "Pacific Halibut recruitment, 1935-1981") +
   theme_minimal()
 ```
 
@@ -263,31 +263,31 @@ This is the recruitment record for Pacific Halibut, the big flatfish fished from
 rec <- ts(halibut$rec, start = 1935, frequency = 1)
 
 h <- 10  # withhold the last decade
-rec_train <- head(rec, length(rec) - h)
-rec_test  <- tail(rec, h)
+recTrain <- head(rec, length(rec) - h)
+recTest  <- tail(rec, h)
 ```
 
 Fit an AR model on the training span and forecast across the test span.
 
 ```{r}
 #| label: fc-halibut-ar
-rec_ar <- ar(rec_train)
-rec_ar$order
-ar_fc <- predict(rec_ar, n.ahead = h)
+recAr <- ar(recTrain)
+recAr$order
+arFc <- predict(recAr, n.ahead = h)
 ```
 
 ```{r}
 #| label: fc-halibut-ar-plot
 #| echo: false
 #| fig-height: 3.5
-test_tb <- tibble(year = time(rec_test) |> as.numeric(),
-                  rec = as.numeric(rec_test))
-ar_tb <- tibble(year = test_tb$year, yhat = as.numeric(ar_fc$pred))
+testTb <- tibble(year = time(recTest) |> as.numeric(),
+  rec = as.numeric(recTest))
+arTb <- tibble(year = testTb$year, yhat = as.numeric(arFc$pred))
 ggplot() +
-  geom_line(data = test_tb, aes(year, rec)) +
-  geom_line(data = ar_tb, aes(year, yhat), color = sfPal[1]) +
+  geom_line(data = testTb, aes(year, rec)) +
+  geom_line(data = arTb, aes(year, yhat), color = sfPal[1]) +
   labs(x = "Year", y = "Recruits (thousands)",
-       title = "AR forecast (navy) against the withheld decade (black)") +
+    title = "AR forecast (navy) against the withheld decade (black)") +
   theme_minimal()
 ```
 
@@ -295,18 +295,18 @@ ggplot() +
 
 ```{r}
 #| label: fc-halibut-ar-skill
-ar_rmse <- sqrt(mean((ar_fc$pred - rec_test)^2))
-ar_cor  <- cor(ar_fc$pred, rec_test)
-c(order = rec_ar$order, rmse = ar_rmse, cor = ar_cor)
+arRMSE <- sqrt(mean((arFc$pred - recTest)^2))
+arCor  <- cor(arFc$pred, recTest)
+c(order = recAr$order, rmse = arRMSE, cor = arCor)
 ```
 
 Now ask what a very naive model could score. There is no season to hand a baseline for free here, so the fair baseline is simpler still: predict every withheld year with the training period's long-run average recruitment, full stop.
 
 ```{r}
 #| label: fc-halibut-mean
-mean_pred <- rep(mean(rec_train), h)
-mean_rmse <- sqrt(mean((mean_pred - rec_test)^2))
-c(ar_rmse = ar_rmse, mean_rmse = mean_rmse)
+meanPred <- rep(mean(recTrain), h)
+meanRMSE <- sqrt(mean((meanPred - recTest)^2))
+c(arRMSE = arRMSE, meanRMSE = meanRMSE)
 ```
 
 The AR(1) beats the flat average by a wide margin this time, not a rounding error. A strongly seasonal series can fake this kind of result cheaply: stack enough lags and an AR model reconstructs the annual cycle for free, and most of its apparent skill turns out to be the season itself, something a baseline that already knows the season matches almost as well. An annual recruitment series has no season to hand out for free, so the improvement here is actual signal, persistence in how one year's recruitment leans on the last. It is a smaller, humbler forecast than the sunspot cycle, and it is exactly the kind of number a stock assessment leans on, an unglamorous edge over the flat average that still changes what catch limit looks defensible.
@@ -375,14 +375,14 @@ Look at what that does. The new smoothed value is a weighted average of the curr
 
 ```{r}
 #| label: fc-es-loop
-exp_smooth <- function(x, alpha = 0.5) {
+expSmooth <- function(x, alpha = 0.5) {
   xhat <- x[1]
   for (i in 2:length(x)) {
     xhat[i] <- alpha * x[i] + (1 - alpha) * xhat[i - 1]
   }
   xhat[length(x)]
 }
-exp_smooth(y, alpha = 0.9)
+expSmooth(y, alpha = 0.9)
 ```
 
 A large $\alpha$ trusts the most recent point and barely smooths; a small $\alpha$ leans on the accumulated history and smooths hard. That single dial is simple exponential smoothing. Holt-Winters runs three of these dials at once, one for the level ($\alpha$), one for the trend ($\beta$), and one for the season ($\gamma$), and adds them up into a forecast. The `HoltWinters` function finds the coefficients by numerical optimization, minimizing the squared one-step errors. We do not have to set them by hand.
@@ -391,22 +391,22 @@ Now put it on the halibut recruits, fit on the same training span, and backtest 
 
 ```{r}
 #| label: fc-hw-fit
-rec_hw <- HoltWinters(rec_train, gamma = FALSE)
-hw_fc <- predict(rec_hw, n.ahead = h)
-hw_rmse <- sqrt(mean((hw_fc - rec_test)^2))
-c(ar_rmse = ar_rmse, hw_rmse = hw_rmse, mean_rmse = mean_rmse)
+recHw <- HoltWinters(recTrain, gamma = FALSE)
+hwFc <- predict(recHw, n.ahead = h)
+hwRMSE <- sqrt(mean((hwFc - recTest)^2))
+c(arRMSE = arRMSE, hwRMSE = hwRMSE, meanRMSE = meanRMSE)
 ```
 
 ```{r}
 #| label: fc-hw-plot
 #| echo: false
 #| fig-height: 3.5
-hw_tb <- tibble(year = test_tb$year, yhat = as.numeric(hw_fc[, 1]))
+hwTb <- tibble(year = testTb$year, yhat = as.numeric(hwFc[, 1]))
 ggplot() +
-  geom_line(data = test_tb, aes(year, rec)) +
-  geom_line(data = hw_tb, aes(year, yhat), color = sfPal[5]) +
+  geom_line(data = testTb, aes(year, rec)) +
+  geom_line(data = hwTb, aes(year, yhat), color = sfPal[5]) +
   labs(x = "Year", y = "Recruits (thousands)",
-       title = "Holt-Winters forecast (gold) against the withheld years") +
+    title = "Holt-Winters forecast (gold) against the withheld years") +
   theme_minimal()
 ```
 

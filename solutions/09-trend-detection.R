@@ -4,23 +4,25 @@
 library(tidyverse)
 
 # Hand-rolled tools from the chapter -----------------------------------------
-mann_kendall <- function(x) {
-  n <- length(x); S <- 0
+mannKendall <- function(x) {
+  n <- length(x)
+  S <- 0
   for (j in 2:n) for (i in 1:(j - 1)) S <- S + sign(x[j] - x[i])
   ties <- table(x)
-  tie_term <- sum(ties * (ties - 1) * (2 * ties + 5))
-  varS <- (n * (n - 1) * (2 * n + 5) - tie_term) / 18
+  tieTerm <- sum(ties * (ties - 1) * (2 * ties + 5))
+  varS <- (n * (n - 1) * (2 * n + 5) - tieTerm) / 18
   Z <- (S - sign(S)) / sqrt(varS)
   list(S = S, varS = varS, Z = Z, tau = S / (n * (n - 1) / 2),
-       p = 2 * (1 - pnorm(abs(Z))))
+    p = 2 * (1 - pnorm(abs(Z))))
 }
-theil_sen <- function(x, t = seq_along(x)) {
-  n <- length(x); s <- c()
+theilSen <- function(x, t = seq_along(x)) {
+  n <- length(x)
+  s <- c()
   for (j in 2:n) for (i in 1:(j - 1)) s <- c(s, (x[j] - x[i]) / (t[j] - t[i]))
   median(s)
 }
-mann_kendall_ess <- function(x) {
-  base <- mann_kendall(x)
+mannKendallESS <- function(x) {
+  base <- mannKendall(x)
   r1 <- acf(x, plot = FALSE)$acf[2]
   infl <- if (r1 > 0) (1 + r1) / (1 - r1) else 1
   Z <- (base$S - sign(base$S)) / sqrt(base$varS * infl)
@@ -33,20 +35,21 @@ mann_kendall_ess <- function(x) {
 kbli <- read_csv("data/kbli.csv", show_col_types = FALSE) |>
   mutate(tavg = (TMAX + TMIN) / 2, year = year(DATE), month = month(DATE))
 
-full_years <- kbli |> drop_na(tavg) |> count(year) |> filter(n >= 350) |> pull(year)
+fullYears <- kbli |> drop_na(tavg) |> count(year) |> filter(n >= 350) |> pull(year)
 
 seasons <- kbli |>
-  filter(year %in% full_years) |>
+  filter(year %in% fullYears) |>
   group_by(year) |>
   summarise(winter = mean(tavg[month %in% c(12, 1, 2)], na.rm = TRUE),
-            summer = mean(tavg[month %in% 6:8], na.rm = TRUE),
-            .groups = "drop")
+    summer = mean(tavg[month %in% 6:8], na.rm = TRUE),
+    .groups = "drop")
 
 for (s in c("winter", "summer")) {
   x <- seasons[[s]]
-  mk <- mann_kendall(x); ess <- mann_kendall_ess(x)
+  mk <- mannKendall(x)
+  ess <- mannKendallESS(x)
   cat(sprintf("%-7s  TheilSen=%.3f C/yr  MK p=%.3f  r1=%.2f  ESS-corrected p=%.3f\n",
-              s, theil_sen(x, seasons$year), mk$p, ess$r1, ess$p))
+    s, theilSen(x, seasons$year), mk$p, ess$r1, ess$p))
 }
 # Discussion (results on the current kbli record, ~2000-present):
 #   winter: Theil-Sen ~0.01 C/yr, MK p ~0.66, r1 ~ -0.13  -> no trend.
@@ -65,26 +68,26 @@ for (s in c("winter", "summer")) {
 # ---------------------------------------------------------------------------
 noo <- read_csv("data/nooksack.csv", show_col_types = FALSE) |>
   mutate(year = year(DATE), month = month(DATE))
-noo_full <- noo |> count(year) |> filter(n >= 350) |> pull(year)
-summer <- noo |> filter(year %in% noo_full) |>
+nooFull <- noo |> count(year) |> filter(n >= 350) |> pull(year)
+summer <- noo |> filter(year %in% nooFull) |>
   group_by(year) |>
   summarise(summer = mean(FLOW[month %in% 7:9]), .groups = "drop") |>
   pull(summer)
 
-cat("\nSummer Nooksack: naive MK p =", round(mann_kendall(summer)$p, 3),
-    " ESS-corrected p =", round(mann_kendall_ess(summer)$p, 3), "\n")
+cat("\nSummer Nooksack: naive MK p =", round(mannKendall(summer)$p, 3),
+  " ESS-corrected p =", round(mannKendallESS(summer)$p, 3), "\n")
 # It was never significant, and the correction (which only ever raises the
 # p-value) cannot make a non-trend significant. A correction removes false
 # positives; it does not manufacture power.
 
 # Sample-size sweep at fixed phi = 0.7: does more data help?
-ar1_series <- function(phi, n) {
+ar1Series <- function(phi, n) {
   if (phi == 0) rnorm(n) else as.numeric(arima.sim(list(ar = phi), n = n))
 }
 set.seed(11)
 sweep <- map_dfr(c(30, 60, 100, 150, 200), function(n) {
-  naive <- mean(replicate(400, mann_kendall(ar1_series(0.7, n))$p < 0.05))
-  corrected <- mean(replicate(400, mann_kendall_ess(ar1_series(0.7, n))$p < 0.05))
+  naive <- mean(replicate(400, mannKendall(ar1Series(0.7, n))$p < 0.05))
+  corrected <- mean(replicate(400, mannKendallESS(ar1Series(0.7, n))$p < 0.05))
   tibble(n = n, naive = naive, corrected = corrected)
 })
 print(sweep)

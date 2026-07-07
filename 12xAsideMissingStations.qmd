@@ -31,19 +31,19 @@ sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 #| label: gap-read
 #| message: false
 kbli <- read_csv("data/kbli_monthly.csv")
-donor <- read_csv("data/bellingham_3ssw_temp.csv") |> rename(donor_tavg = TAVG)
+donor <- read_csv("data/bellingham_3ssw_temp.csv") |> rename(donorTavg = TAVG)
 
 full_join(kbli, donor, by = "DATE") |>
   filter(DATE >= as.Date("1993-01-01"), DATE <= as.Date("2001-12-01")) |>
-  pivot_longer(c(TAVG, donor_tavg), names_to = "series", values_to = "tavg") |>
+  pivot_longer(c(TAVG, donorTavg), names_to = "series", values_to = "tavg") |>
   mutate(series = recode(series, TAVG = "Bellingham Airport (kbli)",
-                          donor_tavg = "Bellingham 3 SSW (donor)")) |>
+    donorTavg = "Bellingham 3 SSW (donor)")) |>
   ggplot(aes(DATE, tavg, color = series)) +
   geom_line() +
   scale_color_manual(values = c("Bellingham Airport (kbli)" = sfPal[1],
-                                  "Bellingham 3 SSW (donor)" = sfPal[5])) +
+    "Bellingham 3 SSW (donor)" = sfPal[5])) +
   labs(x = NULL, y = expression(degree * C), color = NULL,
-       title = "The airport gap, and a station three miles away that kept reporting") +
+    title = "The airport gap, and a station three miles away that kept reporting") +
   theme_minimal()
 ```
 
@@ -58,12 +58,12 @@ Before the donor station can stand in for the missing months, we need to know ex
 overlap <- inner_join(kbli, donor, by = "DATE") |> drop_na()
 nrow(overlap)
 
-ggplot(overlap, aes(donor_tavg, TAVG)) +
+ggplot(overlap, aes(donorTavg, TAVG)) +
   geom_point(color = "grey40", alpha = 0.6) +
   geom_smooth(method = "lm", se = FALSE, color = sfPal[5]) +
   labs(x = expression("Bellingham 3 SSW monthly " * degree * C),
-       y = expression("Bellingham Airport monthly " * degree * C),
-       title = paste(nrow(overlap), "months where both stations reported")) +
+    y = expression("Bellingham Airport monthly " * degree * C),
+    title = paste(nrow(overlap), "months where both stations reported")) +
   theme_minimal()
 ```
 
@@ -71,7 +71,7 @@ ggplot(overlap, aes(donor_tavg, TAVG)) +
 
 ```{r}
 #| label: gap-fit-check
-overlapFit <- lm(TAVG ~ donor_tavg, data = overlap)
+overlapFit <- lm(TAVG ~ donorTavg, data = overlap)
 summary(overlapFit)$r.squared
 coef(overlapFit)
 ```
@@ -87,7 +87,7 @@ A good fit on the months you already have doesn't automatically mean the donor w
 trainSet <- overlap |> filter(year(DATE) < 2000 | year(DATE) > 2003)
 testSet  <- overlap |> filter(year(DATE) >= 2000, year(DATE) <= 2003)
 
-validateFit <- lm(TAVG ~ donor_tavg, data = trainSet)
+validateFit <- lm(TAVG ~ donorTavg, data = trainSet)
 testPred <- predict(validateFit, newdata = testSet)
 rmseRegression <- sqrt(mean((testPred - testSet$TAVG)^2))
 
@@ -99,7 +99,7 @@ rmseClimatology <- testSet |>
   pull(rmse)
 
 tibble(method = c("donor regression", "climatology baseline"),
-       rmse_degC = c(rmseRegression, rmseClimatology))
+  rmseDegC = c(rmseRegression, rmseClimatology))
 ```
 
 The withheld stretch is 2000 through 2003, four years nowhere near the actual gap, chosen only because the true values are known and can be checked against. The donor-based regression misses by about `r round(rmseRegression, 2)`°C on average; a naive baseline that just uses each calendar month's long-run average misses by about `r round(rmseClimatology, 2)`°C, roughly `r round(rmseClimatology / rmseRegression, 1)` times worse. The donor station is picking up the specific weather in a specific month, not just the season, and that's exactly the property you want before you let it speak for two years you can't check.
@@ -110,14 +110,14 @@ With the technique validated, refit on every month of overlap (more data than th
 
 ```{r}
 #| label: gap-fill
-finalFit <- lm(TAVG ~ donor_tavg, data = overlap)
+finalFit <- lm(TAVG ~ donorTavg, data = overlap)
 
 gapFilled <- kbli |>
   filter(is.na(TAVG)) |>
   select(DATE) |>
   inner_join(donor, by = "DATE") |>
-  mutate(TAVG = predict(finalFit, newdata = tibble(donor_tavg = donor_tavg)),
-         source = "filled")
+  mutate(TAVG = predict(finalFit, newdata = tibble(donorTavg = donorTavg)),
+    source = "filled")
 
 kbliComplete <- kbli |>
   drop_na() |>
@@ -132,7 +132,7 @@ kbliComplete |>
   geom_point(size = 1) +
   scale_color_manual(values = c(measured = "grey30", filled = sfPal[5])) +
   labs(x = NULL, y = expression(degree * C), color = NULL,
-       title = "27 months filled from the donor") +
+    title = "27 months filled from the donor") +
   theme_minimal()
 ```
 

@@ -47,7 +47,7 @@ pTree <- ggplot() +
   geom_hline(yintercept = 0) +
   geom_line(data = treeDat, aes(x = yrs, y = Z), color = "grey60") +
   labs(x = "Year", y = "Tree growth (z-score)",
-       title = "Twisted Tree Heartrot Hill tree-ring chronology") +
+    title = "Twisted Tree Heartrot Hill tree-ring chronology") +
   theme_minimal()
 pTree
 ```
@@ -60,14 +60,14 @@ We already met the moving average in the decomposition chapter's by-hand trend l
 #| label: filt-ma
 treeDat <- treeDat |>
   mutate(ma20  = c(stats::filter(Z, rep(1 / 20, 20),  sides = 2)),
-         ma50  = c(stats::filter(Z, rep(1 / 50, 50),  sides = 2)),
-         ma100 = c(stats::filter(Z, rep(1 / 100, 100), sides = 2)))
+    ma50  = c(stats::filter(Z, rep(1 / 50, 50),  sides = 2)),
+    ma100 = c(stats::filter(Z, rep(1 / 100, 100), sides = 2)))
 
 maLong <- treeDat |>
   select(yrs, ma20, ma50, ma100) |>
   pivot_longer(-yrs, names_to = "width", values_to = "value") |>
   mutate(width = factor(width, levels = c("ma20", "ma50", "ma100"),
-                        labels = c("20 years", "50 years", "100 years")))
+    labels = c("20 years", "50 years", "100 years")))
 
 pTree +
   labs(subtitle = "Moving average filters") +
@@ -84,14 +84,14 @@ The Hanning filter is a cousin of the moving average. It also emphasizes the low
 #| label: filt-hanning
 treeDat <- treeDat |>
   mutate(han20  = hanning(Z, n = 20),
-         han50  = hanning(Z, n = 50),
-         han100 = hanning(Z, n = 100))
+    han50  = hanning(Z, n = 50),
+    han100 = hanning(Z, n = 100))
 
 hanLong <- treeDat |>
   select(yrs, han20, han50, han100) |>
   pivot_longer(-yrs, names_to = "width", values_to = "value") |>
   mutate(width = factor(width, levels = c("han20", "han50", "han100"),
-                        labels = c("20 years", "50 years", "100 years")))
+    labels = c("20 years", "50 years", "100 years")))
 
 pTree +
   labs(subtitle = "Hanning filters") +
@@ -110,14 +110,14 @@ Like the moving average, the Hanning-smoothed curve is shorter than the input: b
 #| label: filt-spline
 treeDat <- treeDat |>
   mutate(ss0.2 = smooth.spline(Z, spar = 0.2)$y,
-         ss0.4 = smooth.spline(Z, spar = 0.4)$y,
-         ss0.6 = smooth.spline(Z, spar = 0.6)$y)
+    ss0.4 = smooth.spline(Z, spar = 0.4)$y,
+    ss0.6 = smooth.spline(Z, spar = 0.6)$y)
 
 ssLong <- treeDat |>
   select(yrs, ss0.2, ss0.4, ss0.6) |>
   pivot_longer(-yrs, names_to = "spar", values_to = "value") |>
   mutate(spar = factor(spar, levels = c("ss0.2", "ss0.4", "ss0.6"),
-                       labels = c("spar = 0.2", "spar = 0.4", "spar = 0.6")))
+    labels = c("spar = 0.2", "spar = 0.4", "spar = 0.6")))
 
 pTree +
   labs(subtitle = "Smoothing spline filters") +
@@ -134,14 +134,14 @@ I've become increasingly fond of the loess smoother, which fits a local, linear 
 #| label: filt-loess
 treeDat <- treeDat |>
   mutate(lo20  = loess(Z ~ yrs, span = 20  / nyrs)$fitted,
-         lo50  = loess(Z ~ yrs, span = 50  / nyrs)$fitted,
-         lo100 = loess(Z ~ yrs, span = 100 / nyrs)$fitted)
+    lo50  = loess(Z ~ yrs, span = 50  / nyrs)$fitted,
+    lo100 = loess(Z ~ yrs, span = 100 / nyrs)$fitted)
 
 loLong <- treeDat |>
   select(yrs, lo20, lo50, lo100) |>
   pivot_longer(-yrs, names_to = "width", values_to = "value") |>
   mutate(width = factor(width, levels = c("lo20", "lo50", "lo100"),
-                        labels = c("20 years", "50 years", "100 years")))
+    labels = c("20 years", "50 years", "100 years")))
 
 pTree +
   labs(subtitle = "Loess filters") +
@@ -172,7 +172,7 @@ ggplot(planted, aes(x)) +
   geom_line(aes(y = y), color = "grey60") +
   geom_line(aes(y = truth), color = sfPal[5], linewidth = 1) +
   labs(x = "Time", y = "Value", title = "A signal with a known low-frequency truth",
-       subtitle = "Grey is the noisy series; the colored line is the truth buried inside it") +
+    subtitle = "Grey is the noisy series; the colored line is the truth buried inside it") +
   theme_minimal()
 ```
 
@@ -220,22 +220,21 @@ showcase <- planted |>
   pivot_longer(cols = -c(x, truth), names_to = "method", values_to = "fit") |>
   mutate(method = factor(
     recode(method,
-           ma50  = "Moving average, W = 50 (best MA)",
-           ma100 = "Moving average, W = 100 (erased)",
-           lo100 = "Loess, span = 100 (best loess)",
-           ss0.2 = "Spline, spar = 0.2 (worst)"),
+      ma50  = "Moving average, W = 50 (best MA)",
+      ma100 = "Moving average, W = 100 (erased)",
+      lo100 = "Loess, span = 100 (best loess)",
+      ss0.2 = "Spline, spar = 0.2 (worst)"),
     levels = c("Moving average, W = 50 (best MA)", "Moving average, W = 100 (erased)",
-               "Loess, span = 100 (best loess)", "Spline, spar = 0.2 (worst)")))
+      "Loess, span = 100 (best loess)", "Spline, spar = 0.2 (worst)")))
 
 ggplot(showcase, aes(x, fit)) +
   geom_line(aes(x, truth), data = planted, inherit.aes = FALSE, color = "grey60") +
   geom_line(color = sfPal[5], linewidth = 0.8) +
   facet_wrap(~method, ncol = 2) +
   labs(x = "Time", y = "Value",
-       title = "Four smooths against the truth they were chasing",
-       subtitle = "Grey is the planted truth, color is what each smoother recovered") +
+    title = "Four smooths against the truth they were chasing",
+    subtitle = "Grey is the planted truth, color is what each smoother recovered") +
   theme_minimal()
-
 ```
 
 Notice the moving average at 100 points (top right) does worse than the one at 50 (top left), not better, even though it's the wider window: the colored line goes nearly flat, missing the cycle almost entirely. That's the filter erasing exactly the cycle we planted, not noise. Loess doesn't share the problem. Its 100-point version (bottom left) tracks the truth about as well as anything in this chapter, while the tightest spline (bottom right, `spar = 0.2`) barely smooths at all, following the noise almost as faithfully as it follows the truth.
@@ -252,8 +251,8 @@ ggplot(pure100, aes(x)) +
   geom_line(aes(y = wave), color = "grey60") +
   geom_line(aes(y = ma100), color = sfPal[5], linewidth = 1) +
   labs(x = "Time", y = "Value",
-       title = "A 100-point moving average erases a 100-period cycle",
-       subtitle = "Grey is the raw cycle, the flat line is what survives") +
+    title = "A 100-point moving average erases a 100-period cycle",
+    subtitle = "Grey is the raw cycle, the flat line is what survives") +
   theme_minimal()
 ```
 
@@ -266,16 +265,16 @@ Now for the end-member problem. Loess and the smoothing spline gave a fitted val
 ```{r}
 #| label: filt-edge-mc
 set.seed(1)
-edge_fits <- replicate(300, {
-  noise_i <- as.numeric(arima.sim(model = list(order = c(2, 0, 1), ar = c(0.7, -0.2), ma = -0.4), n = n))
-  lo_i <- loess((noise_i + truth) ~ x, span = 100 / n)$fitted
-  c(first = lo_i[1], middle = lo_i[250])
+edgeFits <- replicate(300, {
+  noiseI <- as.numeric(arima.sim(model = list(order = c(2, 0, 1), ar = c(0.7, -0.2), ma = -0.4), n = n))
+  loI <- loess((noiseI + truth) ~ x, span = 100 / n)$fitted
+  c(first = loI[1], middle = loI[250])
 })
 
-c(sd_first = sd(edge_fits["first", ]), sd_middle = sd(edge_fits["middle", ]))
+c(sdFirst = sd(edgeFits["first", ]), sdMiddle = sd(edgeFits["middle", ]))
 ```
 
-The standard deviation of the fitted value at the very first point is close to double what it is in the middle of the record (`r round(sd(edge_fits["first", ]), 2)` versus `r round(sd(edge_fits["middle", ]), 2)`), even though both come from the same 100-point loess window. The middle of the window has fifty points on each side; the first point has zero on the left and has to lean on the fifty to its right alone. The curve doesn't look any less confident there. It draws just as smoothly. But it's built on half the evidence.
+The standard deviation of the fitted value at the very first point is close to double what it is in the middle of the record (`r round(sd(edgeFits["first", ]), 2)` versus `r round(sd(edgeFits["middle", ]), 2)`), even though both come from the same 100-point loess window. The middle of the window has fifty points on each side; the first point has zero on the left and has to lean on the fifty to its right alone. The curve doesn't look any less confident there. It draws just as smoothly. But it's built on half the evidence.
 
 So: the moving average and Hanning filter tell you, by going `NA`, exactly where they've run out of window. Loess and the smoothing spline never tell you, because they'll always find some fit to hand back. The upshot for your own smoothed data: the most recent few points, the ones you're usually most eager to interpret ("is it still rising?"), are exactly the ones a smoother is least equipped to answer with the confidence it shows in the middle of the record.
 
@@ -288,30 +287,30 @@ Let's go back to the Bellingham airport weather, this time as monthly mean tempe
 ```{r}
 #| label: filt-kbli-read
 #| message: false
-kbli_monthly <- read_csv("data/kbli_monthly.csv") |>
+kbliMonthly <- read_csv("data/kbli_monthly.csv") |>
   mutate(DATE = yearmonth(DATE)) |>
   as_tsibble(index = DATE)
-kbli_monthly
+kbliMonthly
 ```
 
 A tsibble is where this record lives, but the functions we want next, `filter()`, `rollmean()`, and `dm2seasonal()`, speak `ts` and `zoo`, not tsibble. So we bridge, the same move as the intro.
 
 ```{r}
 #| label: filt-kbli-bridge
-kbli_ts  <- ts(kbli_monthly$TAVG, start = c(1949, 1), frequency = 12)
-kbli_zoo <- zoo(kbli_monthly$TAVG, order.by = as.Date(kbli_monthly$DATE))
+kbliTs  <- ts(kbliMonthly$TAVG, start = c(1949, 1), frequency = 12)
+kbliZoo <- zoo(kbliMonthly$TAVG, order.by = as.Date(kbliMonthly$DATE))
 ```
 
 A quick look at a stretch of years, so we know what we're working with.
 
 ```{r}
 #| label: filt-kbli-plot
-kbli_monthly |>
+kbliMonthly |>
   filter(year(DATE) %in% 1993:1999) |>
   ggplot(aes(x = DATE, y = TAVG)) +
   geom_line(color = sfPal[1]) +
   labs(x = "Month", y = expression(degree * C),
-       title = "Bellingham, a station gap in the middle of the 1990s") +
+    title = "Bellingham, a station gap in the middle of the 1990s") +
   theme_minimal()
 ```
 
@@ -322,35 +321,35 @@ Now, three ways to get mean summer (June-August) temperature out of a monthly se
 ```{r}
 #| label: filt-summer-three-ways
 # 1. stats::filter on the ts object: a trailing 3-month average, then pull August
-tmp_filter <- stats::filter(kbli_ts, rep(1 / 3, 3), sides = 1)
-summer_v1 <- tmp_filter[seq(8, length(tmp_filter), by = 12)]
+tmpFilter <- stats::filter(kbliTs, rep(1 / 3, 3), sides = 1)
+summerV1 <- tmpFilter[seq(8, length(tmpFilter), by = 12)]
 
 # 2. rollmean on the zoo object: the same trailing average, then pull August
-tmp_roll <- rollmean(kbli_zoo, k = 3, align = "right")
-summer_v2 <- tmp_roll[months(time(tmp_roll)) == "August"]
+tmpRoll <- rollmean(kbliZoo, k = 3, align = "right")
+summerV2 <- tmpRoll[months(time(tmpRoll)) == "August"]
 
 # 3. hydroTSM does the seasonal averaging directly
-summer_v3 <- dm2seasonal(kbli_zoo, season = "JJA", FUN = mean)
+summerV3 <- dm2seasonal(kbliZoo, season = "JJA", FUN = mean)
 
-head(summer_v1)
-head(summer_v2)
-head(summer_v3)
+head(summerV1)
+head(summerV2)
+head(summerV3)
 ```
 
 All three agree, right down to the decimal. They just print their labels differently. Now plot the summers and see if Bellingham is warming.
 
 ```{r}
 #| label: filt-summer-plot
-summer_years <- as.numeric(time(summer_v3))
-summer_vals  <- as.numeric(summer_v3)
-summerTrend  <- lm(summer_vals ~ summer_years)
+summerYears <- as.numeric(time(summerV3))
+summerVals  <- as.numeric(summerV3)
+summerTrend  <- lm(summerVals ~ summerYears)
 
-tibble(year = summer_years, tavg = summer_vals) |>
+tibble(year = summerYears, tavg = summerVals) |>
   ggplot(aes(year, tavg)) +
   geom_line(color = sfPal[1]) +
   geom_smooth(method = "lm", se = FALSE, color = sfPal[5]) +
   labs(x = "Year", y = expression(degree * C),
-       title = "Summer in Bellingham, 1949-2025") +
+    title = "Summer in Bellingham, 1949-2025") +
   theme_minimal()
 ```
 
@@ -359,7 +358,7 @@ tibble(year = summer_years, tavg = summer_vals) |>
 summary(summerTrend)
 ```
 
-Summer in Bellingham has warmed about `r round(coef(summerTrend)[2] * 10, 2)` degrees C per decade over the `r sum(!is.na(summer_vals))` complete summers on record, and it isn't chance (p < 0.0001, R² = `r round(summary(summerTrend)$r.squared, 2)`). Modest, but not subtle. Go through the three-ways-to-get-summer code above and make sure you can follow every step. Being able to move between `ts`, `zoo`, and a plain aggregation is a skill that pays off the moment you inherit someone else's script.
+Summer in Bellingham has warmed about `r round(coef(summerTrend)[2] * 10, 2)` degrees C per decade over the `r sum(!is.na(summerVals))` complete summers on record, and it isn't chance (p < 0.0001, R² = `r round(summary(summerTrend)$r.squared, 2)`). Modest, but not subtle. Go through the three-ways-to-get-summer code above and make sure you can follow every step. Being able to move between `ts`, `zoo`, and a plain aggregation is a skill that pays off the moment you inherit someone else's script.
 
 ## Removing a Growth Trend: The Ring-Width Index
 
@@ -372,16 +371,16 @@ Tree-ring data are the case I know best. Every ring reflects the year's growing 
 data(co021)
 core1 <- tibble(yr = as.numeric(time(co021)), mm = co021$`641114`) |>
   drop_na()
-n_core <- nrow(core1)
+nCore <- nrow(core1)
 
 ggplot(core1, aes(yr, mm)) +
   geom_line(color = "grey60") +
   labs(x = "Year", y = "Ring width (mm)",
-       subtitle = "Sample 641114, Schulman Old Tree No. 1, Mesa Verde") +
+    subtitle = "Sample 641114, Schulman Old Tree No. 1, Mesa Verde") +
   theme_minimal()
 ```
 
-We'll fit a loess model of ring width as a function of time. This one is a first-order polynomial (`degree = 1`); the loess default is second-order. `span` is again the proportion of points used, and with `r n_core` rings, a span of 0.05 works out to about `r floor(n_core * 0.05)` years at each fit.
+We'll fit a loess model of ring width as a function of time. This one is a first-order polynomial (`degree = 1`); the loess default is second-order. `span` is again the proportion of points used, and with `r nCore` rings, a span of 0.05 works out to about `r floor(nCore * 0.05)` years at each fit.
 
 ```{r}
 #| label: filt-rwi-loess05
@@ -397,7 +396,7 @@ ggplot(loessFit, aes(yr)) +
   geom_line(aes(y = mm), color = "grey60") +
   geom_line(aes(y = .fitted), color = "black") +
   labs(x = "Year", y = "Ring width (mm)", caption = "5% loess smooth",
-       subtitle = "Sample 641114, Schulman Old Tree No. 1, Mesa Verde") +
+    subtitle = "Sample 641114, Schulman Old Tree No. 1, Mesa Verde") +
   theme_minimal()
 ```
 
@@ -405,14 +404,14 @@ You can specify a number of points instead of a proportion, the same way we did 
 
 ```{r}
 #| label: filt-rwi-loess100
-loessModel100 <- loess(mm ~ yr, data = core1, degree = 1, span = 100 / n_core)
+loessModel100 <- loess(mm ~ yr, data = core1, degree = 1, span = 100 / nCore)
 loessFit100   <- broom::augment(loessModel100)
 
 ggplot(loessFit100, aes(yr)) +
   geom_line(aes(y = mm), color = "grey60") +
   geom_line(aes(y = .fitted), color = "black") +
   labs(x = "Year", y = "Ring width (mm)", caption = "100-year loess smooth",
-       subtitle = "Sample 641114, Schulman Old Tree No. 1, Mesa Verde") +
+    subtitle = "Sample 641114, Schulman Old Tree No. 1, Mesa Verde") +
   theme_minimal()
 ```
 
@@ -427,9 +426,9 @@ core1 |>
   rename(`Ring width (mm)` = mm, `Ring-width index` = rwi) |>
   pivot_longer(cols = -yr, names_to = "series", values_to = "value") |>
   ggplot(aes(yr, value)) +
-  geom_line(color="grey60") +
+  geom_line(color = "grey60") +
   labs(x = "Year", y = NULL,
-       subtitle = "Sample 641114, Schulman Old Tree No. 1, Mesa Verde") +
+    subtitle = "Sample 641114, Schulman Old Tree No. 1, Mesa Verde") +
   facet_wrap(~series, ncol = 1, scales = "free_y") +
   theme_minimal()
 ```
@@ -449,11 +448,11 @@ summary(tmp$tmp)
 summary(rad$rad)
 
 pTmp <- ggplot(tmp, aes(DateTime, tmp)) +
-  geom_line(color="grey60") +
+  geom_line(color = "grey60") +
   labs(x = "Date", y = expression(degree * C), subtitle = "Air temperature") +
   theme_minimal()
 pRad <- ggplot(rad, aes(DateTime, rad)) +
-  geom_line(color="grey60") +
+  geom_line(color = "grey60") +
   labs(x = "Date", y = expression(W ~ m^-2), subtitle = "Radiation") +
   theme_minimal()
 gridExtra::grid.arrange(pTmp, pRad)
@@ -493,11 +492,11 @@ plot(zooRad[1:100], type = "b", pch = 20, ylab = expression(W ~ m^-2))
 
 ```{r}
 #| label: filt-rad-fill
-zooRad_approx <- na.approx(zooRad)
-zooRad_spline <- na.spline(zooRad)
+zooRadApprox <- na.approx(zooRad)
+zooRadSpline <- na.spline(zooRad)
 
-plot(zooRad_approx[1:100], type = "b", pch = 20, ylab = expression(W ~ m^-2), col = sfPal[1], lwd = 2)
-lines(zooRad_spline[1:100], lwd = 2, col = sfPal[5], lty = "dotted")
+plot(zooRadApprox[1:100], type = "b", pch = 20, ylab = expression(W ~ m^-2), col = sfPal[1], lwd = 2)
+lines(zooRadSpline[1:100], lwd = 2, col = sfPal[5], lty = "dotted")
 lines(zooRad[1:100], col = "grey", lwd = 1)
 ```
 

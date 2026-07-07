@@ -36,11 +36,11 @@ tm <- 1:n
 switchPoint <- 200
 
 switchDat <- tibble(tm = tm,
-                     signal = ifelse(tm <= switchPoint,
-                                      sin(2 * pi * tm / 10),
-                                      sin(2 * pi * tm / 30)) +
-                      rnorm(n, sd = 0.75))
-                      #arima.sim(model=list(ar=0.1),n=n))
+  signal = ifelse(tm <= switchPoint,
+    sin(2 * pi * tm / 10),
+    sin(2 * pi * tm / 30)) +
+    rnorm(n, sd = 0.75))
+# arima.sim(model=list(ar=0.1),n=n))
 
 ggplot(switchDat, aes(tm, signal)) +
   geom_line(color = sfPal[1]) +
@@ -98,13 +98,13 @@ The stacked plot below is the same style this chapter reuses for the tree-ring c
 
 ```{r}
 #| label: wave-mra-helper
-plot_mra <- function(dwtOut, x, xlab, unit, title, scale = TRUE) {
+plotMra <- function(dwtOut, x, xlab, unit, title, scale = TRUE) {
   nLevels <- length(dwtOut)
   levelNames <- names(dwtOut)
   scaleLabels <- c(paste0(2^(1:(nLevels - 1)), " ", unit),
-                    paste0("> ", 2^(nLevels - 1), " ", unit))
+    paste0("> ", 2^(nLevels - 1), " ", unit))
   labelDat <- tibble(level = factor(levelNames, levels = levelNames),
-                      label = paste0(levelNames, " (", scaleLabels, ")"))
+    label = paste0(levelNames, " (", scaleLabels, ")"))
 
   dwtDat <- as_tibble(dwtOut) |>
     mutate(x = x) |>
@@ -118,20 +118,20 @@ plot_mra <- function(dwtOut, x, xlab, unit, title, scale = TRUE) {
   ggplot(dwtDat, aes(x, value)) +
     geom_line(color = sfPal[1]) +
     geom_label(data = labelDat, aes(x = -Inf, y = Inf, label = label),
-               inherit.aes = FALSE, hjust = 0, vjust = 1, size = 3.2, color = "grey30",
-               label.size = 0, label.padding = unit(0.15, "lines"), fill = alpha("white", 0.75)) +
+      inherit.aes = FALSE, hjust = 0, vjust = 1, size = 3.2, color = "grey30",
+      label.size = 0, label.padding = unit(0.15, "lines"), fill = alpha("white", 0.75)) +
     facet_wrap(~level, ncol = 1, scales = if (scale) "fixed" else "free_y") +
     labs(x = xlab, y = NULL, title = title) +
     theme_minimal() +
     theme(strip.text = element_blank(), strip.background = element_blank(),
-          panel.spacing.y = unit(0.15, "lines"))
+      panel.spacing.y = unit(0.15, "lines"))
 }
 ```
 
 ```{r}
 #| label: wave-switch-dwt-plot
 #| fig-height: 5
-plot_mra(switchDwt, switchDat$tm, "Time", "pts", "Multiresolution decomposition of the switching demo")
+plotMra(switchDwt, switchDat$tm, "Time", "pts", "Multiresolution decomposition of the switching demo")
 ```
 
 `D3` and `D4` are the two bands worth watching, the closest this dyadic ladder gets to periods 10 and 30. The picture suggests a handoff around the middle of the record. Numbers make it exact.
@@ -139,19 +139,19 @@ plot_mra(switchDwt, switchDat$tm, "Time", "pts", "Multiresolution decomposition 
 ```{r}
 #| label: wave-switch-dwt-check
 tibble(level = names(switchDwt),
-       var_first_half  = map_dbl(switchDwt, ~ var(.x[1:switchPoint])),
-       var_second_half = map_dbl(switchDwt, ~ var(.x[(switchPoint + 1):n]))) |>
+  varFirstHalf  = map_dbl(switchDwt, ~ var(.x[1:switchPoint])),
+  varSecondHalf = map_dbl(switchDwt, ~ var(.x[(switchPoint + 1):n]))) |>
   mutate(across(starts_with("var"), \(x) round(x, 3)))
 ```
 
 `D3`, the detail level tuned closest to a period-10 cycle, carries far more variance in the first half than the second. `D4`, tuned closer to period 30, does the opposite. Same conclusion as the heat map above, reached by a completely different route: split the series into timescales, and the timescales themselves tell you where the switch happened.
 
-The `scale` argument in `plot_mra()` isn't decorative. Turn it off and see what changes.
+The `scale` argument in `plotMra()` isn't decorative. Turn it off and see what changes.
 
 ```{r}
 #| label: wave-switch-dwt-unscaled
 #| fig-height: 5
-plot_mra(switchDwt, switchDat$tm, "Time", "pts", "Same decomposition, unscaled", scale = FALSE)
+plotMra(switchDwt, switchDat$tm, "Time", "pts", "Same decomposition, unscaled", scale = FALSE)
 ```
 
 Nothing goes flat here. Each panel still gets its own y-axis, so `D1`'s wiggle is just as visible as it was above even though it's tiny next to `S7`'s. What changed is that the panels no longer share a scale. `D1`'s axis covers a much narrower range than `S7`'s, because the finest detail actually varies less than the smooth trend does, measured in the switching demo's own units. That's useful if the amplitude of a single level, in its own units, is what you care about. It's useless for comparing levels against each other, since a tall wiggle in one panel and a tall wiggle in another can mean two very different sizes once you check the axis labels. The scaled version above throws those units away on purpose: every level gets forced onto the same footing, so `D3` growing while `D4` shrinks (or the other way around) shows up directly as a difference in wiggle height, no axis-checking required. Pick whichever question you're actually asking: relative variance across levels wants scaling, a level's amplitude in its own units doesn't.
@@ -163,13 +163,13 @@ Measured records rarely hand you a clean, one-time switch. What they give you in
 ```{r}
 #| label: wave-chron
 data(co021)
-co021_rwi <- detrend(co021, method = "AgeDepSpline")
-co021_crn <- chron(co021_rwi)
+co021Rwi <- detrend(co021, method = "AgeDepSpline")
+co021Crn <- chron(co021Rwi)
 
-chronVal <- co021_crn[, 1]
-chronYrs <- as.numeric(time(co021_crn))
+chronVal <- co021Crn[, 1]
+chronYrs <- as.numeric(time(co021Crn))
 
-plot(co021_crn, add.spline = TRUE, nyrs = 64)
+plot(co021Crn, add.spline = TRUE, nyrs = 64)
 ```
 
 ## Seeing the Rhythms: A Continuous Wavelet Transform
@@ -180,7 +180,7 @@ Run the same continuous transform on the chronology.
 #| label: wave-tree-cwt
 #| fig-height: 6
 treeCwt <- morlet(y1 = chronVal, x1 = chronYrs, p2 = 8, dj = 0.1, siglvl = 0.99)
-wavelet.plot(treeCwt, crn.col = "grey50",reverse.y = TRUE)
+wavelet.plot(treeCwt, crn.col = "grey50", reverse.y = TRUE)
 ```
 
 Read this one like a topographic map of frequency content over time. A horizontal band means that period stayed active for as long as the band runs; a band that appears, breaks up, and reappears somewhere else is exactly the kind of feature a single periodogram of the whole 788-year record would average into invisibility. Whatever produces the multi-decadal wiggle in a tree's growth (drought cycles, temperature regimes, competition among neighboring trees) apparently doesn't run at a constant strength the whole time, and this is the tool that lets you say so.
@@ -198,7 +198,7 @@ dwtOut <- mra(chronVal, wf = "la8", J = nScales, method = "modwt", boundary = "p
 ```{r}
 #| label: wave-dwt-plot
 #| fig-height: 5.5
-plot_mra(dwtOut, chronYrs, "Years", "yrs", "Multiresolution decomposition of the chronology")
+plotMra(dwtOut, chronYrs, "Years", "yrs", "Multiresolution decomposition of the chronology")
 ```
 
 `S8` at the bottom is the closest thing here to a long-term trend, whatever survives past 256 years; everything above it runs faster. Line this plot up against the CWT plot above it: wherever a `D` level swells, that's the same signal the color plot lit up, caught this time by a transform built to hand you a number instead of a picture.

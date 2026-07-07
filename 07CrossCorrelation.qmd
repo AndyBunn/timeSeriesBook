@@ -49,9 +49,9 @@ set.seed(872)
 n <- 200
 x <- rnorm(n)
 
-lag_true <- 3
-x_shifted <- dplyr::lag(x, lag_true)        # x from three steps back
-y <- 0.8 * x_shifted + rnorm(n, sd = 0.5)
+lagTrue <- 3
+xShifted <- dplyr::lag(x, lagTrue)        # x from three steps back
+y <- 0.8 * xShifted + rnorm(n, sd = 0.5)
 ```
 
 Always look at what you built. Here are the first thirty points of both series, and if you stare at the peaks you can (almost) see $y$ echoing $x$ a few steps later.
@@ -64,7 +64,7 @@ tibble(time = 1:n, x, y) |>
   pivot_longer(c(x, y)) |>
   ggplot(aes(time, value, color = name)) +
   geom_line() +
-  geom_point(alpha=0.3,size=2) +
+  geom_point(alpha = 0.3, size = 2) +
   scale_color_manual(values = c(x = sfPal[1], y = sfPal[5])) +
   labs(x = "Time", y = NULL, color = NULL) +
   theme_minimal()
@@ -74,7 +74,7 @@ Line the two series up at the same time and there is nothing there.
 
 ```{r}
 #| label: ccf-planted-cor
-cor(x,y,use="complete.obs")
+cor(x, y, use = "complete.obs")
 ```
 
 Line $y$ up against $x$ from three steps back and the relationship snaps into focus.
@@ -84,8 +84,8 @@ Line $y$ up against $x$ from three steps back and the relationship snaps into fo
 aligned <- tibble(x, y) |> drop_na()
 cor(aligned$x, aligned$y)                   # same-time correlation
 
-lagged <- tibble(x_lag3 = dplyr::lag(x, 3), y) |> drop_na()
-cor(lagged$x_lag3, lagged$y)                # y against x from 3 steps back
+lagged <- tibble(xLag3 = dplyr::lag(x, 3), y) |> drop_na()
+cor(lagged$xLag3, lagged$y)                # y against x from 3 steps back
 ```
 
 The same-time correlation is essentially zero; the lag-three correlation is strong. The cross-correlation function does this for a whole range of lags at once and plots the result. 
@@ -196,20 +196,20 @@ Now turn the same tool on the producers and grazers, where we believe there is s
 
 ```{r}
 #| label: ccf-planktonData-prewhiten
-ar_prod <- ar(planktonData$producers)           # model the producers' own structure
-ar_prod$order
+arProd <- ar(planktonData$producers)           # model the producers' own structure
+arProd$order
 
-prod_white <- ar_prod$resid                                   # whitened producers
-graz_filt  <- stats::filter(planktonData$grazers, c(1, -ar_prod$ar),
-                            sides = 1, method = "convolution") # same filter on grazers
-ok <- is.finite(prod_white) & is.finite(graz_filt)            # drop the leading NAs
+prodWhite <- arProd$resid                                   # whitened producers
+grazFilt  <- stats::filter(planktonData$grazers, c(1, -arProd$ar),
+  sides = 1, method = "convolution") # same filter on grazers
+ok <- is.finite(prodWhite) & is.finite(grazFilt)            # drop the leading NAs
 ```
 
 ```{r}
 #| label: ccf-planktonData-prewhiten-plot
 #| echo: false
 #| fig-height: 3
-ggCcf(as.numeric(prod_white[ok]), as.numeric(graz_filt[ok]), lag.max = 24) +
+ggCcf(as.numeric(prodWhite[ok]), as.numeric(grazFilt[ok]), lag.max = 24) +
   labs(title = "Producers and grazers, prewhitened") +
   theme_minimal()
 ```

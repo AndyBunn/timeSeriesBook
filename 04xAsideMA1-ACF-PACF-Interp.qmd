@@ -48,16 +48,16 @@ One simulation is a single data point. To see the pattern instead of a coinciden
 m <- 1000                     # Number of simulations
 res <- matrix(NA, m, 3)       # Object to store theta, PACF lag 1, PACF lag 2
 thetas <- runif(m, 0.2, 0.9)  # Randomly draw MA(1) coefficients for simulation
-res[,1] <- thetas             # Store theta
+res[, 1] <- thetas             # Store theta
 
-for(i in 1:m){
+for (i in 1:m) {
   y <- arima.sim(model = list(ma = thetas[i]), n = n)  # Simulate MA(1)
   tmp <- Pacf(y, plot = FALSE)                         # Get PACF
-  res[i,2] <- tmp$acf[1,1,1]                           # Store lag 1 PACF
-  res[i,3] <- tmp$acf[2,1,1]                           # Store lag 2 PACF
+  res[i, 2] <- tmp$acf[1, 1, 1]                           # Store lag 1 PACF
+  res[i, 3] <- tmp$acf[2, 1, 1]                           # Store lag 2 PACF
 }
 res <- as.data.frame(res)
-names(res) <- c("Simulated_theta", "PACF_lag1", "PACF_lag2")
+names(res) <- c("simulatedTheta", "pacfLag1", "pacfLag2")
 ```
 
 ## The Lag-1 PACF Undershoots $\theta$
@@ -65,13 +65,13 @@ names(res) <- c("Simulated_theta", "PACF_lag1", "PACF_lag2")
 Plot the true $\theta$ against the PACF value each simulation produced at lag 1. If the PACF were just reading off $\theta$, every point would sit on the dashed 1:1 line. It doesn't. The PACF grows more slowly than $\theta$ does, and the gap widens as $\theta$ climbs.
 
 ```{r}
-ggplot(res, aes(x = Simulated_theta, y = PACF_lag1)) +
+ggplot(res, aes(x = simulatedTheta, y = pacfLag1)) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
   geom_point(alpha = 0.4, color = "gray") +
   labs(x = expression(theta[1]),
-       y = "PACF Lag 1",
-       title = "PACF Lag 1 Underestimates the True MA(1) Coefficient",
-       caption = "Dashed line shows the 1:1 reference line") +
+    y = "PACF Lag 1",
+    title = "PACF Lag 1 Underestimates the True MA(1) Coefficient",
+    caption = "Dashed line shows the 1:1 reference line") +
   coord_cartesian(xlim = c(0.15, 0.9), ylim = c(0.15, 0.9)) +
   theme_minimal()
 ```
@@ -97,12 +97,12 @@ The simulation bears this out. PACF lag 1 rises as $\theta$ does, but it never r
 Plot PACF lag 2 against PACF lag 1 across the same thousand simulations and a clean inverse relationship falls out: the bigger lag 1 gets, the more negative lag 2 gets. That is the model's one-lag memory showing up a second time, this time as a correction.
 
 ```{r}
-ggplot(res, aes(x = PACF_lag1, y = PACF_lag2)) +
-  geom_point(alpha = 0.4,color = "gray") +
+ggplot(res, aes(x = pacfLag1, y = pacfLag2)) +
+  geom_point(alpha = 0.4, color = "gray") +
   labs(x = "PACF Lag 1",
-       y = "PACF Lag 2",
-       title = "PACF Lag 2 Is More Negative as Lag 1 Increases",
-       caption = "Each point is a simulated MA(1) process") +
+    y = "PACF Lag 2",
+    title = "PACF Lag 2 Is More Negative as Lag 1 Increases",
+    caption = "Each point is a simulated MA(1) process") +
   theme_minimal()
 ```
 
@@ -110,14 +110,14 @@ Plot it against the true $\theta$ instead and the slope is just as clean: more $
 
 ```{r}
 # Also show vs theta
-ggplot(res, aes(x = Simulated_theta, y = PACF_lag2)) +
+ggplot(res, aes(x = simulatedTheta, y = pacfLag2)) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_point(alpha = 0.4, color = "gray") +
   geom_smooth(method = "lm") +
-  labs(x = expression(True~theta[1]),
-       y = expression(PACF~Lag~2~(hat(phi)[22])),
-       title = "PACF Lag 2 Is Systematically Negative",
-       caption = "This behavior is a hallmark of MA(1) structure") +
+  labs(x = expression(True ~ theta[1]),
+    y = expression(PACF ~ Lag ~ 2 ~ (hat(phi)[22])),
+    title = "PACF Lag 2 Is Systematically Negative",
+    caption = "This behavior is a hallmark of MA(1) structure") +
   theme_minimal()
 ```
 
