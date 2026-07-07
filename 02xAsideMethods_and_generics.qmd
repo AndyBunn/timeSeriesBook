@@ -17,24 +17,28 @@ In R, many common functions like `summary()`, `plot()`, and `print()` are generi
 Let's run a linear model and use that as an example. We will look at miles per gallon and vehicle weight from the `mtcars` dataset.
 
 ```{r}
+#| label: generics-fit-lm
 fit <- lm(mpg ~ wt, data = mtcars)
 ```
 
 Ok. We have a new object called `fit` that is a `list` with a bunch of stuff in it that the authors of `lm` think will be useful to you. Look at its structure to see what's in there.
 
 ```{r}
+#| label: generics-str
 str(fit)
 ```
 
 That list has 12 things in it including the coefficients, residuals, fitted values, and a lot more. But getting the information you want in terms of interpreting the linear model isn't obvious. The object `fit` doesn't directly contain the $R^2$ or p-values. Those are computed when you call `summary(fit)`.
 
 ```{r}
+#| label: generics-summary-lm
 summary(fit)
 ```
 
 Check that out. We got a nicely formatted output that helps us interpret the linear model. But note that the output of `summary(fit)` is very different from getting a summary of a numeric vector like the `mpg` column that went into the model.
 
 ```{r}
+#| label: generics-summary-vector
 summary(mtcars$mpg)
 ```
 
@@ -56,6 +60,7 @@ Here's what R does when you call `summary(fit)`:
 You can look under the hood:
 
 ```{r}
+#| label: generics-dispatch-lookup
 class(fit)
 methods(summary)
 summary.lm
@@ -71,6 +76,7 @@ A method is the specific function written for a particular class. `summary.lm()`
 You can look at the generic directly:
 
 ```{r}
+#| label: generics-generic-body
 summary
 ```
 
@@ -97,6 +103,7 @@ Here are some other generic functions you're likely to run into:
 Want to know what's going on behind a function call? Here are a few tools:
 
 ```{r}
+#| label: generics-explore-methods
 methods(summary)
 methods(plot)
 methods(class = "lm")

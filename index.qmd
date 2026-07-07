@@ -470,13 +470,18 @@ date: ""
 </div>
 ```
 
-```{r include=FALSE}
+```{r}
+#| label: write-package-bib
+#| include: false
 # Auto-generate the package bibliography (References appendix).
 # Keep this vector in sync with DESCRIPTION's Imports.
-knitr::write_bib(c(
-  .packages(), "broom", "cowplot", "dplR", "forecast", "FSAdata",
-  "ggridges", "gridExtra", "hydroTSM", "knitr", "nlme",
-  "PNWColors", "rmarkdown", "slider", "strucchange", "tidyverse",
-  "tseries", "tsibble", "waveslim", "zoo"),
-  "packages.bib")
+knitr::write_bib(
+  c(
+    .packages(), "broom", "cowplot", "dplR", "forecast", "FSAdata",
+    "ggridges", "gridExtra", "hydroTSM", "knitr", "nlme",
+    "PNWColors", "rmarkdown", "slider", "strucchange", "tidyverse",
+    "tseries", "tsibble", "waveslim", "zoo"
+  ),
+  "packages.bib"
+)
 ```

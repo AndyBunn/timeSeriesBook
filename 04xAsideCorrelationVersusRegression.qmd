@@ -1,6 +1,10 @@
 # Aside: Correlation is not Regression {- .aside-chapter}
 
-```{r, echo=FALSE, message=FALSE, warning=FALSE}
+```{r}
+#| label: cvr-setup
+#| echo: false
+#| message: false
+#| warning: false
 library(tidyverse)
 library(PNWColors)
 set.seed(42)
@@ -20,12 +24,14 @@ One more thing before we start. This aside is about linear association. Pearson 
 Let's generate a small data set first. Two variables `x` and `y`.
 
 ```{r}
+#| label: cvr-data
 n <- 80
 x <- rnorm(n, mean = 50, sd = 10)
 y <- 2 + 0.6 * x + rnorm(n, sd = 6)
 
 ggplot(data.frame(x, y), aes(x = x, y = y)) +
-  geom_point(alpha = 0.5) + theme_minimal()
+  geom_point(alpha = 0.5) +
+  theme_minimal()
 ```
 
 Cool? Now let's get the concepts sorted out. But first, a rule that applies to everything in this aside and most of statistics: **plot your data before you calculate anything.** Anscombe's quartet is the classic demonstration of why. It is a set of four datasets with nearly identical means, standard deviations, correlations, and regression coefficients. 
@@ -47,6 +53,7 @@ The correlation between $x$ and $y$ is identical to the correlation between $y$ 
 For the data we made above $$r_{xy} = r_{yx} = 0.79$$
 
 ```{r}
+#| label: cvr-cor-symmetric
 cor(x, y)
 cor(y, x)
 ```
@@ -59,6 +66,7 @@ $x$ is the thing doing the explaining. The slope $\hat{\beta}_1$ tells you how m
 Regression is **not symmetric**. Regressing $y$ on $x$ gives you a different line than regressing $x$ on $y$. Let's show that directly.
 
 ```{r}
+#| label: cvr-fit-both
 # Regression of y on x
 fitYx <- lm(y ~ x)
 # Regression of x on y
@@ -68,6 +76,7 @@ fitXy <- lm(x ~ y)
 To compare these on the same plot, we need to rearrange the second model to express $y$ as a function of $x$. We use `a` and `b` here rather than $\hat{\beta}_0$ and $\hat{\beta}_1$ deliberately. Those are already in use for `lm(y ~ x)`, and reusing them for a model predicting a different variable would invite exactly the kind of confusion we are trying to avoid. Think of `a` and `b` as temporary labels for the intercept and slope of `lm(x ~ y)`. If that model gives us $\hat{x} = a + b \cdot y$, then solving for $y$ gives $y = -a/b + (1/b) \cdot x$.
 
 ```{r}
+#| label: cvr-rearrange
 a <- coef(fitXy)[1]
 b <- coef(fitXy)[2]
 
@@ -76,19 +85,31 @@ interceptRearranged <- -a / b
 slopeRearranged <- 1 / b
 ```
 
-```{r, echo=FALSE}
+```{r}
+#| label: cvr-two-lines-plot
+#| echo: false
 ggplot(data.frame(x, y), aes(x = x, y = y)) +
   geom_point(alpha = 0.5) +
-  geom_abline(intercept = coef(fitYx)[1], slope = coef(fitYx)[2],
-    color = sfPal[1], linewidth = 1, aes(linetype = "lm(y ~ x)")) +
-  geom_abline(intercept = interceptRearranged, slope = slopeRearranged,
-    color = sfPal[5], linewidth = 1, aes(linetype = "lm(x ~ y) rearranged")) +
-  scale_linetype_manual(name = "Model",
-    values = c("lm(y ~ x)" = "solid",
-      "lm(x ~ y) rearranged" = "dashed"),
-    guide = guide_legend()) +
-  labs(title = "Two regressions, one scatter plot",
-    subtitle = "Same data. Different lines.") +
+  geom_abline(
+    intercept = coef(fitYx)[1], slope = coef(fitYx)[2],
+    color = sfPal[1], linewidth = 1, aes(linetype = "lm(y ~ x)")
+  ) +
+  geom_abline(
+    intercept = interceptRearranged, slope = slopeRearranged,
+    color = sfPal[5], linewidth = 1, aes(linetype = "lm(x ~ y) rearranged")
+  ) +
+  scale_linetype_manual(
+    name = "Model",
+    values = c(
+      "lm(y ~ x)" = "solid",
+      "lm(x ~ y) rearranged" = "dashed"
+    ),
+    guide = guide_legend()
+  ) +
+  labs(
+    title = "Two regressions, one scatter plot",
+    subtitle = "Same data. Different lines."
+  ) +
   theme_minimal()
 ```
 
@@ -120,6 +141,7 @@ matters. You can have $r = 0.95$ and a slope of 0.002, or $r = 0.95$ and a slope
 is not.
 
 ```{r}
+#| label: cvr-slope-formula
 r <- cor(x, y)
 slopeFormula <- r * (sd(y) / sd(x))
 slopeLm <- coef(fitYx)[2]
@@ -163,6 +185,7 @@ $n = 1000$ will be highly significant. That does not mean the association is str
 scientifically meaningful. It means you had a lot of data.
 
 ```{r}
+#| label: cvr-large-n-sig
 # Small correlation, large n
 rSmall <- 0.11
 nLarge <- 1000

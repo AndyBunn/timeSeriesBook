@@ -60,7 +60,7 @@ ggplot(tibble(t = 1:n, y), aes(t, y)) +
 
 Look at how that was put together. We started with a vector of zeros and began building on the second value, because an AR(1) step needs the prior value and there is nothing before the first. We could have seeded `y[1]` with a random draw instead of a zero, but the zero washes out quickly. Run the loop and redraw the plot a half-dozen times to get a feel for the shape. Then compare it to a series with no memory at all (e.g., `plot(rnorm(n), type = "l")`). The autocorrelated series has a smoothness to it, a tendency to stay where it is for a while, that pure noise lacks.
 
-:::: {.callout-note}
+::: {.callout-note}
 ## The color of noise. 
 
 Why "white" noise and "red" noise? It comes from physics. When the error term (shock) is drawn from a normal distribution we call it "white noise." The name is borrowed from light, not statistics. White light carries every visible wavelength in roughly equal measure, no color dominates, and a white noise process spreads its variance around the same way, with no lean toward slow change or fast change. `rnorm(n)`, the shocks alone with no memory built in, is white noise.
@@ -68,7 +68,7 @@ Why "white" noise and "red" noise? It comes from physics. When the error term (s
 Give a series memory, the way $\phi = 0.7$ just did, and the spread stops being even. A value that still resembles the one before it tends to drift rather than jitter, so its variance leans toward slow change and away from fast. That lean toward the slow end is called red noise, same analogy: red sits at the low-frequency end of the visible spectrum, so a process whose variance favors low frequencies borrows its name. The smoother, wandering line you just built, next to the flat jitter of `rnorm(n)`, is red noise sitting beside white. The frequency chapter puts a number on that lean instead of an eyeball, but the color names are already earned by what you can see right here.
 
 Time series inherits a lot of lingo. We just have to deal with it.
-::::
+:::
 
 We planted a known $\phi = 0.7$ in that series. The first thing we will do with the tools below is see whether we can read it back out.
 
@@ -76,7 +76,7 @@ We planted a known $\phi = 0.7$ in that series. The first thing we will do with 
 
 ### The fun version
 
-Go read [Allison Horst's piece on the autocorrelation function](https://allisonhorst.com/time-series-acf). She is wonderful and I read everything she makes with delight a little envy.
+Go read Allison Horst's piece on the autocorrelation function^[<https://allisonhorst.com/time-series-acf>]. She is wonderful and I read everything she makes with delight a little envy.
 
 ```{r}
 #| label: auto-horst-jpg
@@ -295,9 +295,9 @@ Use a loop to simulate an AR(2) series with mean 0 and standard deviation 1. You
 
 ### Sockeye
 
-I have been lucky enough to work on a project in Alaska studying how [returning salmon fertilize](https://esajournals.onlinelibrary.wiley.com/doi/10.1002/ecy.2453) the riparian areas around the stream, a project that involved [decades of tossing dead salmon onto the banks](https://www.washington.edu/news/2018/10/23/sockeye-carcasses-tossed-on-shore-over-two-decades-spur-tree-growth/). Through it I came across a detailed record of sockeye salmon escapement at Hansen Creek, a small stream (about 4 m wide and 10 cm deep) in the Wood River system of Bristol Bay, southwestern Alaska. The series gives the total number of salmon returning to spawn each year from 1950 on. The file `HansenSockeye.rds` comes with the book in the `data` folder; read it with `sock <- readRDS("data/HansenSockeye.rds")`.
+I have been lucky enough to work on a project in Alaska studying how returning salmon fertilize the riparian areas around the stream^[<https://esajournals.onlinelibrary.wiley.com/doi/10.1002/ecy.2453>], a project that involved decades of tossing dead salmon onto the banks^[<https://www.washington.edu/news/2018/10/23/sockeye-carcasses-tossed-on-shore-over-two-decades-spur-tree-growth/>]. Through it I came across a detailed record of sockeye salmon escapement at Hansen Creek, a small stream (about 4 m wide and 10 cm deep) in the Wood River system of Bristol Bay, southwestern Alaska. The series gives the total number of salmon returning to spawn each year from 1950 on. The file `HansenSockeye.rds` comes with the book in the `data` folder; read it with `sock <- readRDS("data/HansenSockeye.rds")`.
 
-Look at the series and its autocorrelation. As a hint at what drives it, sockeye spend two to three years in the ocean plus one to two in fresh water, returning to spawn at age three to five, and [otoliths](https://en.wikipedia.org/wiki/Otolith) from Hansen Creek suggest most return at age four. What does that life history lead you to expect in the ACF and PACF, and does the record bear it out? What does the intersection of the fish ecology and the time-series structure tell you?
+Look at the series and its autocorrelation. As a hint at what drives it, sockeye spend two to three years in the ocean plus one to two in fresh water, returning to spawn at age three to five, and otoliths from Hansen Creek suggest most return at age four. What does that life history lead you to expect in the ACF and PACF, and does the record bear it out? What does the intersection of the fish ecology and the time-series structure tell you?
 
 ## A Plotting Helper
 

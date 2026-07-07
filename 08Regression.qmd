@@ -57,8 +57,10 @@ tibble(time, y) |>
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_line(color = sfPal[1]) +
   geom_smooth(method = "lm", se = FALSE, color = sfPal[5], linewidth = 0.7) +
-  labs(x = "Time", y = "y",
-    title = "A series with no trend, and the line OLS fits to it") +
+  labs(
+    x = "Time", y = "y",
+    title = "A series with no trend, and the line OLS fits to it"
+  ) +
   theme_minimal()
 ```
 
@@ -88,13 +90,13 @@ This is a question about inference. The OLS $p$-value answers one thing: if the 
 
 And! This is not a fluke of one unlucky seed. Let's prove it the way I love proving these things: turn the loose claim into an experiment and run it thousands of times. For a range of AR(1) strengths, we generate a trend-free series, fit the line, and record whether the slope came back significant at the usual 5% level, our significance threshold $\alpha$, then repeat that a thousand times over. Replaying the same setup under a known baseline and tallying how often the method gets it wrong is a Monte Carlo simulation, and it is one of my favorite tools in the whole book. If the test were behaving, that significant-slope rate would sit near 5% no matter how much memory the errors carry.
 
-:::: {.callout-note}
+::: {.callout-note}
 ## Why is it called a Monte Carlo simulation?
 
 The name comes from a casino, by way of a sick day. Stanislaw Ulam, a mathematician on the Manhattan Project, was recovering from an illness in 1946 and passed the time playing solitaire. He wanted to know his odds of winning a given hand, found the combinatorics too tangled to work out on paper, and tried something simpler instead: deal out the cards a few hundred times and count how many hands won. Replace a hard probability question with a pile of random trials and a tally, that's the whole method, right there in a sickbed.
 
 Ulam saw that the same trick could crack a much harder problem he and John von Neumann were stuck on at Los Alamos, the diffusion of neutrons through fissile material. The work was classified and needed a code name, so Ulam's colleague Nicholas Metropolis proposed Monte Carlo, after the casino where Ulam's uncle liked to borrow money and gamble. The joke stuck, and now the name labels any method that answers a hard question by generating a large enough pile of random trials and counting up what happens.
-::::
+:::
 
 ```{r}
 #| label: reg-trend-mc
@@ -110,8 +112,10 @@ falsePositiveRate <- function(phi, n = 100, sims = 1000) {
 }
 
 phis <- c(0, 0.3, 0.5, 0.7, 0.9)
-fp <- tibble(phi = phis,
-  rate = map_dbl(phis, falsePositiveRate))
+fp <- tibble(
+  phi = phis,
+  rate = map_dbl(phis, falsePositiveRate)
+)
 fp
 ```
 
@@ -121,10 +125,12 @@ ggplot(fp, aes(factor(phi), rate)) +
   geom_col(fill = sfPal[5], width = 0.6) +
   geom_hline(yintercept = 0.05, linetype = "dashed") +
   scale_y_continuous(labels = scales::percent) +
-  labs(x = expression("AR(1) coefficient of the errors  " * (phi)),
+  labs(
+    x = expression("AR(1) coefficient of the errors  " * (phi)),
     y = "Trends declared significant",
     title = "OLS finds a trend in trend-free data (length = 100)",
-    subtitle = "Each bar: share of 1000 flat AR(1) series where OLS calls the slope significant") +
+    subtitle = "Each bar: share of 1000 flat AR(1) series where OLS calls the slope significant"
+  ) +
   theme_minimal()
 ```
 
@@ -190,8 +196,8 @@ spuriousRate <- function(phi, n = 120, sims = 1000) {
   # run the experiment `sims` times; each run returns TRUE/FALSE, and the mean
   # of a TRUE/FALSE vector is just the fraction that came back TRUE
   mean(replicate(sims, {
-    a <- ar1Series(phi, n)   # one series
-    b <- ar1Series(phi, n)   # a second, unrelated one
+    a <- ar1Series(phi, n) # one series
+    b <- ar1Series(phi, n) # a second, unrelated one
     # fit b ~ a and grab the slope's p-value: [2, 4] is row 2 (the slope) and
     # column 4 (its Pr(>|t|)). Flag the run if that p-value clears 0.05.
     summary(lm(b ~ a))$coefficients[2, 4] < 0.05
@@ -356,15 +362,20 @@ simOne <- function(n, phi) {
   y <- 0.5 * x + epsilon
   ols <- lm(y ~ x)
   glsFit <- tryCatch(gls(y ~ x, correlation = corARMA(p = 1)),
-    error = function(e) NULL)
-  if (is.null(glsFit)) return(NULL)
+    error = function(e) NULL
+  )
+  if (is.null(glsFit)) {
+    return(NULL)
+  }
   tibble(OLS = coef(ols)[2], GLS = coef(glsFit)[2])
 }
 
 set.seed(872)
-grid <- expand_grid(n = c(50, 100, 150, 200),
+grid <- expand_grid(
+  n = c(50, 100, 150, 200),
   phi = c(0.3, 0.5, 0.7, 0.9),
-  rep = 1:225)
+  rep = 1:225
+)
 
 sim <- grid |>
   mutate(out = map2(n, phi, simOne)) |>
@@ -377,20 +388,26 @@ sim <- grid |>
 sim |>
   pivot_longer(c(OLS, GLS), names_to = "model", values_to = "B1hat") |>
   filter(between(B1hat, 0, 1)) |>
-  mutate(model = factor(model, levels = c("OLS", "GLS")),
+  mutate(
+    model = factor(model, levels = c("OLS", "GLS")),
     phiLab = factor(phi, labels = paste0("phi == ", c(0.3, 0.5, 0.7, 0.9))),
-    nLab = factor(n)) |>
+    nLab = factor(n)
+  ) |>
   ggplot(aes(x = B1hat, y = nLab, fill = model)) +
   geom_density_ridges(alpha = 0.7, scale = 1.1) +
   geom_vline(xintercept = 0.5, linetype = "dashed") +
-  facet_grid(rows = vars(model), cols = vars(phiLab),
-    labeller = labeller(phiLab = label_parsed)) +
+  facet_grid(
+    rows = vars(model), cols = vars(phiLab),
+    labeller = labeller(phiLab = label_parsed)
+  ) +
   scale_fill_manual(values = c(OLS = sfPal[5], GLS = sfPal[1]), guide = "none") +
-  labs(x = expression(hat(beta)[1]), y = "Sample size",
+  labs(
+    x = expression(hat(beta)[1]), y = "Sample size",
     title = "GLS recovers the true slope more tightly than OLS",
     subtitle = expression(y[t] == 0.5 * x[t] + epsilon[t] *
       "  with " * epsilon * " an AR(1) process; dashed line is the truth"),
-    caption = "3600 simulations") +
+    caption = "3600 simulations"
+  ) +
   theme_minimal() +
   theme(legend.position = "none")
 ```
@@ -399,7 +416,7 @@ Read down the columns as the error memory strengthens from left to right. Both m
 
 ## An Observed Series: Colorado River Flow
 
-A short and excellent [paper](http://onlinelibrary.wiley.com/doi/10.1002/2015GL067613/full) by Connie Woodhouse and colleagues [@Woodhouse2016] looks at how annual flow on the Colorado River responds to precipitation, soil moisture, and temperature. The river is the water supply for forty million people, so whether its flow is predictable from climate, and whether warming is bending that relationship, is important. I have put their data in `data/woodhouse.csv`.
+A short and excellent paper by Connie Woodhouse and colleagues [@Woodhouse2016] looks at how annual flow on the Colorado River responds to precipitation, soil moisture, and temperature. The river is the water supply for forty million people, so whether its flow is predictable from climate, and whether warming is bending that relationship, is important. I have put their data in `data/woodhouse.csv`.
 
 ```{r}
 #| label: reg-flow-data
@@ -409,8 +426,10 @@ flow <- read_csv("data/woodhouse.csv") |>
 
 ggplot(flow, aes(Year, MAF)) +
   geom_line(color = sfPal[1]) +
-  labs(y = "Flow (millions of acre feet)", x = "Water year",
-    title = "Colorado River at Lees Ferry") +
+  labs(
+    y = "Flow (millions of acre feet)", x = "Water year",
+    title = "Colorado River at Lees Ferry"
+  ) +
   theme_minimal()
 ```
 
@@ -435,8 +454,10 @@ They are not. The lag-1 autocorrelation is around 0.4 and clears the significanc
 
 ```{r}
 #| label: reg-flow-gls
-glsFlow <- gls(LeesWYflow ~ OctAprP, data = flow,
-  correlation = corAR1())
+glsFlow <- gls(LeesWYflow ~ OctAprP,
+  data = flow,
+  correlation = corAR1()
+)
 summary(glsFlow)
 ```
 
@@ -455,8 +476,10 @@ air <- read_csv("data/ny_air_quality.csv")
 layoutMat <- matrix(c(1, 1, 2, 3), nrow = 2, byrow = TRUE)
 p1 <- ggplot(air, aes(Day, ozone)) +
   geom_line(color = sfPal[1]) +
-  labs(x = "Day of summer", y = "Ozone (ppb)",
-    title = "Daily ground-level ozone, New York, summer 1973") +
+  labs(
+    x = "Day of summer", y = "Ozone (ppb)",
+    title = "Daily ground-level ozone, New York, summer 1973"
+  ) +
   theme_minimal()
 p2 <- ggAcf(air$ozone) + labs(title = NULL) + theme_minimal()
 p3 <- ggPacf(air$ozone) + labs(title = NULL) + theme_minimal()
@@ -470,8 +493,10 @@ Definitely some structure there. Now what about temperature?
 #| message: false
 p1 <- ggplot(air, aes(Day, temperature)) +
   geom_line(color = sfPal[1]) +
-  labs(x = "Day of summer", y = "Ozone (ppb)",
-    title = "Daily temperature, New York, summer 1973") +
+  labs(
+    x = "Day of summer", y = "Ozone (ppb)",
+    title = "Daily temperature, New York, summer 1973"
+  ) +
   theme_minimal()
 p2 <- ggAcf(air$temperature) + labs(title = NULL) + theme_minimal()
 p3 <- ggPacf(air$temperature) + labs(title = NULL) + theme_minimal()
@@ -481,6 +506,7 @@ grid.arrange(p1, p2, p3, layout_matrix = layoutMat)
 Now let's make a model.
 
 ```{r}
+#| label: reg-ozone-ols
 olsOzone <- lm(ozone ~ temperature, data = air)
 summary(olsOzone)$coefficients
 ```

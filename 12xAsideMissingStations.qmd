@@ -36,14 +36,20 @@ donor <- read_csv("data/bellingham_3ssw_temp.csv") |> rename(donorTavg = TAVG)
 full_join(kbli, donor, by = "DATE") |>
   filter(DATE >= as.Date("1993-01-01"), DATE <= as.Date("2001-12-01")) |>
   pivot_longer(c(TAVG, donorTavg), names_to = "series", values_to = "tavg") |>
-  mutate(series = recode(series, TAVG = "Bellingham Airport (kbli)",
-    donorTavg = "Bellingham 3 SSW (donor)")) |>
+  mutate(series = recode(series,
+    TAVG = "Bellingham Airport (kbli)",
+    donorTavg = "Bellingham 3 SSW (donor)"
+  )) |>
   ggplot(aes(DATE, tavg, color = series)) +
   geom_line() +
-  scale_color_manual(values = c("Bellingham Airport (kbli)" = sfPal[1],
-    "Bellingham 3 SSW (donor)" = sfPal[5])) +
-  labs(x = NULL, y = expression(degree * C), color = NULL,
-    title = "The airport gap, and a station three miles away that kept reporting") +
+  scale_color_manual(values = c(
+    "Bellingham Airport (kbli)" = sfPal[1],
+    "Bellingham 3 SSW (donor)" = sfPal[5]
+  )) +
+  labs(
+    x = NULL, y = expression(degree * C), color = NULL,
+    title = "The airport gap, and a station three miles away that kept reporting"
+  ) +
   theme_minimal()
 ```
 
@@ -61,9 +67,11 @@ nrow(overlap)
 ggplot(overlap, aes(donorTavg, TAVG)) +
   geom_point(color = "grey40", alpha = 0.6) +
   geom_smooth(method = "lm", se = FALSE, color = sfPal[5]) +
-  labs(x = expression("Bellingham 3 SSW monthly " * degree * C),
+  labs(
+    x = expression("Bellingham 3 SSW monthly " * degree * C),
     y = expression("Bellingham Airport monthly " * degree * C),
-    title = paste(nrow(overlap), "months where both stations reported")) +
+    title = paste(nrow(overlap), "months where both stations reported")
+  ) +
   theme_minimal()
 ```
 
@@ -85,21 +93,26 @@ A good fit on the months you already have doesn't automatically mean the donor w
 ```{r}
 #| label: gap-validate
 trainSet <- overlap |> filter(year(DATE) < 2000 | year(DATE) > 2003)
-testSet  <- overlap |> filter(year(DATE) >= 2000, year(DATE) <= 2003)
+testSet <- overlap |> filter(year(DATE) >= 2000, year(DATE) <= 2003)
 
 validateFit <- lm(TAVG ~ donorTavg, data = trainSet)
 testPred <- predict(validateFit, newdata = testSet)
 rmseRegression <- sqrt(mean((testPred - testSet$TAVG)^2))
 
-climLookup <- trainSet |> mutate(mo = month(DATE)) |> group_by(mo) |> summarise(climMean = mean(TAVG))
+climLookup <- trainSet |>
+  mutate(mo = month(DATE)) |>
+  group_by(mo) |>
+  summarise(climMean = mean(TAVG))
 rmseClimatology <- testSet |>
   mutate(mo = month(DATE)) |>
   left_join(climLookup, by = "mo") |>
   summarise(rmse = sqrt(mean((climMean - TAVG)^2))) |>
   pull(rmse)
 
-tibble(method = c("donor regression", "climatology baseline"),
-  rmseDegC = c(rmseRegression, rmseClimatology))
+tibble(
+  method = c("donor regression", "climatology baseline"),
+  rmseDegC = c(rmseRegression, rmseClimatology)
+)
 ```
 
 The withheld stretch is 2000 through 2003, four years nowhere near the actual gap, chosen only because the true values are known and can be checked against. The donor-based regression misses by about `r round(rmseRegression, 2)`°C on average; a naive baseline that just uses each calendar month's long-run average misses by about `r round(rmseClimatology, 2)`°C, roughly `r round(rmseClimatology / rmseRegression, 1)` times worse. The donor station is picking up the specific weather in a specific month, not just the season, and that's exactly the property you want before you let it speak for two years you can't check.
@@ -116,8 +129,10 @@ gapFilled <- kbli |>
   filter(is.na(TAVG)) |>
   select(DATE) |>
   inner_join(donor, by = "DATE") |>
-  mutate(TAVG = predict(finalFit, newdata = tibble(donorTavg = donorTavg)),
-    source = "filled")
+  mutate(
+    TAVG = predict(finalFit, newdata = tibble(donorTavg = donorTavg)),
+    source = "filled"
+  )
 
 kbliComplete <- kbli |>
   drop_na() |>
@@ -131,8 +146,10 @@ kbliComplete |>
   geom_line(aes(group = 1), color = "grey70") +
   geom_point(size = 1) +
   scale_color_manual(values = c(measured = "grey30", filled = sfPal[5])) +
-  labs(x = NULL, y = expression(degree * C), color = NULL,
-    title = "27 months filled from the donor") +
+  labs(
+    x = NULL, y = expression(degree * C), color = NULL,
+    title = "27 months filled from the donor"
+  ) +
   theme_minimal()
 ```
 
