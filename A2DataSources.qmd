@@ -283,7 +283,7 @@ Each row is one month, with `producers` an index of the phytoplankton and `graze
 
 ### Building It
 
-Here is the recipe, in case you want to change which taxa go into each index or pull the source data yourself. The `MARSS` package ships the record as `lakeWAplanktonRaw`; you only need it to rebuild the file, so the book does not load it.
+Here is the recipe, in case you want to change which taxa go into each index or pull the source data yourself. The `MARSS` [@Holmes2012] package ships the record as `lakeWAplanktonRaw`; you only need it to rebuild the file, so the book does not load it.
 
 ```{r}
 #| label: a1-lwa-build

@@ -14,7 +14,7 @@ But there is a catch, and by now you can probably guess it. Dropping the straigh
 
 ## Packages
 
-We hand-build everything in this chapter, so there are no new packages to install. We stay in the tidyverse for wrangling and plotting, read the example data from CSV, and use `PNWColors` for the palette.
+We hand-build everything in this chapter, so there are no new packages to install. We stay in the `tidyverse` [@R-tidyverse] for wrangling and plotting, read the example data from CSV, and use `PNWColors` [@R-PNWColors] for the palette.
 
 ```{r}
 #| label: trend-packages
@@ -22,7 +22,7 @@ We hand-build everything in this chapter, so there are no new packages to instal
 library(tidyverse)
 library(PNWColors)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Distribution-Free Trend Tools
@@ -94,8 +94,8 @@ summary(olsPlanted)
 
 tibble(t, x) |>
   ggplot(aes(t, x)) +
-  geom_point(color = sfPal[1]) +
-  geom_smooth(method = "lm", se = FALSE, color = sfPal[5]) +
+  geom_point(color = bookPal[1]) +
+  geom_smooth(method = "lm", se = FALSE, color = bookPal[5]) +
   labs(x = "Time", y = "Some variable", title = "A trend with an outlier") +
   theme_minimal()
 ```
@@ -124,7 +124,7 @@ Here are the two fits side by side.
 #| label: trend-planted-plot
 tibble(t, x) |>
   ggplot(aes(t, x)) +
-  geom_point(color = sfPal[1]) +
+  geom_point(color = bookPal[1]) +
   geom_abline(
     data = tibble(
       slope = coef(olsPlanted)[2],
@@ -143,7 +143,7 @@ tibble(t, x) |>
     aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
     linewidth = 0.7
   ) +
-  scale_color_manual(values = c("OLS" = sfPal[5], "Theil-Sen" = sfPal[3]), name = NULL) +
+  scale_color_manual(values = c("OLS" = bookPal[5], "Theil-Sen" = bookPal[3]), name = NULL) +
   scale_linetype_manual(values = c("OLS" = "solid", "Theil-Sen" = "dashed"), name = NULL) +
   labs(x = "Time", y = "Some variable", title = "One outlier, two slopes") +
   theme_minimal()
@@ -188,7 +188,7 @@ tsWinter <- theilSen(annual$winter, annual$year)
 olsWinter <- lm(winter ~ year, data = annual)
 
 ggplot(annual, aes(year, winter)) +
-  geom_line(color = sfPal[1]) +
+  geom_line(color = bookPal[1]) +
   geom_abline(
     data = tibble(
       slope = coef(olsWinter)[2],
@@ -207,7 +207,7 @@ ggplot(annual, aes(year, winter)) +
     aes(slope = slope, intercept = intercept, color = Line, linetype = Line),
     linewidth = 0.7
   ) +
-  scale_color_manual(values = c(OLS = sfPal[5], "Theil-Sen" = sfPal[3]), name = NULL) +
+  scale_color_manual(values = c(OLS = bookPal[5], "Theil-Sen" = bookPal[3]), name = NULL) +
   scale_linetype_manual(values = c(OLS = "solid", "Theil-Sen" = "dashed"), name = NULL) +
   labs(
     x = "Water year", y = expression("Mean winter flow (m"^3 * "/s)"),
@@ -259,7 +259,7 @@ falsePositives
 ```{r}
 #| label: trend-mc-plot
 ggplot(falsePositives, aes(factor(phi), rate)) +
-  geom_col(fill = sfPal[5], width = 0.6) +
+  geom_col(fill = bookPal[5], width = 0.6) +
   geom_hline(yintercept = 0.05, linetype = "dashed") +
   scale_y_continuous(labels = scales::percent) +
   labs(

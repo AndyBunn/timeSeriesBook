@@ -16,7 +16,7 @@ Beyond the visual aid, filters solve practical problems: collapsing fine-grained
 
 ## Packages
 
-You'll want `dplR` [@R-dplR] (a subtle work of staggering genius), plus `zoo` [@R-zoo] and `hydroTSM` [@R-hydroTSM] for the aggregation and gap-filling work later in the chapter. We also need `tsibble` to hold the aggregated data and `PNWColors` for the figure colors.
+You'll want `dplR` [@R-dplR] (a subtle work of staggering genius), plus `zoo` [@R-zoo] and `hydroTSM` [@R-hydroTSM] for the aggregation and gap-filling work later in the chapter. We also need `tidyverse` [@R-tidyverse] for wrangling, `tsibble` [@Wang2020tsibble] to hold the aggregated data, and `PNWColors` [@R-PNWColors] for the figure colors.
 
 ```{r}
 #| label: filt-packages
@@ -28,7 +28,7 @@ library(zoo)
 library(tsibble)
 library(PNWColors)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Filters as Visual Aids
@@ -72,7 +72,7 @@ maLong <- treeDat |>
 pTree +
   labs(subtitle = "Moving average filters") +
   geom_line(data = maLong, aes(yrs, value, color = width, linetype = width), linewidth = 1) +
-  scale_color_manual(values = c("20 years" = sfPal[1], "50 years" = sfPal[3], "100 years" = sfPal[5]), name = NULL) +
+  scale_color_manual(values = c("20 years" = bookPal[1], "50 years" = bookPal[3], "100 years" = bookPal[5]), name = NULL) +
   scale_linetype_manual(values = c("20 years" = "solid", "50 years" = "dashed", "100 years" = "dotted"), name = NULL)
 ```
 
@@ -96,7 +96,7 @@ hanLong <- treeDat |>
 pTree +
   labs(subtitle = "Hanning filters") +
   geom_line(data = hanLong, aes(yrs, value, color = width, linetype = width), linewidth = 1) +
-  scale_color_manual(values = c("20 years" = sfPal[1], "50 years" = sfPal[3], "100 years" = sfPal[5]), name = NULL) +
+  scale_color_manual(values = c("20 years" = bookPal[1], "50 years" = bookPal[3], "100 years" = bookPal[5]), name = NULL) +
   scale_linetype_manual(values = c("20 years" = "solid", "50 years" = "dashed", "100 years" = "dotted"), name = NULL)
 ```
 
@@ -122,7 +122,7 @@ ssLong <- treeDat |>
 pTree +
   labs(subtitle = "Smoothing spline filters") +
   geom_line(data = ssLong, aes(yrs, value, color = spar, linetype = spar), linewidth = 1) +
-  scale_color_manual(values = c("spar = 0.2" = sfPal[1], "spar = 0.4" = sfPal[3], "spar = 0.6" = sfPal[5]), name = NULL) +
+  scale_color_manual(values = c("spar = 0.2" = bookPal[1], "spar = 0.4" = bookPal[3], "spar = 0.6" = bookPal[5]), name = NULL) +
   scale_linetype_manual(values = c("spar = 0.2" = "solid", "spar = 0.4" = "dashed", "spar = 0.6" = "dotted"), name = NULL)
 ```
 
@@ -146,7 +146,7 @@ loLong <- treeDat |>
 pTree +
   labs(subtitle = "Loess filters") +
   geom_line(data = loLong, aes(yrs, value, color = width, linetype = width), linewidth = 1) +
-  scale_color_manual(values = c("20 years" = sfPal[1], "50 years" = sfPal[3], "100 years" = sfPal[5]), name = NULL) +
+  scale_color_manual(values = c("20 years" = bookPal[1], "50 years" = bookPal[3], "100 years" = bookPal[5]), name = NULL) +
   scale_linetype_manual(values = c("20 years" = "solid", "50 years" = "dashed", "100 years" = "dotted"), name = NULL)
 ```
 
@@ -170,7 +170,7 @@ planted <- tibble(x = x, y = as.numeric(noise) + truth, truth = truth)
 
 ggplot(planted, aes(x)) +
   geom_line(aes(y = y), color = "grey60") +
-  geom_line(aes(y = truth), color = sfPal[5], linewidth = 1) +
+  geom_line(aes(y = truth), color = bookPal[5], linewidth = 1) +
   labs(x = "Time", y = "Value", title = "A signal with a known low-frequency truth",
     subtitle = "Grey is the noisy series; the colored line is the truth buried inside it") +
   theme_minimal()
@@ -229,7 +229,7 @@ showcase <- planted |>
 
 ggplot(showcase, aes(x, fit)) +
   geom_line(aes(x, truth), data = planted, inherit.aes = FALSE, color = "grey60") +
-  geom_line(color = sfPal[5], linewidth = 0.8) +
+  geom_line(color = bookPal[5], linewidth = 0.8) +
   facet_wrap(~method, ncol = 2) +
   labs(x = "Time", y = "Value",
     title = "Four smooths against the truth they were chasing",
@@ -249,7 +249,7 @@ pure100 <- pure100 |>
 
 ggplot(pure100, aes(x)) +
   geom_line(aes(y = wave), color = "grey60") +
-  geom_line(aes(y = ma100), color = sfPal[5], linewidth = 1) +
+  geom_line(aes(y = ma100), color = bookPal[5], linewidth = 1) +
   labs(x = "Time", y = "Value",
     title = "A 100-point moving average erases a 100-period cycle",
     subtitle = "Grey is the raw cycle, the flat line is what survives") +
@@ -308,7 +308,7 @@ A quick look at a stretch of years, so we know what we're working with.
 kbliMonthly |>
   filter(year(DATE) %in% 1993:1999) |>
   ggplot(aes(x = DATE, y = TAVG)) +
-  geom_line(color = sfPal[1]) +
+  geom_line(color = bookPal[1]) +
   labs(x = "Month", y = expression(degree * C),
     title = "Bellingham, a station gap in the middle of the 1990s") +
   theme_minimal()
@@ -346,8 +346,8 @@ summerTrend  <- lm(summerVals ~ summerYears)
 
 tibble(year = summerYears, tavg = summerVals) |>
   ggplot(aes(year, tavg)) +
-  geom_line(color = sfPal[1]) +
-  geom_smooth(method = "lm", se = FALSE, color = sfPal[5]) +
+  geom_line(color = bookPal[1]) +
+  geom_smooth(method = "lm", se = FALSE, color = bookPal[5]) +
   labs(x = "Year", y = expression(degree * C),
     title = "Summer in Bellingham, 1949-2025") +
   theme_minimal()
@@ -495,8 +495,8 @@ plot(zooRad[1:100], type = "b", pch = 20, ylab = expression(W ~ m^-2))
 zooRadApprox <- na.approx(zooRad)
 zooRadSpline <- na.spline(zooRad)
 
-plot(zooRadApprox[1:100], type = "b", pch = 20, ylab = expression(W ~ m^-2), col = sfPal[1], lwd = 2)
-lines(zooRadSpline[1:100], lwd = 2, col = sfPal[5], lty = "dotted")
+plot(zooRadApprox[1:100], type = "b", pch = 20, ylab = expression(W ~ m^-2), col = bookPal[1], lwd = 2)
+lines(zooRadSpline[1:100], lwd = 2, col = bookPal[5], lty = "dotted")
 lines(zooRad[1:100], col = "grey", lwd = 1)
 ```
 

@@ -14,7 +14,7 @@ This chapter makes that idea concrete by reconstructing the flow of the Colorado
 
 ## Packages
 
-We hand-build the skill scores, fit the model with base R's `lm`, and use the tidyverse for wrangling and plotting. `slider` gives us a clean centered running mean and `PNWColors` the palette. `forecast` gives us `ggAcf` to check the model's residuals, `nlme` gives us `gls` to confirm what that check shows, and `tseries` gives us `adf.test`/`kpss.test`, the same stationarity check from chapter four, to confirm the reconstruction itself.
+We hand-build the skill scores, fit the model with base R's `lm`, and use the `tidyverse` [@R-tidyverse] for wrangling and plotting. `slider` [@R-slider] gives us a clean centered running mean and `PNWColors` [@R-PNWColors] the palette. `forecast` [@R-forecast] gives us `ggAcf` to check the model's residuals, `nlme` [@R-nlme] gives us `gls` to confirm what that check shows, and `tseries` [@R-tseries] gives us `adf.test`/`kpss.test`, the same stationarity check from chapter four, to confirm the reconstruction itself.
 
 ```{r}
 #| label: recon-packages
@@ -26,7 +26,7 @@ library(nlme)
 library(tseries)
 library(PNWColors)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## A Short Record and a Long Proxy
@@ -50,12 +50,12 @@ There are `r nrow(coRiverFlow)` years of proxy and only `r nrow(instrumental)` y
 #| label: recon-data-plot
 #| fig-height: 4
 pProxy <- ggplot(coRiverFlow, aes(Year, Proxy)) +
-  geom_line(color = sfPal[1], linewidth = 0.3) +
+  geom_line(color = bookPal[1], linewidth = 0.3) +
   labs(y = "Tree-ring index (z)", x = NULL, title = "The proxy reaches back to 762") +
   theme_minimal()
 
 pFlow <- ggplot(coRiverFlow, aes(Year, ObsMAF)) +
-  geom_line(color = sfPal[5]) +
+  geom_line(color = bookPal[5]) +
   labs(y = "Flow (MAF)", x = "Year", title = "The gauge starts in 1906") +
   theme_minimal()
 
@@ -69,20 +69,20 @@ And here are the same data over the instrumental period.
 #| fig-height: 4.5
 
 pProxy <- ggplot(instrumental, aes(Year, Proxy)) +
-  geom_line(color = sfPal[1], linewidth = 0.3) +
-  geom_point(color = sfPal[1], alpha = 0.35) +
+  geom_line(color = bookPal[1], linewidth = 0.3) +
+  geom_point(color = bookPal[1], alpha = 0.35) +
   labs(y = "Tree-ring index (z)", x = NULL) +
   theme_minimal()
 
 pFlow <- ggplot(instrumental, aes(Year, ObsMAF)) +
-  geom_line(color = sfPal[5], linewidth = 0.3) +
-  geom_point(color = sfPal[5], alpha = 0.35) +
+  geom_line(color = bookPal[5], linewidth = 0.3) +
+  geom_point(color = bookPal[5], alpha = 0.35) +
   labs(y = "Flow (MAF)", x = "Year") +
   theme_minimal()
 
 pScatter <- ggplot(instrumental, aes(Proxy, ObsMAF)) +
-  geom_point(color = sfPal[3], alpha = 0.5) +
-  geom_smooth(method = "lm", se = FALSE, color = sfPal[3], linewidth = 0.7) +
+  geom_point(color = bookPal[3], alpha = 0.5) +
+  geom_smooth(method = "lm", se = FALSE, color = bookPal[3], linewidth = 0.7) +
   labs(x = "Tree-ring index (z)", y = "Flow (MAF)") +
   theme_minimal()
 
@@ -233,8 +233,8 @@ The fitted relationship is ObsMAF $= `r round(coef(finalModel)[1], 1)` + `r roun
 #| label: recon-plot
 #| fig-height: 3.5
 ggplot(coRiverFlow, aes(Year)) +
-  geom_line(aes(y = recon), color = sfPal[1], linewidth = 0.2, alpha = 0.6) +
-  geom_line(aes(y = reconSmooth), color = sfPal[5], linewidth = 0.8) +
+  geom_line(aes(y = recon), color = bookPal[1], linewidth = 0.2, alpha = 0.6) +
+  geom_line(aes(y = reconSmooth), color = bookPal[5], linewidth = 0.8) +
   geom_hline(yintercept = mean(instrumental$ObsMAF), linetype = "dashed") +
   labs(x = "Year", y = "Reconstructed flow (MAF)",
     title = "Colorado River flow at Lees Ferry, reconstructed from 762",

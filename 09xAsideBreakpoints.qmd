@@ -8,7 +8,7 @@ library(tidyverse)
 library(strucchange)
 library(PNWColors)
 set.seed(21)
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Introduction
@@ -39,8 +39,8 @@ step <- c(rnorm(45, mean = 10, sd = 2), rnorm(35, mean = 15, sd = 2))
 
 tibble(t = 1:n, x = step) |>
   ggplot(aes(t, x)) +
-  geom_line(color = sfPal[1]) +
-  geom_vline(xintercept = 45.5, linetype = "dashed", color = sfPal[5]) +
+  geom_line(color = bookPal[1]) +
+  geom_vline(xintercept = 45.5, linetype = "dashed", color = bookPal[5]) +
   labs(x = "Time", y = "Some variable", title = "A step, not a slope") +
   theme_minimal()
 ```
@@ -106,8 +106,8 @@ bestSplit
 #| label: bp-byhand-plot
 tibble(split = candidates, rss = rss) |>
   ggplot(aes(split, rss)) +
-  geom_line(color = sfPal[1]) +
-  geom_vline(xintercept = bestSplit, linetype = "dashed", color = sfPal[5]) +
+  geom_line(color = bookPal[1]) +
+  geom_vline(xintercept = bestSplit, linetype = "dashed", color = bookPal[5]) +
   labs(x = "Candidate split point", y = "Leftover variation (RSS)",
     title = "Where the series is best explained by two means instead of one") +
   theme_minimal()
@@ -168,7 +168,7 @@ bpFp
 ```{r}
 #| label: bp-mc-plot
 ggplot(bpFp, aes(factor(phi), rate)) +
-  geom_col(fill = sfPal[5], width = 0.6) +
+  geom_col(fill = bookPal[5], width = 0.6) +
   geom_hline(yintercept = 0.05, linetype = "dashed") +
   scale_y_continuous(labels = scales::percent) +
   labs(x = expression("AR(1) coefficient " * (phi)),
@@ -206,10 +206,10 @@ c(breakYear = nileBreakYear, before = round(nileBefore, 1), after = round(nileAf
 #| label: bp-nile-plot
 tibble(year = as.numeric(time(Nile)), flow = as.numeric(Nile)) |>
   ggplot(aes(year, flow)) +
-  geom_line(color = sfPal[1]) +
-  geom_vline(xintercept = nileBreakYear, linetype = "dashed", color = sfPal[5]) +
+  geom_line(color = bookPal[1]) +
+  geom_vline(xintercept = nileBreakYear, linetype = "dashed", color = bookPal[5]) +
   annotate("rect", xmin = nileCIYears[1], xmax = nileCIYears[2], ymin = -Inf, ymax = Inf,
-    fill = sfPal[5], alpha = 0.1) +
+    fill = bookPal[5], alpha = 0.1) +
   labs(x = "Year", y = expression(10^8 ~ m^3),
     title = "River Nile, annual flow: best single break",
     subtitle = "Shaded band is the 95% confidence interval on the break date") +

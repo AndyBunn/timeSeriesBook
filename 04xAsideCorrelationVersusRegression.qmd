@@ -9,7 +9,7 @@ library(tidyverse)
 library(PNWColors)
 set.seed(42)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Why This Matters
@@ -92,11 +92,11 @@ ggplot(data.frame(x, y), aes(x = x, y = y)) +
   geom_point(alpha = 0.5) +
   geom_abline(
     intercept = coef(fitYx)[1], slope = coef(fitYx)[2],
-    color = sfPal[1], linewidth = 1, aes(linetype = "lm(y ~ x)")
+    color = bookPal[1], linewidth = 1, aes(linetype = "lm(y ~ x)")
   ) +
   geom_abline(
     intercept = interceptRearranged, slope = slopeRearranged,
-    color = sfPal[5], linewidth = 1, aes(linetype = "lm(x ~ y) rearranged")
+    color = bookPal[5], linewidth = 1, aes(linetype = "lm(x ~ y) rearranged")
   ) +
   scale_linetype_manual(
     name = "Model",

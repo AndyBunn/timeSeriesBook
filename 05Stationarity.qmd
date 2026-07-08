@@ -14,7 +14,7 @@ The series stops coming back to the mean. Each shock gets passed forward at full
 
 ## Packages
 
-We stay in the tsibble framework from the earlier chapters. `forecast` gives us the ggplot-ready ACF we have been using, and `tseries` carries the two unit-root tests at the end of the chapter.
+We stay in the `tsibble` [@Wang2020tsibble] framework from the earlier chapters, with `tidyverse` [@R-tidyverse] and `PNWColors` [@R-PNWColors] as usual. `forecast` [@R-forecast] gives us the ggplot-ready ACF we have been using, and `tseries` [@R-tseries] carries the two unit-root tests at the end of the chapter.
 
 ```{r}
 #| label: stat-packages
@@ -25,7 +25,7 @@ library(forecast)
 library(tseries)
 library(PNWColors)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## What Stationarity Means
@@ -132,7 +132,7 @@ walks <- replicate(reps, cumsum(rnorm(n)))   # n x reps matrix
 
 tibble(t = 1:n, empirical = apply(walks, 1, var)) |>
   ggplot(aes(t)) +
-  geom_line(aes(y = empirical), color = sfPal[1]) +
+  geom_line(aes(y = empirical), color = bookPal[1]) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
   labs(x = "Time", y = "Variance across realizations",
     title = "Random-walk variance grows with time") +

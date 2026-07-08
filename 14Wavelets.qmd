@@ -12,7 +12,7 @@ The last chapter ended on a warning: a periodogram assumes a series's frequency 
 
 ## Packages
 
-`dplR` supplies `morlet()` and `wavelet.plot()` for the continuous wavelet transform, built on the algorithm from @TorrenceCompo1998. `waveslim` supplies `mra()` for the discrete version. `tidyverse` and `PNWColors` handle the planted demo.
+`dplR` [@R-dplR] supplies `morlet()` and `wavelet.plot()` for the continuous wavelet transform, built on the algorithm from @TorrenceCompo1998. `waveslim` [@R-waveslim] supplies `mra()` for the discrete version. `tidyverse` [@R-tidyverse] and `PNWColors` [@R-PNWColors] handle the planted demo.
 
 ```{r}
 #| label: wave-packages
@@ -22,7 +22,7 @@ library(PNWColors)
 library(dplR)
 library(waveslim)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Can a Periodogram Tell You When?
@@ -43,7 +43,7 @@ switchDat <- tibble(tm = tm,
 # arima.sim(model=list(ar=0.1),n=n))
 
 ggplot(switchDat, aes(tm, signal)) +
-  geom_line(color = sfPal[1]) +
+  geom_line(color = bookPal[1]) +
   geom_vline(xintercept = switchPoint, linetype = "dashed", color = "grey40") +
   labs(x = "Time", y = "Signal", title = "A period-10 cycle, then a period-30 cycle") +
   theme_minimal()
@@ -57,7 +57,7 @@ switchSpec <- spectrum(switchDat$signal, plot = FALSE)
 switchSpecDat <- tibble(freq = switchSpec$freq, spec = switchSpec$spec)
 
 ggplot(switchSpecDat, aes(freq, spec)) +
-  geom_line(color = sfPal[5]) +
+  geom_line(color = bookPal[5]) +
   geom_vline(xintercept = c(1 / 10, 1 / 30), linetype = "dashed", color = "grey40") +
   labs(x = "Frequency", y = "Spectral density", title = "The periodogram finds both periods") +
   theme_minimal()
@@ -116,7 +116,7 @@ plotMra <- function(dwtOut, x, xlab, unit, title, scale = TRUE) {
   }
 
   ggplot(dwtDat, aes(x, value)) +
-    geom_line(color = sfPal[1]) +
+    geom_line(color = bookPal[1]) +
     geom_label(data = labelDat, aes(x = -Inf, y = Inf, label = label),
       inherit.aes = FALSE, hjust = 0, vjust = 1, size = 3.2, color = "grey30",
       label.size = 0, label.padding = unit(0.15, "lines"), fill = alpha("white", 0.75)) +

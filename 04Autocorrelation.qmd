@@ -12,7 +12,7 @@ The whole premise of this book is that the values in a time series depend on the
 
 ## Packages
 
-We use the `tidyverse` for wrangling and plotting and `tsibble` to hold series as tidy tables, as in the earlier chapters. The `forecast` package gives us ggplot-ready ACF and PACF functions, and `gridExtra` helps lay a few plots out together.
+We use the `tidyverse` [@R-tidyverse] for wrangling and plotting and `tsibble` [@Wang2020tsibble] to hold series as tidy tables, as in the earlier chapters. The `forecast` [@R-forecast] package gives us ggplot-ready ACF and PACF functions, and `gridExtra` [@R-gridExtra] helps lay a few plots out together.
 
 ```{r}
 #| label: auto-packages

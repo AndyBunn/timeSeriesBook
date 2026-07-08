@@ -12,7 +12,7 @@ A series like the Bellingham temperature from the last chapter is really three t
 
 ## Packages
 
-We keep the tsibble framework for storing and plotting data, but the decomposition machinery itself lives in base R. The `decompose` function and the `ts` class it works on are both built into R, so there is nothing extra to load for the analysis.
+We keep the `tsibble` [@Wang2020tsibble] framework for storing and plotting data, with `tidyverse` [@R-tidyverse] for wrangling and `PNWColors` [@R-PNWColors] for the figure colors, but the decomposition machinery itself lives in base R. The `decompose` function and the `ts` class it works on are both built into R, so there is nothing extra to load for the analysis.
 
 ```{r}
 #| label: decomp-packages
@@ -21,7 +21,7 @@ library(tidyverse)
 library(tsibble)
 library(PNWColors)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## An Additive Model
@@ -110,7 +110,7 @@ tibble(t = tt, planted = trendTrue, recovered = as.numeric(m_hat)) |>
   pivot_longer(c(planted, recovered), names_to = "series", values_to = "value") |>
   ggplot(aes(t, value, color = series)) +
   geom_line(na.rm = TRUE) +
-  scale_color_manual(values = c(planted = sfPal[1], recovered = sfPal[5])) +
+  scale_color_manual(values = c(planted = bookPal[1], recovered = bookPal[5])) +
   labs(
     x = "Month", y = "Trend", color = NULL,
     title = "Recovered trend vs. the truth"
@@ -155,7 +155,7 @@ tibble(
   geom_line() +
   geom_point() +
   scale_x_continuous(breaks = 1:12) +
-  scale_color_manual(values = c(planted = sfPal[1], recovered = sfPal[5])) +
+  scale_color_manual(values = c(planted = bookPal[1], recovered = bookPal[5])) +
   labs(
     x = "Month", y = "Seasonal effect", color = NULL,
     title = "Recovered season vs. the truth"
@@ -313,8 +313,8 @@ The slope says carbon dioxide rose about `r round(coef(co2Lm)[2], 2)` ppm per ye
 #| fig-height: 3
 tibble(year = as.numeric(time(co2)), co2 = as.numeric(co2)) |>
   ggplot(aes(year, co2)) +
-  geom_line(color = sfPal[1]) +
-  geom_abline(intercept = coef(co2Lm)[1], slope = coef(co2Lm)[2], color = sfPal[5]) +
+  geom_line(color = bookPal[1]) +
+  geom_abline(intercept = coef(co2Lm)[1], slope = coef(co2Lm)[2], color = bookPal[5]) +
   labs(x = "Year", y = expression(CO[2] ~ (ppm))) +
   theme_minimal()
 ```
@@ -326,8 +326,8 @@ The line fits, in the sense that it passes through the middle of the climb. But 
 #| fig-height: 3
 tibble(year = as.numeric(time(co2Decomp$trend)), trend = as.numeric(co2Decomp$trend)) |>
   ggplot(aes(year, trend)) +
-  geom_line(color = sfPal[1], na.rm = TRUE) +
-  geom_abline(intercept = coef(co2Lm)[1], slope = coef(co2Lm)[2], color = sfPal[5]) +
+  geom_line(color = bookPal[1], na.rm = TRUE) +
+  geom_abline(intercept = coef(co2Lm)[1], slope = coef(co2Lm)[2], color = bookPal[5]) +
   labs(
     x = "Year", y = expression(CO[2] ~ (ppm)),
     title = "Decomposition trend (navy) vs. linear fit (gold)"

@@ -140,9 +140,9 @@ Leap *seconds* are a different story. A body called the International Earth Rota
 length(.leap.seconds)
 ```
 
-For environmental work that rounding error is harmless. But I'm mentioning it so you are not surprised when a timestamp is off by a handful of seconds from an atomic-clock reference.
+For environmental work that rounding error is harmless. But I'm mentioning it so you are not surprised when a timestamp is off by a handful of seconds from an atomic-clock reference (like from a GPS if you dig deep into the settings!).
 
-It's not rounding error with a model calendar though. Many climate models do not run on the Gregorian calendar at all. A common choice is the "no-leap" or 365-day calendar, where February 29 never exists in any year, and another is the 360-day calendar, where every month has thirty days so a year is a tidy 360. These are deliberate simplifications that make the model's bookkeeping easier. The danger is that the time axis of such a file is usually written as something like "days since 2000-01-01," and if you feed that through R's `Date`, R counts in actual Gregorian days and your dates drift further off with every passing model year. Nothing errors. The numbers are just wrong.
+It's not rounding error with a model calendar though. Many climate models do not run on the Gregorian calendar at all. A common choice is the "no-leap" or 365-day calendar, where February 29 never exists in any year, and another is the 360-day calendar, where every month has thirty days so a year is a tidy 360. These are deliberate simplifications that make the model's bookkeeping easier. The danger is that the time axis of such a file is usually written as something like "days since 2000-01-01," and if you feed that through R's `Date`, R counts in actual Gregorian days and your dates drift further off with every passing model year. That drift has driven me bonkers on more than one occasion.
 
 The fix is to use a tool that understands the model's calendar. The `PCICt` package handles 360-day and 365-day calendars directly, and if you are reading netCDF output the `CFtime` and `ncdf4` packages decode the calendar from the file's metadata for you.
 

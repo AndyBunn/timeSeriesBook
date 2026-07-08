@@ -12,7 +12,7 @@ A forecast has two halves. The first half is the prediction: if a series leans o
 
 ## Packages
 
-We stay with tsibble. `forecast` gives us the AR fitting and prediction tools and a tidy autoplot, and we read example data from CSV as usual.
+We stay with `tsibble` [@Wang2020tsibble], `tidyverse` [@R-tidyverse] for wrangling, and `PNWColors` [@R-PNWColors] for the figure colors. `forecast` [@R-forecast] gives us the AR fitting and prediction tools and a tidy autoplot, and we read example data from CSV as usual.
 
 ```{r}
 #| label: fc-packages
@@ -22,7 +22,7 @@ library(tsibble)
 library(forecast)
 library(PNWColors)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Forecasting an AR(1) by Hand
@@ -120,8 +120,8 @@ ggplot() +
   geom_line(data = observedDf, aes(time, y)) +
   geom_ribbon(data = forecastDf,
     aes(time, ymin = yhat - sd, ymax = yhat + sd),
-    fill = sfPal[1], alpha = 0.3) +
-  geom_line(data = forecastDf, aes(time, yhat), color = sfPal[1]) +
+    fill = bookPal[1], alpha = 0.3) +
+  geom_line(data = forecastDf, aes(time, yhat), color = bookPal[1]) +
   labs(x = "Time", y = expression(y[t]),
     title = "AR(1) forecast") +
   theme_minimal()
@@ -153,12 +153,12 @@ ggplot() +
   geom_line(data = observedDf, aes(time, y)) +
   geom_ribbon(data = forecastDf,
     aes(time, ymin = yhat - sd, ymax = yhat + sd),
-    fill = sfPal[1], alpha = 0.3) +
-  geom_line(data = forecastDf, aes(time, yhat), color = sfPal[1]) +
+    fill = bookPal[1], alpha = 0.3) +
+  geom_line(data = forecastDf, aes(time, yhat), color = bookPal[1]) +
   geom_ribbon(data = backwardDf,
     aes(time, ymin = yhat - sd, ymax = yhat + sd),
-    fill = sfPal[5], alpha = 0.3) +
-  geom_line(data = backwardDf, aes(time, yhat), color = sfPal[5]) +
+    fill = bookPal[5], alpha = 0.3) +
+  geom_line(data = backwardDf, aes(time, yhat), color = bookPal[5]) +
   labs(x = "Time", y = expression(y[t]),
     title = "Same model, projected both directions") +
   theme_minimal()
@@ -218,8 +218,8 @@ observedTb <- tibble(
 ggplot() +
   geom_line(data = observedTb, aes(year, y)) +
   geom_ribbon(data = forecastTb, aes(year, ymin = lower, ymax = upper),
-    fill = sfPal[1], alpha = 0.4) +
-  geom_line(data = forecastTb, aes(year, yhat), color = sfPal[1]) +
+    fill = bookPal[1], alpha = 0.4) +
+  geom_line(data = forecastTb, aes(year, yhat), color = bookPal[1]) +
   labs(x = "Year", y = "Sunspots (n)") +
   coord_cartesian(xlim = c(1950, 2030)) +
   theme_minimal()
@@ -285,7 +285,7 @@ testTb <- tibble(year = time(recTest) |> as.numeric(),
 arTb <- tibble(year = testTb$year, yhat = as.numeric(arFc$pred))
 ggplot() +
   geom_line(data = testTb, aes(year, rec)) +
-  geom_line(data = arTb, aes(year, yhat), color = sfPal[1]) +
+  geom_line(data = arTb, aes(year, yhat), color = bookPal[1]) +
   labs(x = "Year", y = "Recruits (thousands)",
     title = "AR forecast (navy) against the withheld decade (black)") +
   theme_minimal()
@@ -404,7 +404,7 @@ c(arRMSE = arRMSE, hwRMSE = hwRMSE, meanRMSE = meanRMSE)
 hwTb <- tibble(year = testTb$year, yhat = as.numeric(hwFc[, 1]))
 ggplot() +
   geom_line(data = testTb, aes(year, rec)) +
-  geom_line(data = hwTb, aes(year, yhat), color = sfPal[5]) +
+  geom_line(data = hwTb, aes(year, yhat), color = bookPal[5]) +
   labs(x = "Year", y = "Recruits (thousands)",
     title = "Holt-Winters forecast (gold) against the withheld years") +
   theme_minimal()

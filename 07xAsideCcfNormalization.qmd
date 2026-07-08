@@ -17,7 +17,7 @@ library(tidyverse)
 library(forecast)
 library(PNWColors)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## The Discrepancy
@@ -45,7 +45,7 @@ tibble(time = 1:n, x, y) |>
   pivot_longer(c(x, y)) |>
   ggplot(aes(time, value, color = name)) +
   geom_line() +
-  scale_color_manual(values = c(x = sfPal[1], y = sfPal[5])) +
+  scale_color_manual(values = c(x = bookPal[1], y = bookPal[5])) +
   labs(x = "Time", y = NULL, color = NULL) +
   theme_minimal()
 ```

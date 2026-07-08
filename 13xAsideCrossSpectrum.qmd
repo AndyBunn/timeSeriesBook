@@ -16,7 +16,7 @@ The cross-correlation chapter asked which of two series leads the other, and ans
 library(tidyverse)
 library(PNWColors)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## From One Series to Two
@@ -43,7 +43,7 @@ tibble(year = as.numeric(time(LynxHare)),
   pivot_longer(c(Hare, Lynx)) |>
   ggplot(aes(year, value, color = name)) +
   geom_line() +
-  scale_color_manual(values = c(Hare = sfPal[1], Lynx = sfPal[5])) +
+  scale_color_manual(values = c(Hare = bookPal[1], Lynx = bookPal[5])) +
   labs(x = "Year", y = "Pelts traded (thousands)", color = NULL) +
   theme_minimal()
 ```
@@ -65,7 +65,7 @@ cycleIdx <- which.min(abs(xspec$freq - cycleFreq))
 #| fig-height: 3
 tibble(freq = xspec$freq, coherence = xspec$coh) |>
   ggplot(aes(freq, coherence)) +
-  geom_line(color = sfPal[1]) +
+  geom_line(color = bookPal[1]) +
   geom_vline(xintercept = cycleFreq, linetype = "dashed", color = "grey40") +
   labs(x = "Frequency (cycle / year)", y = "Coherence",
     title = "Hare and lynx, coherence by frequency") +
@@ -81,7 +81,7 @@ Now look at whether the two gears are actually in step, and where.
 #| fig-height: 3
 tibble(freq = xspec$freq, phase = xspec$phase) |>
   ggplot(aes(freq, phase)) +
-  geom_line(color = sfPal[5]) +
+  geom_line(color = bookPal[5]) +
   geom_hline(yintercept = 0, color = "grey70") +
   geom_vline(xintercept = cycleFreq, linetype = "dashed", color = "grey40") +
   labs(x = "Frequency (cycle / year)", y = "Phase (radians)",

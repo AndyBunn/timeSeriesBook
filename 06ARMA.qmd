@@ -14,7 +14,7 @@ One condition rides along with all of this: ARMA describes a stationary series, 
 
 ## Packages
 
-We stay in the tsibble framework from the earlier chapters. `forecast` gives us the ggplot-ready ACF and PACF and the `Arima` fitting function, `gridExtra` lays a few plots out together, and `tseries` carries the ADF and KPSS tests we met last chapter.
+We stay in the `tsibble` [@Wang2020tsibble] framework from the earlier chapters, with `tidyverse` [@R-tidyverse] and `PNWColors` [@R-PNWColors] as usual. `forecast` [@R-forecast] gives us the ggplot-ready ACF and PACF and the `Arima` fitting function, `gridExtra` [@R-gridExtra] lays a few plots out together, and `tseries` [@R-tseries] carries the ADF and KPSS tests we met last chapter.
 
 ```{r}
 #| label: arma-packages
@@ -26,7 +26,7 @@ library(gridExtra)
 library(tseries)
 library(PNWColors)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## The Moving Average Model
@@ -339,7 +339,7 @@ tibble(year = as.numeric(time(LynxHare)),
   pivot_longer(c(Hare, Lynx)) |>
   ggplot(aes(year, value, color = name)) +
   geom_line() +
-  scale_color_manual(values = c(Hare = sfPal[1], Lynx = sfPal[5])) +
+  scale_color_manual(values = c(Hare = bookPal[1], Lynx = bookPal[5])) +
   labs(x = "Year", y = "Pelts traded (thousands)", color = NULL) +
   theme_minimal()
 ```

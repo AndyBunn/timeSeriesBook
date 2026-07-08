@@ -16,7 +16,7 @@ It takes a minute to get used to. A time-domain plot and a frequency-domain plot
 
 ## Packages
 
-We'll use base R's own `spectrum()` function here, so nothing about a Fourier transform happens out of view. `tidyverse` does the wrangling and plotting, `PNWColors` supplies the figure colors, and `cowplot` stacks a time-domain plot on top of its frequency-domain twin. 
+We'll use base R's own `spectrum()` function here, so nothing about a Fourier transform happens out of view. `tidyverse` [@R-tidyverse] does the wrangling and plotting, `PNWColors` [@R-PNWColors] supplies the figure colors, and `cowplot` [@R-cowplot] stacks a time-domain plot on top of its frequency-domain twin.
 
 ```{r}
 #| label: freq-packages
@@ -25,7 +25,7 @@ library(tidyverse)
 library(PNWColors)
 library(cowplot)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Same Data, Two Domains
@@ -53,7 +53,7 @@ twoDomainSignal <- sin(2 * pi * tm / 50) + 0.5 * sin(2 * pi * tm / 200) + rnorm(
 twoDomainDat <- tibble(time = tm, signal = twoDomainSignal)
 
 pTime <- ggplot(twoDomainDat, aes(time, signal)) +
-  geom_line(color = sfPal[1]) +
+  geom_line(color = bookPal[1]) +
   labs(title = "Time Domain", x = "Time", y = "Signal") +
   theme_minimal()
 
@@ -61,7 +61,7 @@ twoDomainSpec <- spectrum(twoDomainSignal, plot = FALSE)
 twoDomainSpecDat <- tibble(freq = twoDomainSpec$freq, spec = twoDomainSpec$spec)
 
 pFreq <- ggplot(twoDomainSpecDat, aes(freq, spec)) +
-  geom_line(color = sfPal[5]) +
+  geom_line(color = bookPal[5]) +
   labs(title = "Frequency Domain", x = "Frequency (1 / time unit)", y = "Spectral Density") +
   theme_minimal()
 
@@ -93,7 +93,7 @@ Here's the first one, a sine wave with a period of 250 (a frequency of 1/250 = 0
 waveDat <- tibble(tm = 1:1000, wav250 = 0.3 * sin(2 * pi / 250 * tm))
 
 ggplot(waveDat, aes(tm, wav250)) +
-  geom_line(color = sfPal[1]) +
+  geom_line(color = bookPal[1]) +
   labs(x = "Time", y = "Signal",
     title = "Period 250, frequency = 0.004", subtitle = "Amplitude = 0.3") +
   theme_minimal()
@@ -112,7 +112,7 @@ waveDat <- waveDat |>
 ```{r}
 #| label: freq-wave-50-plot
 ggplot(waveDat, aes(tm, wav50)) +
-  geom_line(color = sfPal[2]) +
+  geom_line(color = bookPal[2]) +
   labs(x = "Time", y = "Signal",
     title = "Period 50, frequency = 0.02", subtitle = "Amplitude = 0.75") +
   theme_minimal()
@@ -121,7 +121,7 @@ ggplot(waveDat, aes(tm, wav50)) +
 ```{r}
 #| label: freq-wave-10-plot
 ggplot(waveDat, aes(tm, wav10)) +
-  geom_line(color = sfPal[3]) +
+  geom_line(color = bookPal[3]) +
   labs(x = "Time", y = "Signal",
     title = "Period 10, frequency = 0.1", subtitle = "Amplitude = 1") +
   theme_minimal()
@@ -130,7 +130,7 @@ ggplot(waveDat, aes(tm, wav10)) +
 ```{r}
 #| label: freq-wave-5-plot
 ggplot(waveDat, aes(tm, wav5)) +
-  geom_line(color = sfPal[4]) +
+  geom_line(color = bookPal[4]) +
   labs(x = "Time", y = "Signal",
     title = "Period 5, frequency = 0.2", subtitle = "Amplitude = 0.5") +
   theme_minimal()
@@ -143,7 +143,7 @@ Sum all four and the individual waves blur into something that already looks a l
 waveDat <- waveDat |> mutate(allWave = wav250 + wav50 + wav10 + wav5)
 
 ggplot(waveDat, aes(tm, allWave)) +
-  geom_line(color = sfPal[5]) +
+  geom_line(color = bookPal[5]) +
   labs(x = "Time", y = "Signal", title = "Four frequencies combined") +
   theme_minimal()
 ```
@@ -155,7 +155,7 @@ Add some noise and this looks a lot like something you'd actually meet in the fi
 waveDat <- waveDat |> mutate(allWaveNoisy = allWave + rnorm(1000))
 
 ggplot(waveDat, aes(tm, allWaveNoisy)) +
-  geom_line(color = sfPal[5]) +
+  geom_line(color = bookPal[5]) +
   labs(x = "Time", y = "Signal", title = "Four frequencies plus noise") +
   theme_minimal()
 ```
@@ -165,7 +165,7 @@ Zoom in on a hundred-point stretch and the mix is even harder to read by eye.
 ```{r}
 #| label: freq-wave-noisy-zoom
 ggplot(waveDat, aes(tm, allWaveNoisy)) +
-  geom_line(color = sfPal[5]) +
+  geom_line(color = bookPal[5]) +
   labs(x = "Time", y = "Signal", title = "Four frequencies plus noise") +
   lims(x = c(500, 600)) +
   theme_minimal()
@@ -184,7 +184,7 @@ knownFreqs <- tibble(period = c(5, 10, 50, 250)) |> mutate(freq = 1 / period)
 ggplot(waveSpecDat, aes(freq, spec)) +
   geom_line(color = "grey40") +
   geom_vline(data = knownFreqs, aes(xintercept = freq),
-    linetype = "dashed", color = sfPal[5]) +
+    linetype = "dashed", color = bookPal[5]) +
   labs(x = "Frequency", y = "Spectral density",
     title = "The periodogram recovers all four planted cycles",
     subtitle = "Dashed lines mark the frequencies we built in: periods 5, 10, 50, 250") +
@@ -265,7 +265,7 @@ tibble(n = factor(rep(c("100", "1000"), each = 500), levels = c("100", "1000")),
   value = c(ordinates100, ordinates1000)) |>
   ggplot(aes(value, fill = n)) +
   geom_histogram(position = "identity", alpha = 0.6, bins = 30) +
-  scale_fill_manual(values = c(`100` = sfPal[1], `1000` = sfPal[5])) +
+  scale_fill_manual(values = c(`100` = bookPal[1], `1000` = bookPal[5])) +
   labs(x = "Periodogram value at frequency 0.1", y = "Count", fill = "n",
     title = "Ten times the data, the same amount of noise") +
   theme_minimal()
@@ -324,7 +324,7 @@ filterRespDat <- bind_rows(
 ggplot(filterRespDat, aes(freq, response, color = filter)) +
   geom_line(linewidth = 0.8) +
   geom_vline(xintercept = 1 / boxWidth, linetype = "dashed", color = "grey40") +
-  scale_color_manual(values = c("100-point moving average" = sfPal[1], "100-point Hanning" = sfPal[5])) +
+  scale_color_manual(values = c("100-point moving average" = bookPal[1], "100-point Hanning" = bookPal[5])) +
   labs(x = "Frequency", y = "Fraction of amplitude that survives", color = NULL,
     title = "The same 100-point width, two very different filters",
     subtitle = "Dashed line: the period-100 cycle from the filters chapter") +
@@ -345,7 +345,7 @@ tides <- read_csv("data/cherry_point_tides.csv")
 tides |>
   filter(DateTime < as.POSIXct("2023-01-16", tz = "UTC")) |>
   ggplot(aes(DateTime, water_level_m)) +
-  geom_line(color = sfPal[1]) +
+  geom_line(color = bookPal[1]) +
   labs(x = "Date", y = "Water level (m, MLLW)", title = "Two weeks of Cherry Point tides") +
   theme_minimal()
 ```
@@ -375,7 +375,7 @@ ggplot(tideSpecDat, aes(freq, spec)) +
     linetype = "dashed", linewidth = 0.7) +
   geom_text(data = tidalConstituents, aes(x = freq, y = labelY, label = label, color = label, hjust = labelH),
     fontface = "bold", show.legend = FALSE) +
-  scale_color_manual(values = setNames(sfPal[c(1, 2, 4, 5)], tidalConstituents$label), guide = "none") +
+  scale_color_manual(values = setNames(bookPal[c(1, 2, 4, 5)], tidalConstituents$label), guide = "none") +
   scale_y_continuous(expand = expansion(mult = c(0.02, 0.18))) +
   scale_x_continuous(name = "Frequency (cycles / hour)",
     sec.axis = sec_axis(~., breaks = 1 / periodBreaksHr, labels = periodBreaksHr,
@@ -454,7 +454,7 @@ sunspotMonthlySpec <- spectrum(sunspot.month, span = 5, plot = FALSE)
 sunspotMonthlyDat <- tibble(freq = sunspotMonthlySpec$freq, spec = sunspotMonthlySpec$spec)
 
 ggplot(sunspotMonthlyDat, aes(freq, spec)) +
-  geom_line(color = sfPal[1]) +
+  geom_line(color = bookPal[1]) +
   labs(x = "Frequency (cycle / yr)", y = "Spectral density") +
   theme_minimal()
 ```

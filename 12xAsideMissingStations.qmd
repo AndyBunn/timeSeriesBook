@@ -14,13 +14,15 @@ A short gap in something that barely changes from one reading to the next (an ho
 
 ## Packages
 
+We stay with `tidyverse` [@R-tidyverse] for wrangling and plotting and `PNWColors` [@R-PNWColors] for the figure colors.
+
 ```{r}
 #| label: gap-packages
 #| message: false
 library(tidyverse)
 library(PNWColors)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## A Station Three Miles Away
@@ -43,8 +45,8 @@ full_join(kbli, donor, by = "DATE") |>
   ggplot(aes(DATE, tavg, color = series)) +
   geom_line() +
   scale_color_manual(values = c(
-    "Bellingham Airport (kbli)" = sfPal[1],
-    "Bellingham 3 SSW (donor)" = sfPal[5]
+    "Bellingham Airport (kbli)" = bookPal[1],
+    "Bellingham 3 SSW (donor)" = bookPal[5]
   )) +
   labs(
     x = NULL, y = expression(degree * C), color = NULL,
@@ -66,7 +68,7 @@ nrow(overlap)
 
 ggplot(overlap, aes(donorTavg, TAVG)) +
   geom_point(color = "grey40", alpha = 0.6) +
-  geom_smooth(method = "lm", se = FALSE, color = sfPal[5]) +
+  geom_smooth(method = "lm", se = FALSE, color = bookPal[5]) +
   labs(
     x = expression("Bellingham 3 SSW monthly " * degree * C),
     y = expression("Bellingham Airport monthly " * degree * C),
@@ -145,7 +147,7 @@ kbliComplete |>
   ggplot(aes(DATE, TAVG, color = source)) +
   geom_line(aes(group = 1), color = "grey70") +
   geom_point(size = 1) +
-  scale_color_manual(values = c(measured = "grey30", filled = sfPal[5])) +
+  scale_color_manual(values = c(measured = "grey30", filled = bookPal[5])) +
   labs(
     x = NULL, y = expression(degree * C), color = NULL,
     title = "27 months filled from the donor"

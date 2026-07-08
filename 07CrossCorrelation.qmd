@@ -14,7 +14,7 @@ The same warning from before applies. Two series that happen to share a trend, o
 
 ## Packages
 
-We stay in the tsibble framework and read example data from CSV. `forecast` gives us `Ccf`, we lean on base R's `ar` and `filter` for the prewhitening at the end, and `PNWColors` supplies the book's palette for the figures.
+We stay in the `tsibble` [@Wang2020tsibble] framework, with `tidyverse` [@R-tidyverse] for wrangling, and read example data from CSV. `forecast` [@R-forecast] gives us `Ccf`, we lean on base R's `ar` and `filter` for the prewhitening at the end, and `PNWColors` [@R-PNWColors] supplies the book's palette for the figures.
 
 ```{r}
 #| label: ccf-packages
@@ -24,7 +24,7 @@ library(tsibble)
 library(forecast)
 library(PNWColors)
 
-sfPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
+bookPal <- pnw_palette("Sunset2", n = 5, type = "discrete")
 ```
 
 ## Lagging a Series
@@ -65,7 +65,7 @@ tibble(time = 1:n, x, y) |>
   ggplot(aes(time, value, color = name)) +
   geom_line() +
   geom_point(alpha = 0.3, size = 2) +
-  scale_color_manual(values = c(x = sfPal[1], y = sfPal[5])) +
+  scale_color_manual(values = c(x = bookPal[1], y = bookPal[5])) +
   labs(x = "Time", y = NULL, color = NULL) +
   theme_minimal()
 ```
@@ -121,7 +121,7 @@ planktonData |>
   pivot_longer(c(producers, grazers)) |>
   ggplot(aes(month, value, color = name)) +
   geom_line() +
-  scale_color_manual(values = c(producers = sfPal[1], grazers = sfPal[5])) +
+  scale_color_manual(values = c(producers = bookPal[1], grazers = bookPal[5])) +
   labs(x = "Year", y = "Standardized index", color = NULL) +
   theme_minimal()
 ```
@@ -161,7 +161,7 @@ tibble(time = 1:200, randomWalk1, randomWalk2) |>
   pivot_longer(c(randomWalk1, randomWalk2)) |>
   ggplot(aes(time, value, color = name)) +
   geom_line() +
-  scale_color_manual(values = c(randomWalk1 = sfPal[1], randomWalk2 = sfPal[5])) +
+  scale_color_manual(values = c(randomWalk1 = bookPal[1], randomWalk2 = bookPal[5])) +
   labs(x = "Time", y = NULL, color = NULL) +
   theme_minimal()
 ```
