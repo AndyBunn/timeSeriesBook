@@ -1,5 +1,5 @@
 Package: timeSeriesBook
-Title: Time Series Analysis for Environmental Science
+Title: Time Series Analysis for Environmental Data
 Version: 0.1.0
 Authors@R:
     person("Andy", "Bunn", role = c("aut", "cre"),

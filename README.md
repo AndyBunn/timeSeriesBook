@@ -1,6 +1,6 @@
-# Time Series Analysis for Environmental Data: An R-based Introduction
+# Time Series Analysis for Environmental Data
 
-*Course Notes*
+*An R-Based Introduction*
 
 **Read it here: [timeseries.andybunn.org](https://timeseries.andybunn.org/)**
 
@@ -41,9 +41,7 @@ Found an error or have a suggestion? Open an issue, or use the "Edit this page" 
 
 ## License
 
-The book is dual-licensed:
+The book is dual-licensed (see [LICENSE.md](LICENSE.md)):
 
 - **Prose and figures** under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). Share and adapt for noncommercial use, keep derivatives open under the same terms, and give credit.
 - **Code** under the [MIT License](https://opensource.org/licenses/MIT). Use it however you like.
-
-*(`LICENSE.md` with the full text is coming as part of publication prep.)*

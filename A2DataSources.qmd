@@ -480,3 +480,11 @@ This is a closed historical record from a specific stock assessment vintage, not
 ## The Rest of the Data
 
 Every other dataset the book uses lives in the same `data/` folder, and you can download the whole bundle as a single `data.zip` from the book's website. Each dataset is credited where it first appears, with a pointer back here when there is a way to refresh it yourself. As more chapters move over to this style, their sources will be documented in this appendix too.
+
+## Image Credits
+
+The one piece of third-party artwork in the book, Allison Horst's autocorrelation illustration in the [Autocorrelation](04Autocorrelation.qmd) chapter, is reused under a Creative Commons license, with attribution as required. A machine-readable log of this credit, suitable for a publisher's permissions desk, lives in `permissions.csv` at the repository root.
+
+| Image | Author | License | Source |
+|---|---|---|---|
+| Autocorrelation function illustration | Allison Horst | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [allisonhorst.com](https://allisonhorst.com/time-series-acf) |

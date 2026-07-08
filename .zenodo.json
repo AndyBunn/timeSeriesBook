@@ -1,0 +1,25 @@
+{
+  "title": "Time Series Analysis for Environmental Data: An R-Based Introduction",
+  "description": "An applied, R-based introduction to time series analysis for environmental scientists and ecologists. It covers autocorrelation and stationarity, ARMA models, cross-correlation, regression with autocorrelated errors, trend detection, forecasting and reconstruction, and frequency-domain methods including wavelets, with an emphasis on building intuition and getting things done in R rather than mathematical derivation. The book originated as graduate course notes at Western Washington University.",
+  "upload_type": "publication",
+  "publication_type": "book",
+  "access_right": "open",
+  "license": "CC-BY-NC-SA-4.0",
+  "creators": [
+    {
+      "name": "Bunn, Andrew G.",
+      "affiliation": "Western Washington University",
+      "orcid": "0000-0001-9027-2162"
+    }
+  ],
+  "keywords": [
+    "time series analysis",
+    "autocorrelation",
+    "ARMA",
+    "stationarity",
+    "forecasting",
+    "R",
+    "environmental science",
+    "ecology"
+  ]
+}
