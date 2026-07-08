@@ -16,7 +16,7 @@ authors:
     orcid: "https://orcid.org/0000-0001-9027-2162"
 url: "https://timeseries.andybunn.org/"
 repository-code: "https://github.com/AndyBunn/timeSeriesBook"
-# doi: pending — add the Zenodo concept DOI once the repo is connected and a release is tagged
+doi: "10.5281/zenodo.21252436"
 license: CC-BY-NC-SA-4.0
 keywords:
   - time series analysis
@@ -28,3 +28,4 @@ keywords:
   - environmental science
   - ecology
 version: "0.1.0"
+date-released: "2026-07-07"

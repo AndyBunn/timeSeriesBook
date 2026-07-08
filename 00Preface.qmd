@@ -16,9 +16,9 @@ A few things this book is not. It is not a comprehensive treatment of stochastic
 
 The book is free to read online and openly licensed. The text and figures are released under a [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 license](https://creativecommons.org/licenses/by-nc-sa/4.0/), and the code under the [MIT License](https://opensource.org/licenses/MIT). You are welcome to share it, teach from it, and adapt it for noncommercial use, as long as you keep it open and give credit.
 
-If you'd like to cite the book, it will have a DOI once it's connected to Zenodo (not yet minted, so treat the citation below as a placeholder). A citation will look something like:
+If you'd like to cite the book, it has a DOI: [10.5281/zenodo.21252436](https://doi.org/10.5281/zenodo.21252436). That link always points to the latest version. A citation looks like:
 
-> Bunn, A. G. (2026). *Time Series Analysis for Environmental Data: An R-Based Introduction*. \[DOI TBD\]
+> Bunn, A. G. (2026). *Time Series Analysis for Environmental Data: An R-Based Introduction*. <https://doi.org/10.5281/zenodo.21252436>
 
 *Andy Bunn*\
 *Bellingham, Washington*

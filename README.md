@@ -4,9 +4,7 @@
 
 **Read it here: [timeseries.andybunn.org](https://timeseries.andybunn.org/)**
 
-<!-- Zenodo DOI badge goes here once the concept DOI is minted (Phase E):
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
--->
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21252436.svg)](https://doi.org/10.5281/zenodo.21252436)
 
 This started as weekly handouts for ESCI 504, a graduate course in time series analysis at Western Washington University, and grew into a short book. It's free to read online and openly licensed.
 
