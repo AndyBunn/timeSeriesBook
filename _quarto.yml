@@ -7,6 +7,7 @@ project:
 book:
   title: "Time Series Analysis for Environmental Data"
   subtitle: "An R-Based Introduction"
+  favicon: assets/favicon.svg
   author: "Andy Bunn"
   date: today
   description: "Time series notes and exercises"

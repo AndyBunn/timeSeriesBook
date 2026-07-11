@@ -83,7 +83,7 @@ Go read Allison Horst's piece on the autocorrelation function^[<https://allisonh
 #| echo: false
 #| out-width: '100%'
 #| fig-cap: "Artwork by Allison Horst, CC-BY 4.0."
-knitr::include_graphics("assets/host_acf.jpg", error = FALSE)
+knitr::include_graphics("assets/horst_acf.jpg", error = FALSE)
 ```
 
 ### The less fun version
